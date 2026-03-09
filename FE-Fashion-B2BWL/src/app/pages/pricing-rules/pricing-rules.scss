@@ -1,0 +1,35 @@
+@use '../product-list/product-list' as *;
+
+.form-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.form-container {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 800px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.json-section {
+  background: var(--tui-base-02);
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 12px;
+  h4 { margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+}
+
+.json-textarea {
+  font-family: monospace;
+  background: var(--tui-base-01) !important;
+  min-height: 80px;
+}

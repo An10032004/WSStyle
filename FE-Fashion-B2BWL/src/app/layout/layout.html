@@ -1,0 +1,108 @@
+<div class="app-container">
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <button
+        appearance="flat-grayscale"
+        iconStart="@tui.menu"
+        size="m"
+        tuiIconButton
+        type="button"
+        class="menu-toggle"
+        (click)="sidebarExpanded = !sidebarExpanded"
+      ></button>
+
+      <a class="brand-logo" routerLink="/">
+        <div class="brand-icon">
+          <tui-icon icon="@tui.store" />
+        </div>
+        <span class="brand-name">Fashion B2BWL</span>
+      </a>
+    </div>
+
+    <div class="header-right">
+      <app-language-switcher></app-language-switcher>
+      <button
+        appearance="flat-grayscale"
+        iconStart="@tui.bell"
+        size="m"
+        tuiIconButton
+        type="button"
+        class="action-btn"
+      ></button>
+      <button
+        appearance="flat-grayscale"
+        iconStart="@tui.settings"
+        size="m"
+        tuiIconButton
+        type="button"
+        class="action-btn"
+      ></button>
+      <div class="user-profile">
+        <tui-avatar appearance="primary" size="s" text="Admin" />
+        <span class="user-name">Administrator</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar" [class.collapsed]="!sidebarExpanded">
+      <nav class="nav-menu">
+        <a 
+          class="nav-link" 
+          routerLink="/categories" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.folder-open" class="nav-icon" />
+          <span class="nav-text">{{ 'MENU.CATEGORIES' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/products" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.package" class="nav-icon" />
+          <span class="nav-text">{{ 'MENU.MAIN_PRODUCTS' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/product-variants" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.layers" class="nav-icon" />
+          <span class="nav-text">{{ 'MENU.VARIANTS' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/rule-engine" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.settings-2" class="nav-icon" />
+          <span class="nav-text">{{ 'MENU.RULE_ENGINE' | transloco }}</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a class="nav-link help-link" routerLink="/">
+          <tui-icon icon="@tui.circle-help" class="nav-icon" />
+          <span class="nav-text">{{ 'MENU.HELP' | transloco }}</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="app-main">
+      <div class="main-container">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+</div>

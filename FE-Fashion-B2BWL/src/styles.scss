@@ -1,0 +1,39 @@
+/* Global Styles — Taiga UI styles are loaded via angular.json */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Manrope", sans-serif;
+}
+
+/* Fix for Taiga UI legacy select floating label padding pushing text down */
+tui-select[data-size="m"] .t-input,
+tui-select[data-size="m"] tui-primitive-textfield,
+tui-primitive-textfield[data-size="m"] .t-input,
+tui-select .t-input {
+  padding-block-start: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Custom Typography settings as requested: Label=16px, Content=14px */
+label[tuiLabel],
+.form-field {
+  font-size: 16px !important;
+  line-height: 24px !important;
+  font-weight:500 !important;
+  color: #333333 !important;
+  letter-spacing: 0.15px !important;
+}
+
+tui-primitive-textfield .t-input,
+tui-select .t-content,
+tui-select .t-value,
+input[tuiTextfield] {
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight:500 !important;
+  color: #333333 !important;
+  letter-spacing: 0.1px !important;
+}

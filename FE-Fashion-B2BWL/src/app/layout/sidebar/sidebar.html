@@ -1,0 +1,55 @@
+<aside [tuiNavigationAside]="expanded">
+  <header>
+    <button
+      tuiAsideItem
+      (click)="toggle()"
+    >
+      <tui-icon [icon]="expanded ? '@tui.panel-left-close' : '@tui.panel-left-open'" />
+    </button>
+  </header>
+
+  <a
+    tuiAsideItem
+    routerLink="/categories"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.folder-open" />
+    Danh mục
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/products"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.package" />
+    Sản phẩm
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/product-variants"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.layers" />
+    Biến thể
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/rule-engine"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.settings-2" />
+    Lõi quy tắc
+  </a>
+
+  <hr />
+
+  <footer>
+    <a tuiAsideItem routerLink="/">
+      <tui-icon icon="@tui.circle-help" />
+      Trợ giúp
+    </a>
+  </footer>
+</aside>

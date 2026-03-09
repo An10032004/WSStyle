@@ -1,0 +1,152 @@
+<div class="page-container">
+  <div class="page-header">
+    <h3 style="display: flex; align-items: center; gap: 8px">
+      <tui-icon icon="@tui.layers"></tui-icon> {{ 'VARIANT.TITLE' | transloco }}
+    </h3>
+    <button tuiButton appearance="primary" size="s" iconStart="@tui.plus" (click)="onAdd()">
+      {{ 'VARIANT.ADD' | transloco }}
+    </button>
+  </div>
+
+  @if (showForm) {
+    <div class="form-panel">
+      <h4 style="display: flex; align-items: center; gap: 8px">
+        <tui-icon [icon]="editingId ? '@tui.pencil' : '@tui.plus'"></tui-icon>
+        {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('VARIANT.ADD' | transloco) }}
+        {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('VARIANT.ADD' | transloco) }}
+      </h4>
+      <div class="form-grid">
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.SKU' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.sku" placeholder="VD: SP001-RED-M" />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.PRODUCT' | transloco }} *
+          <tui-select
+            [(ngModel)]="formData.productId"
+            [valueContent]="productContent"
+            tuiTextfieldSize="m"
+          >
+            <tui-data-list *tuiDataList>
+              <button *ngFor="let p of products" tuiOption [value]="p.id">
+                {{ p.name }} ({{ p.productCode }})
+              </button>
+            </tui-data-list>
+          </tui-select>
+          <ng-template #productContent let-id>
+            {{ getProductDisplay(id) }}
+          </ng-template>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.STOCK' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.stockQuantity" placeholder="0" maxlength="13" />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.PRICE_ADJ' | transloco }} (VNĐ)
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.priceAdjustment" placeholder="0" maxlength="13" />
+            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+          </tui-textfield>
+        </label>
+
+        <div class="form-field full-width">
+          <label tuiLabel>
+            {{ 'VARIANT.ATTRIBUTES' | transloco }} (JSON)
+          <tui-textfield>
+            <textarea
+              tuiTextfield
+              [(ngModel)]="formData.attributes"
+              rows="3"
+              class="json-textarea"
+            ></textarea>
+          </tui-textfield>
+          </label>
+        </div>
+
+        <label tuiLabel class="form-field full-width">
+          {{ 'VARIANT.IMAGE_URL' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://..." />
+          </tui-textfield>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSave()">{{ 'GLOBAL.SAVE' | transloco }}</button>
+        <button tuiButton type="button" appearance="outline" size="m" (click)="onCancel()">{{ 'GLOBAL.CANCEL' | transloco }}</button>
+      </div>
+    </div>
+  }
+
+  @if (showDetails && selectedVariant) {
+    <div class="form-panel">
+      <h4 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'PRODUCT.VIEW' | transloco }} {{ 'VARIANT.SKU' | transloco }}: {{ selectedVariant.sku }}</h4>
+      <div class="form-grid" style="margin-bottom: 20px;">
+         <p><strong>ID:&nbsp;</strong> {{ selectedVariant.id }}</p>
+         <p><strong>{{ 'VARIANT.SKU' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.sku }}</span></p>
+         <p><strong>{{ 'VARIANT.PRODUCT' | transloco }}:&nbsp;</strong> {{ getProductDisplay(selectedVariant.productId ?? null) }}</p>
+         <p><strong>{{ 'VARIANT.STOCK' | transloco }}:&nbsp;</strong> {{ selectedVariant.stockQuantity | number }}</p>
+         <p><strong>{{ 'VARIANT.PRICE_ADJ' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedVariant.priceAdjustment | number }} VND</span></p>
+         <p><strong>{{ 'VARIANT.IMAGE_URL' | transloco }}:&nbsp;</strong> <a [href]="selectedVariant.imageUrl" target="_blank">{{ selectedVariant.imageUrl || ('CATEGORY.ROOT' | transloco) }}</a></p>
+         <div class="form-field full-width">
+            <strong>{{ 'VARIANT.ATTRIBUTES' | transloco }}:</strong>
+            <pre style="background: var(--tui-base-02); padding: 12px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin-top: 8px;">{{ selectedVariant.attributes || ('CATEGORY.ROOT' | transloco) }}</pre>
+         </div>
+      </div>
+      <div class="form-actions">
+        <button tuiButton type="button" appearance="outline" size="m" (click)="onCloseDetails()">{{ 'GLOBAL.CLOSE' | transloco }}</button>
+      </div>
+    </div>
+  }
+
+  @if (!showForm && !showDetails) {
+    <div class="grid-wrapper">
+      <ag-grid-angular
+        *ngIf="gridVisible"
+        [theme]="theme"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [rowSelection]="{ mode: 'singleRow' }"
+        [animateRows]="true"
+        [pagination]="true"
+        [paginationPageSize]="20"
+        [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+        [localeText]="localeText"
+        domLayout="autoHeight"
+        (gridReady)="onGridReady($event)"
+      />
+    </div>
+  }
+</div>
+
+<ng-template #deleteDialog let-observer>
+  <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
+    <div style="width: 48px; height: 48px; border-radius: 50%; background: #fdf5ea; color: #d97706; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <tui-icon icon="@tui.triangle-alert" style="font-size: 24px;"></tui-icon>
+    </div>
+    <div style="flex: 1;">
+      <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: var(--tui-text-primary);">
+        {{ 'VARIANT.CONFIRM_DELETE_TITLE' | transloco }}
+      </h3>
+      <p style="margin: 0 0 24px 0; font-size: 14px; color: var(--tui-text-secondary);">
+        {{ 'VARIANT.CONFIRM_DELETE_MSG' | transloco }} <b style="color: var(--tui-text-primary);">{{ deleteTargetName }}</b>?
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+         <button tuiButton type="button" appearance="outline" size="m" 
+                 style="color: #007367; border-color: #007367;" 
+                 (click)="observer.complete()">
+            {{ 'GLOBAL.CANCEL' | transloco }}
+         </button>
+         <button tuiButton type="button" appearance="primary" size="m" 
+                 style="background: #007367; color: white;" 
+                 (click)="observer.next(true); observer.complete()">
+            {{ 'GLOBAL.CONFIRM' | transloco }}
+         </button>
+      </div>
+    </div>
+  </div>
+</ng-template>

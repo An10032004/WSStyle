@@ -1,0 +1,145 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2 class="page-title">
+        <tui-icon icon="@tui.package" class="title-icon" />
+        {{ 'PRODUCT.TITLE' | transloco }}
+    </h2>
+    <button tuiButton type="button" size="m" (click)="onAdd()" [iconStart]="'@tui.plus'">
+        {{ 'PRODUCT.ADD' | transloco }}
+    </button>
+  </div>
+
+  @if (showForm) {
+    <div class="form-panel">
+      <h4 style="display: flex; align-items: center; gap: 8px">
+        <tui-icon [icon]="editingId ? '@tui.pencil' : '@tui.plus'"></tui-icon>
+        {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('PRODUCT.ADD' | transloco) }}
+      </h4>
+      <div class="form-grid">
+        <label tuiLabel class="form-field full-width">
+          {{ 'PRODUCT.NAME' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.name" [placeholder]="'PRODUCT.NAME' | transloco" />
+          </tui-textfield>
+        </label>
+        
+        <label tuiLabel class="form-field">
+          {{ 'PRODUCT.CODE' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.productCode" placeholder="VD: SP001" />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'PRODUCT.PRICE' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.basePrice" placeholder="0" maxlength="13" />
+            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'PRODUCT.CATEGORY' | transloco }} *
+          <tui-select
+            [(ngModel)]="formData.categoryId"
+            [valueContent]="categoryContent"
+            tuiTextfieldSize="m"
+          >
+            <tui-data-list *tuiDataList>
+              <button *ngFor="let cat of categories" tuiOption [value]="cat.id">
+                {{ cat.name }}
+              </button>
+            </tui-data-list>
+          </tui-select>
+          <ng-template #categoryContent let-id>
+            {{ getCategoryName(id) }}
+          </ng-template>
+        </label>
+
+        <div class="form-field full-width">
+          <label tuiLabel>
+            {{ 'PRODUCT.SPECIFICATIONS' | transloco }} (JSON)
+          <tui-textfield>
+            <textarea
+              tuiTextfield
+              [(ngModel)]="formData.specifications"
+              rows="3"
+              class="json-textarea"
+            ></textarea>
+          </tui-textfield>
+          </label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSave()">{{ 'GLOBAL.SAVE' | transloco }}</button>
+        <button tuiButton type="button" appearance="outline" size="m" (click)="onCancel()">{{ 'GLOBAL.CANCEL' | transloco }}</button>
+      </div>
+    </div>
+  }
+
+  @if (showDetails && selectedProduct) {
+    <div class="form-panel">
+      <h4 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'PRODUCT.VIEW' | transloco }} {{ 'PRODUCT.TITLE' | transloco }}: {{ selectedProduct.name }}</h4>
+      <div class="form-grid" style="margin-bottom: 20px;">
+         <p><strong>ID:&nbsp;</strong> {{ selectedProduct.id }}</p>
+         <p><strong>{{ 'PRODUCT.CODE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedProduct.productCode }}</span></p>
+         <p><strong>{{ 'PRODUCT.NAME' | transloco }}:&nbsp;</strong> {{ selectedProduct.name }}</p>
+         <p><strong>{{ 'PRODUCT.PRICE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedProduct.basePrice | number }} VND</span></p>
+         <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
+         <div class="form-field full-width">
+            <strong>{{ 'PRODUCT.SPECIFICATIONS' | transloco }} JSON:</strong>
+            <pre style="background: var(--tui-base-02); padding: 12px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin-top: 8px;">{{ selectedProduct.specifications || ('CATEGORY.ROOT' | transloco) }}</pre>
+         </div>
+      </div>
+      <div class="form-actions">
+        <button tuiButton type="button" appearance="outline" size="m" (click)="onCloseDetails()">{{ 'GLOBAL.CLOSE' | transloco }}</button>
+      </div>
+    </div>
+  }
+
+  @if (!showForm && !showDetails) {
+    <div class="grid-wrapper">
+      <ag-grid-angular
+        *ngIf="gridVisible"
+        [theme]="theme"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [rowSelection]="{ mode: 'singleRow' }"
+        [animateRows]="true"
+        [pagination]="true"
+        [paginationPageSize]="20"
+        [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+        [localeText]="localeText"
+        domLayout="autoHeight"
+        (gridReady)="onGridReady($event)"
+      />
+    </div>
+  }
+</div>
+
+<ng-template #deleteDialog let-observer>
+  <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
+    <div style="width: 48px; height: 48px; border-radius: 50%; background: #fdf5ea; color: #d97706; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <tui-icon icon="@tui.triangle-alert" style="font-size: 24px;"></tui-icon>
+    </div>
+    <div style="flex: 1;">
+      <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: var(--tui-text-primary);">
+        {{ 'PRODUCT.CONFIRM_DELETE_TITLE' | transloco }}
+      </h3>
+      <p style="margin: 0 0 24px 0; font-size: 14px; color: var(--tui-text-secondary);">
+        {{ 'PRODUCT.CONFIRM_DELETE_MSG' | transloco }} <b style="color: var(--tui-text-primary);">{{ deleteTargetName }}</b>?
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+         <button tuiButton type="button" appearance="outline" size="m" 
+                 style="color: #007367; border-color: #007367;" 
+                 (click)="observer.complete()">
+            {{ 'GLOBAL.CANCEL' | transloco }}
+         </button>
+         <button tuiButton type="button" appearance="primary" size="m" 
+                 style="background: #007367; color: white;" 
+                 (click)="observer.next(true); observer.complete()">
+            {{ 'GLOBAL.CONFIRM' | transloco }}
+         </button>
+      </div>
+    </div>
+  </div>
+</ng-template>

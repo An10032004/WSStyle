@@ -1,0 +1,109 @@
+{
+  "GLOBAL": {
+    "SAVE": "Save",
+    "CANCEL": "Cancel",
+    "CLOSE": "Close",
+    "CONFIRM": "Confirm",
+    "CURRENCY_SUFFIX": "VND",
+    "RECORD_DELETED": "Record deleted successfully",
+    "UPDATE_SUCCESS": "Updated successfully",
+    "CREATE_SUCCESS": "Created successfully",
+    "DAYS": "days"
+  },
+  "MENU": {
+    "CATEGORIES": "Category Management",
+    "MAIN_PRODUCTS": "Main Products",
+    "VARIANTS": "Variant Management",
+    "RULE_ENGINE": "Rule Engine",
+    "HELP": "Help & Support"
+  },
+  "HEADER": {
+    "LANGUAGE": "Language",
+    "SELECT_LANGUAGE": "Select Language",
+    "VIETNAMESE": "Tiếng Việt",
+    "ENGLISH": "English"
+  },
+  "PRODUCT": {
+    "TITLE": "Product Management",
+    "TRANSLATION_MODE": "Translation Mode",
+    "ADD": "Add Product",
+    "CODE": "Code",
+    "NAME": "Product Name",
+    "PRICE": "Base Price (VND)",
+    "CATEGORY": "Category",
+    "ACTIONS": "Actions",
+    "VIEW": "View",
+    "EDIT": "Edit",
+    "DELETE": "Delete",
+    "SPECIFICATIONS": "Specifications",
+    "CONFIRM_DELETE_TITLE": "Product record exists",
+    "CONFIRM_DELETE_MSG": "Are you sure you want to delete the information system of"
+  },
+  "CATEGORY": {
+    "TITLE": "Category Management",
+    "ADD": "Add Category",
+    "NAME": "Category Name",
+    "PARENT_ID": "Parent ID",
+    "ROOT": "Root (none)",
+    "CONFIRM_DELETE_TITLE": "Category record exists",
+    "CONFIRM_DELETE_MSG": "Are you sure you want to delete the information system of"
+  },
+  "VARIANT": {
+    "TITLE": "Product Variant Management",
+    "ADD": "Add Variant",
+    "SKU": "SKU",
+    "PRODUCT": "Product",
+    "STOCK": "Stock",
+    "PRICE_ADJ": "Price Adjustment",
+    "IMAGE_URL": "Image URL",
+    "ATTRIBUTES": "Attributes (JSON)",
+    "CONFIRM_DELETE_TITLE": "Variant record exists",
+    "CONFIRM_DELETE_MSG": "Are you sure you want to delete the information system of SKU: "
+  },
+  "COMMON": {
+     "ACTIONS": "Actions",
+     "ADD": "Add New",
+     "EDIT": "Edit",
+     "SAVE": "Save",
+     "CANCEL": "Cancel",
+     "VIEW": "View",
+     "DELETE": "Delete",
+     "CLOSE": "Close"
+  },
+  "RULE": {
+    "PRICING_TITLE": "Pricing & Discounts Management",
+    "PRICING": "Pricing & Discounts",
+    "ORDER_LIMITS": "MOQ/MOV Limits",
+    "SHIPPING": "Shipping Fees",
+    "NET_TERMS": "B2B Net Terms",
+    "NAME": "Rule Name",
+    "PRIORITY": "Priority",
+    "STATUS": "Status",
+    "TYPE": "Rule Type",
+    "APPLY_TYPE": "Apply Type",
+    "LEVEL": "Level",
+    "VALUE": "Value",
+    "APPLY_CONDITION": "Apply Condition (JSON)",
+    "BASE_ON": "Base On",
+    "RATE_RANGES": "Rate Ranges (JSON)",
+    "NET_TERM_DAYS": "Net Term (Days)"
+  },
+  "ENUMS": {
+    "ACTIVE": "✅ Active",
+    "INACTIVE": "❌ Inactive",
+    "B2B_PRICE": "B2B Pricing",
+    "QUANTITY_BREAK": "Quantity Break",
+    "ALL": "All",
+    "GROUP": "Group",
+    "SPECIFIC": "Specific",
+    "CATEGORY": "Category",
+    "QUANTITY_RANGE": "Quantity Range",
+    "AMOUNT_RANGE": "Amount Range",
+    "PER_ORDER": "Per Order",
+    "PER_PRODUCT": "Per Product",
+    "MIN_ORDER_AMOUNT": "Min Order Amount",
+    "MAX_ORDER_AMOUNT": "Max Order Amount",
+    "MIN_ORDER_QUANTITY": "Min Order Quantity",
+    "OVER_MONTHLY_SPEND": "Over Monthly Spend"
+  }
+}

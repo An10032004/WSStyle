@@ -1,0 +1,109 @@
+{
+  "GLOBAL": {
+    "SAVE": "Lưu",
+    "CANCEL": "Hủy",
+    "CLOSE": "Đóng",
+    "CONFIRM": "Xác nhận",
+    "CURRENCY_SUFFIX": "VNĐ",
+    "RECORD_DELETED": "Đã xóa bản ghi thành công",
+    "UPDATE_SUCCESS": "Cập nhật thành công",
+    "CREATE_SUCCESS": "Thêm mới thành công",
+    "DAYS": "ngày"
+  },
+  "MENU": {
+    "CATEGORIES": "Quản lý danh mục",
+    "MAIN_PRODUCTS": "Sản phẩm chính",
+    "VARIANTS": "Quản lý biến thể",
+    "RULE_ENGINE": "Lõi quy tắc",
+    "HELP": "Trợ giúp & Hỗ trợ"
+  },
+  "HEADER": {
+    "LANGUAGE": "Ngôn ngữ",
+    "SELECT_LANGUAGE": "Chọn ngôn ngữ",
+    "VIETNAMESE": "Tiếng Việt",
+    "ENGLISH": "English"
+  },
+  "PRODUCT": {
+    "TITLE": "Quản lý sản phẩm",
+    "TRANSLATION_MODE": "Chế độ dịch thuật",
+    "ADD": "Thêm sản phẩm",
+    "CODE": "Mã SP",
+    "NAME": "Tên sản phẩm",
+    "PRICE": "Giá gốc (VNĐ)",
+    "CATEGORY": "Danh mục",
+    "ACTIONS": "Thao tác",
+    "VIEW": "Xem",
+    "EDIT": "Sửa",
+    "DELETE": "Xóa",
+    "SPECIFICATIONS": "Thông số kỹ thuật",
+    "CONFIRM_DELETE_TITLE": "Đã tồn tại bản ghi Sản phẩm",
+    "CONFIRM_DELETE_MSG": "Bạn có chắc chắn muốn xóa hệ thống thông tin của"
+  },
+  "CATEGORY": {
+    "TITLE": "Quản lý danh mục",
+    "ADD": "Thêm danh mục",
+    "NAME": "Tên danh mục",
+    "PARENT_ID": "Mã danh mục cha",
+    "ROOT": "Root (không có)",
+    "CONFIRM_DELETE_TITLE": "Đã tồn tại bản ghi Danh mục",
+    "CONFIRM_DELETE_MSG": "Bạn có chắc chắn muốn xóa hệ thống thông tin của"
+  },
+  "VARIANT": {
+    "TITLE": "Quản lý biến thể sản phẩm",
+    "ADD": "Thêm biến thể",
+    "SKU": "SKU",
+    "PRODUCT": "Sản phẩm",
+    "STOCK": "Tồn kho",
+    "PRICE_ADJ": "Giá điều chỉnh",
+    "IMAGE_URL": "URL ảnh",
+    "ATTRIBUTES": "Thuộc tính (JSON)",
+    "CONFIRM_DELETE_TITLE": "Đã tồn tại bản ghi Biến thể",
+    "CONFIRM_DELETE_MSG": "Bạn có chắc chắn muốn xóa hệ thống thông tin của SKU: "
+  },
+  "COMMON": {
+     "ACTIONS": "Thao tác",
+     "ADD": "Thêm mới",
+     "EDIT": "Sửa",
+     "SAVE": "Lưu",
+     "CANCEL": "Hủy",
+     "VIEW": "Xem",
+     "DELETE": "Xóa",
+     "CLOSE": "Đóng"
+  },
+  "RULE": {
+    "PRICING_TITLE": "Quản lý Bảng giá & Chiết khấu",
+    "PRICING": "Bảng giá & Chiết khấu",
+    "ORDER_LIMITS": "Giới hạn MOQ/MOV",
+    "SHIPPING": "Phí vận chuyển",
+    "NET_TERMS": "Công nợ B2B",
+    "NAME": "Tên quy tắc",
+    "PRIORITY": "Ưu tiên",
+    "STATUS": "Trạng thái",
+    "TYPE": "Loại quy tắc",
+    "APPLY_TYPE": "Loại áp dụng",
+    "LEVEL": "Cấp độ",
+    "VALUE": "Giá trị",
+    "APPLY_CONDITION": "Điều kiện áp dụng (JSON)",
+    "BASE_ON": "Tính dựa trên",
+    "RATE_RANGES": "Khoảng phí (JSON)",
+    "NET_TERM_DAYS": "Số ngày nợ (Days)"
+  },
+  "ENUMS": {
+    "ACTIVE": "✅ Đang hoạt động",
+    "INACTIVE": "❌ Ngừng hoạt động",
+    "B2B_PRICE": "Bảng giá B2B",
+    "QUANTITY_BREAK": "Giảm giá số lượng",
+    "ALL": "Tất cả",
+    "GROUP": "Nhóm khách hàng",
+    "SPECIFIC": "Khách hàng cụ thể",
+    "CATEGORY": "Danh mục",
+    "QUANTITY_RANGE": "Theo số lượng",
+    "AMOUNT_RANGE": "Theo số tiền",
+    "PER_ORDER": "Trên đơn hàng",
+    "PER_PRODUCT": "Trên sản phẩm",
+    "MIN_ORDER_AMOUNT": "Giá trị đơn hàng tối thiểu",
+    "MAX_ORDER_AMOUNT": "Giá trị đơn hàng tối đa",
+    "MIN_ORDER_QUANTITY": "Số lượng đơn hàng tối thiểu",
+    "OVER_MONTHLY_SPEND": "Vượt mức chi tiêu tháng"
+  }
+}

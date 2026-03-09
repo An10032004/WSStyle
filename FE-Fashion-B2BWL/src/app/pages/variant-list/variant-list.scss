@@ -1,0 +1,27 @@
+@use '../category-list/category-list' as *;
+
+.grid-wrapper {
+  background: #fff;
+  // border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+
+  ::ng-deep ag-grid-angular {
+    width: 100%;
+  }
+}
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+}
+
+.json-textarea {
+  min-height: 100px !important;
+  padding: 12px !important;
+  line-height: 1.5 !important;
+  font-family: "Courier New", Courier, monospace;
+  background: var(--tui-base-01);
+}

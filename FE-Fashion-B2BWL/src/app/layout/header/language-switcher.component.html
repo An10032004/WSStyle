@@ -1,0 +1,43 @@
+<tui-badged-content>
+    <img
+        alt=""
+        size="s"
+        tuiBadge
+        tuiSlot="bottom"
+        [src]="flags.get(language.value ?? '') | tuiFlag"
+    />
+
+    <button
+        appearance="flat-grayscale"
+        size="s"
+        tuiButton
+        type="button"
+        [iconStart]="'@tui.languages'"
+        [tuiDropdown]="languageMenu"
+        [tuiDropdownManual]="openLanguageDropdown"
+        (click)="openLanguageDropdown = !openLanguageDropdown"
+    >
+        {{ 'HEADER.LANGUAGE' | transloco }}
+    </button>
+</tui-badged-content>
+
+<ng-template #languageMenu>
+    <tui-data-list>
+        <tui-opt-group label="Chọn ngôn ngữ">
+            <button
+                *ngFor="let name of names"
+                tuiOption
+                type="button"
+                [value]="name"
+                (click)="setLang(name)"
+            >
+                <img
+                    alt=""
+                    class="t-flag"
+                    [src]="flags.get(name) | tuiFlag"
+                />
+                {{ name === 'vi' ? ('HEADER.VIETNAMESE' | transloco) : ('HEADER.ENGLISH' | transloco) }}
+            </button>
+        </tui-opt-group>
+    </tui-data-list>
+</ng-template>
