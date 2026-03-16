@@ -1,0 +1,164 @@
+<div class="page-container">
+  <div class="header-section" style="padding: 16px">
+    <h2 class="title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
+    <button tuiButton type="button" size="m" (click)="onAdd()">
+      <tui-icon icon="@tui.plus"></tui-icon>
+      {{ 'COMMON.ADD' | transloco }}
+    </button>
+  </div>
+
+  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
+    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
+    
+    <div class="form-grid">
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.EMAIL' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield [(ngModel)]="formData.email" />
+        </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.PASSWORD' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield type="password" [(ngModel)]="formData.password" [placeholder]="editingId ? 'Để trống nếu không đổi' : ''" />
+        </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.NAME' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield [(ngModel)]="formData.fullName" />
+        </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.PHONE' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield [(ngModel)]="formData.phone" />
+        </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.ROLE' | transloco }}
+        <tui-select [(ngModel)]="formData.role">
+          <tui-data-list-wrapper *tuiDataList [items]="roleOptions"></tui-data-list-wrapper>
+        </tui-select>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.GROUP' | transloco }}
+        <tui-select [(ngModel)]="formData.customerGroupId">
+          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="content"></tui-data-list-wrapper>
+          <ng-template #content let-item>{{ item.name }}</ng-template>
+        </tui-select>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.STATUS' | transloco }}
+        <tui-select [(ngModel)]="formData.registrationStatus">
+          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
+        </tui-select>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.COMPANY' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield [(ngModel)]="formData.companyName" />
+        </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field">
+        {{ 'MEMBER.TAX_CODE' | transloco }}
+        <tui-textfield>
+          <input tuiTextfield [(ngModel)]="formData.taxCode" />
+        </tui-textfield>
+      </label>
+    </div>
+
+    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
+      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
+      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
+    </div>
+  </div>
+
+  <div *ngIf="!showForm" class="grid-wrapper">
+    <ag-grid-angular
+      class="ag-theme-alpine"
+      [rowData]="rowData"
+      [columnDefs]="columnDefs"
+      [pagination]="true"
+      [paginationPageSize]="10"
+      [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+      domLayout="autoHeight"
+      [localeText]="localeText"
+      (gridReady)="onGridReady($event)"
+      [animateRows]="true"
+    ></ag-grid-angular>
+  </div>
+</div>
+
+<ng-template #deleteDialog let-observer>
+  <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
+    <tui-icon icon="@tui.triangle-alert" style="font-size: 24px; color: #d97706;"></tui-icon>
+    <div>
+      <h3 style="margin: 0 0 8px;">Xác nhận xóa</h3>
+      <p style="margin: 0; color: #666;">Bạn có chắc chắn muốn xóa người dùng <strong>{{ deleteTargetName }}</strong> này không?</p>
+    </div>
+  </div>
+  <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+    <button tuiButton size="m" appearance="outline" (click)="observer.next(false); observer.complete()">Hủy</button>
+    <button tuiButton size="m" appearance="accent" (click)="observer.next(true); observer.complete()">Xác nhận xóa</button>
+  </div>
+</ng-template>
+
+<ng-template #viewDialog let-observer>
+  <div class="view-detail" *ngIf="selectedUser">
+    <div class="detail-row">
+      <span class="label">ID:</span>
+      <span class="value">{{ selectedUser.id }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.EMAIL' | transloco }}:</span>
+      <span class="value">{{ selectedUser.email }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.NAME' | transloco }}:</span>
+      <span class="value">{{ selectedUser.fullName }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>
+      <span class="value">{{ selectedUser.phone }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
+      <span class="value">{{ 'ENUMS.' + selectedUser.role | transloco }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
+      <span class="value">{{ selectedUser.customerGroup?.name || 'None' }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.STATUS' | transloco }}:</span>
+      <span class="value">{{ selectedUser.registrationStatus }}</span>
+    </div>
+    <div class="detail-row" *ngIf="selectedUser.companyName">
+      <span class="label">{{ 'MEMBER.COMPANY' | transloco }}:</span>
+      <span class="value">{{ selectedUser.companyName }}</span>
+    </div>
+    <div class="detail-row" *ngIf="selectedUser.taxCode">
+      <span class="label">{{ 'MEMBER.TAX_CODE' | transloco }}:</span>
+      <span class="value">{{ selectedUser.taxCode }}</span>
+    </div>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+    <button tuiButton size="m" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
+  </div>
+</ng-template>
+
+<style>
+  .view-detail { padding: 4px; }
+  .detail-row { display: flex; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+  .detail-row .label { font-weight: 600; width: 200px; color: #666; }
+  .detail-row .value { color: #333; }
+</style>

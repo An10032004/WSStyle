@@ -14,7 +14,7 @@
     [routerLinkActiveOptions]="{ exact: false }"
   >
     <tui-icon icon="@tui.folder-open" />
-    Danh mục
+    {{ 'SIDEBAR.CATEGORIES' | transloco }}
   </a>
 
   <a
@@ -23,7 +23,7 @@
     [routerLinkActiveOptions]="{ exact: false }"
   >
     <tui-icon icon="@tui.package" />
-    Sản phẩm
+    {{ 'SIDEBAR.PRODUCTS' | transloco }}
   </a>
 
   <a
@@ -32,7 +32,7 @@
     [routerLinkActiveOptions]="{ exact: false }"
   >
     <tui-icon icon="@tui.layers" />
-    Biến thể
+    {{ 'SIDEBAR.VARIANTS' | transloco }}
   </a>
 
   <a
@@ -41,7 +41,43 @@
     [routerLinkActiveOptions]="{ exact: false }"
   >
     <tui-icon icon="@tui.settings-2" />
-    Lõi quy tắc
+    {{ 'SIDEBAR.RULE_ENGINE' | transloco }}
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/users"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.users" />
+    {{ 'MEMBER.USERS_TITLE' | transloco }}
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/customer-groups"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.users-round" />
+    {{ 'MEMBER.GROUPS_TITLE' | transloco }}
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/orders"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.shopping-cart" />
+    {{ 'SIDEBAR.ORDERS' | transloco }}
+  </a>
+
+  <a
+    tuiAsideItem
+    routerLink="/registration-forms"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.file-text" />
+    {{ 'MEMBER.FORMS_TITLE' | transloco }}
   </a>
 
   <hr />

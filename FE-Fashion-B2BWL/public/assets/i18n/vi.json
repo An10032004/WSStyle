@@ -17,6 +17,16 @@
     "RULE_ENGINE": "Lõi quy tắc",
     "HELP": "Trợ giúp & Hỗ trợ"
   },
+  "SIDEBAR": {
+    "CATEGORIES": "Danh mục",
+    "PRODUCTS": "Sản phẩm",
+    "VARIANTS": "Biến thể",
+    "RULE_ENGINE": "Lõi quy tắc",
+    "ORDERS": "Đơn hàng & Thanh toán",
+    "PLANS": "Gói cước SaaS",
+    "SHOPS": "Quản lý Cửa hàng",
+    "HELP": "Trợ giúp"
+  },
   "HEADER": {
     "LANGUAGE": "Ngôn ngữ",
     "SELECT_LANGUAGE": "Chọn ngôn ngữ",
@@ -86,7 +96,35 @@
     "APPLY_CONDITION": "Điều kiện áp dụng (JSON)",
     "BASE_ON": "Tính dựa trên",
     "RATE_RANGES": "Khoảng phí (JSON)",
-    "NET_TERM_DAYS": "Số ngày nợ (Days)"
+    "NET_TERM_DAYS": "Số ngày nợ (Days)",
+    "TAX_DISPLAY_TITLE": "Quản lý Hiển thị Thuế",
+    "TAX_DISPLAY": "Hiển thị Thuế",
+    "HIDE_PRICE_TITLE": "Ẩn Giá / Nút mua",
+    "HIDE_PRICE": "Ẩn Giá",
+    "TAX_TYPE": "Loại Thuế",
+    "DISPLAY_TYPE": "Kiểu Hiển thị",
+    "HIDE_ADD_TO_CART": "Ẩn nút mua",
+    "REPLACEMENT_TEXT": "Văn bản thay thế"
+  },
+  "MEMBER": {
+    "GROUPS_TITLE": "Nhóm khách hàng",
+    "GROUP_NAME": "Tên nhóm",
+    "DISCOUNT_RATE": "Tỷ lệ chiết khấu mặc định",
+    "USERS_TITLE": "Tài khoản người dùng",
+    "FORMS_TITLE": "Hồ sơ đăng ký đại lý",
+    "FORM_DATA": "Câu trả lời khảo sát (JSON)",
+    "EMAIL": "Địa chỉ Email",
+    "NAME": "Họ và tên",
+    "ROLE": "Vai trò tài khoản",
+    "GROUP": "Nhóm chỉ định",
+    "STATUS": "Trạng thái đăng ký",
+    "COMPANY": "Tên công ty",
+    "TAX_CODE": "Mã số thuế",
+    "PASSWORD": "Mật khẩu",
+    "PHONE": "Số điện thoại",
+    "GROUP_DETAIL": "Chi tiết nhóm khách hàng",
+    "USER_DETAIL": "Chi tiết tài khoản người dùng",
+    "FORM_DETAIL": "Chi tiết hồ sơ đăng ký"
   },
   "ENUMS": {
     "ACTIVE": "✅ Đang hoạt động",
@@ -104,6 +142,38 @@
     "MIN_ORDER_AMOUNT": "Giá trị đơn hàng tối thiểu",
     "MAX_ORDER_AMOUNT": "Giá trị đơn hàng tối đa",
     "MIN_ORDER_QUANTITY": "Số lượng đơn hàng tối thiểu",
-    "OVER_MONTHLY_SPEND": "Vượt mức chi tiêu tháng"
+    "OVER_MONTHLY_SPEND": "Vượt mức chi tiêu tháng",
+    "RETAIL": "Khách lẻ (Retail)",
+    "WHOLESALE": "Khách sỉ (B2B)",
+    "GUEST": "Khách vãng lai",
+    "PENDING": "⌛ Chờ duyệt",
+    "APPROVED": "✅ Đã duyệt",
+    "REJECTED": "❌ Đã từ chối"
+  },
+  "ORDER": {
+    "TITLE": "Quản lý đơn hàng",
+    "ID": "Mã đơn hàng",
+    "USER": "Khách hàng",
+    "TYPE": "Loại đơn",
+    "STATUS": "Trạng thái đơn",
+    "PAYMENT_METHOD": "Phương thức",
+    "PAYMENT_STATUS": "Trạng thái thanh toán",
+    "TOTAL": "Tổng tiền",
+    "PAID": "Đã thanh toán",
+    "DEBT": "Còn nợ",
+    "DATE": "Ngày tạo",
+    "ITEMS": "Sản phẩm",
+    "TRANSACTIONS": "Lịch sử giao dịch"
+  },
+  "SAAS": {
+    "PLANS_TITLE": "Quản lý Gói cước SaaS",
+    "SHOPS_TITLE": "Quản lý Cửa hàng khách thuê",
+    "PLAN_NAME": "Tên gói cước",
+    "MONTHLY_PRICE": "Giá hàng tháng",
+    "YEARLY_PRICE": "Giá hàng năm",
+    "FEATURES_JSON": "Tính năng (JSON)",
+    "MONTH": "tháng",
+    "YEAR": "năm",
+    "NO_PLANS": "Chưa có gói cước nào được tạo."
   }
 }

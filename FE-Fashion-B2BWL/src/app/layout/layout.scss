@@ -163,6 +163,12 @@
     }
   }
 
+  .nav-separator {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 12px 16px;
+  }
+
   .sidebar-footer {
     padding: 1rem;
     border-top: 1px solid var(--tui-border-normal);

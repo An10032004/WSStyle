@@ -1,4 +1,5 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { ICellRendererAngularComp } from 'ag-grid-angular';
 import { ICellRendererParams } from 'ag-grid-community';
 import { TuiButton } from '@taiga-ui/core';
@@ -7,12 +8,12 @@ import { TranslocoModule } from '@jsverse/transloco';
 @Component({
   selector: 'app-action-renderer',
   standalone: true,
-  imports: [TuiButton, TranslocoModule],
+  imports: [CommonModule, TuiButton, TranslocoModule],
   template: `
     <div style="display:flex; gap:8px; align-items:center; height:100%;">
-      <button tuiButton appearance="secondary" size="s" iconStart="@tui.eye" (click)="onView()">{{ 'PRODUCT.VIEW' | transloco }}</button>
-      <button tuiButton appearance="secondary" size="s" iconStart="@tui.pencil" (click)="onEdit()">{{ 'PRODUCT.EDIT' | transloco }}</button>
-      <button tuiButton appearance="accent" size="s" iconStart="@tui.trash-2" (click)="onDelete()">{{ 'PRODUCT.DELETE' | transloco }}</button>
+      <button *ngIf="params?.onView" tuiButton appearance="secondary" size="s" iconStart="@tui.eye" (click)="onView()">{{ 'PRODUCT.VIEW' | transloco }}</button>
+      <button *ngIf="params?.onEdit" tuiButton appearance="secondary" size="s" iconStart="@tui.pencil" (click)="onEdit()">{{ 'PRODUCT.EDIT' | transloco }}</button>
+      <button *ngIf="params?.onDelete" tuiButton appearance="accent" size="s" iconStart="@tui.trash-2" (click)="onDelete()">{{ 'PRODUCT.DELETE' | transloco }}</button>
     </div>
   `,
   styles: [`

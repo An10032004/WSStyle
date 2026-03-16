@@ -107,6 +107,125 @@ export interface NetTermRule {
   netTermDays: number;
 }
 
+export interface TaxDisplayRule {
+  id: number;
+  name: string;
+  status: string;
+  taxDisplayType: string;
+  displayType: string;
+  designConfig?: string;
+  applyCustomerType?: string;
+  applyCustomerValue?: string;
+  applyProductType?: string;
+  applyProductValue?: string;
+}
+
+export interface HidePriceRule {
+  id: number;
+  name: string;
+  priority: number;
+  status: string;
+  hidePrice: boolean;
+  hideAddToCart: boolean;
+  replacementText?: string;
+  applyCustomerType?: string;
+  applyCustomerValue?: string;
+  applyProductType?: string;
+  applyProductValue?: string;
+}
+
+export interface CustomerGroup {
+  id: number;
+  name: string;
+  defaultDiscountRate?: number;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  fullName?: string;
+  phone?: string;
+  role: string;
+  customerGroup?: CustomerGroup;
+  tags?: string;
+  registrationStatus?: string;
+  companyName?: string;
+  taxCode?: string;
+}
+
+export interface B2BRegistrationForm {
+  id: number;
+  user: User;
+  formData: any;
+}
+
+export interface Order {
+  id: number;
+  user: User;
+  orderType: string;
+  status: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  totalAmount: number;
+  shippingFee: number;
+  taxAmount: number;
+  paidAmount: number;
+  debtAmount: number;
+  dueDate: string;
+  createdAt: string;
+  items?: OrderItem[];
+}
+
+export interface OrderItem {
+  id: number;
+  orderId: number;
+  variantId: number;
+  productVariant?: any;
+  quantity: number;
+  unitPrice: number;
+  appliedRuleId?: number;
+}
+
+export interface PaymentTransaction {
+  id: number;
+  orderId: number;
+  provider: string;
+  transactionReference: string;
+  providerTransactionNo: string;
+  amount: number;
+  bankCode: string;
+  responseCode: string;
+  status: string;
+  payDate: string;
+}
+
+export interface SubscriptionPlan {
+  id: number;
+  name: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  features: string; // JSON
+  status: string;
+}
+
+export interface Shop {
+  id: number;
+  domain: string;
+  plan?: SubscriptionPlan;
+  ownerEmail: string;
+  shopName: string;
+  status: string;
+}
+
+export interface AIProductSync {
+  id: number;
+  product: Product;
+  content: string;
+  vectorId: string;
+  lastSyncedAt: string;
+  shopId: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private base = '/api';
@@ -233,5 +352,124 @@ export class ApiService {
   }
   deleteNetTermRule(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/net-term-rules/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── Tax Display Rules ──────────────────────────────────
+  getTaxDisplayRules(): Observable<TaxDisplayRule[]> {
+    return this.http.get<ApiResponse<TaxDisplayRule[]>>(`${this.base}/tax-display-rules`).pipe(map(r => r.data));
+  }
+  createTaxDisplayRule(body: Partial<TaxDisplayRule>): Observable<TaxDisplayRule> {
+    return this.http.post<ApiResponse<TaxDisplayRule>>(`${this.base}/tax-display-rules`, body).pipe(map(r => r.data));
+  }
+  updateTaxDisplayRule(id: number, body: Partial<TaxDisplayRule>): Observable<TaxDisplayRule> {
+    return this.http.put<ApiResponse<TaxDisplayRule>>(`${this.base}/tax-display-rules/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteTaxDisplayRule(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/tax-display-rules/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── Hide Price Rules ───────────────────────────────────
+  getHidePriceRules(): Observable<HidePriceRule[]> {
+    return this.http.get<ApiResponse<HidePriceRule[]>>(`${this.base}/hide-price-rules`).pipe(map(r => r.data));
+  }
+  createHidePriceRule(body: Partial<HidePriceRule>): Observable<HidePriceRule> {
+    return this.http.post<ApiResponse<HidePriceRule>>(`${this.base}/hide-price-rules`, body).pipe(map(r => r.data));
+  }
+  updateHidePriceRule(id: number, body: Partial<HidePriceRule>): Observable<HidePriceRule> {
+    return this.http.put<ApiResponse<HidePriceRule>>(`${this.base}/hide-price-rules/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteHidePriceRule(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/hide-price-rules/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── Customer Groups ───────────────────────────────────
+  getCustomerGroups(): Observable<CustomerGroup[]> {
+    return this.http.get<ApiResponse<CustomerGroup[]>>(`${this.base}/customer-groups`).pipe(map(r => r.data));
+  }
+  createCustomerGroup(body: Partial<CustomerGroup>): Observable<CustomerGroup> {
+    return this.http.post<ApiResponse<CustomerGroup>>(`${this.base}/customer-groups`, body).pipe(map(r => r.data));
+  }
+  updateCustomerGroup(id: number, body: Partial<CustomerGroup>): Observable<CustomerGroup> {
+    return this.http.put<ApiResponse<CustomerGroup>>(`${this.base}/customer-groups/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteCustomerGroup(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/customer-groups/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── Users ─────────────────────────────────────────────
+  getUsers(): Observable<User[]> {
+    return this.http.get<ApiResponse<User[]>>(`${this.base}/users`).pipe(map(r => r.data));
+  }
+  createUser(body: any): Observable<User> {
+    return this.http.post<ApiResponse<User>>(`${this.base}/users`, body).pipe(map(r => r.data));
+  }
+  updateUser(id: number, body: any): Observable<User> {
+    return this.http.put<ApiResponse<User>>(`${this.base}/users/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteUser(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/users/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── B2B Registration Forms ────────────────────────────
+  getB2BRegistrationForms(): Observable<B2BRegistrationForm[]> {
+    return this.http.get<ApiResponse<B2BRegistrationForm[]>>(`${this.base}/b2b-registration-forms`).pipe(map(r => r.data));
+  }
+
+  // ─── Orders ─────────────────────────────────────────────
+  getOrders(): Observable<Order[]> {
+    return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders`).pipe(map(r => r.data));
+  }
+
+  getOrderById(id: number): Observable<Order> {
+    return this.http.get<ApiResponse<Order>>(`${this.base}/orders/${id}`).pipe(map(r => r.data));
+  }
+
+  updateOrderStatus(id: number, status: string): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/status?status=${status}`, {}).pipe(map(r => r.data));
+  }
+
+  updatePaymentStatus(id: number, status: string): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/payment-status?paymentStatus=${status}`, {}).pipe(map(r => r.data));
+  }
+
+  // ─── Payments ───────────────────────────────────────────
+  getTransactionsByOrder(orderId: number): Observable<PaymentTransaction[]> {
+    return this.http.get<ApiResponse<PaymentTransaction[]>>(`${this.base}/payments/order/${orderId}/transactions`).pipe(map(r => r.data));
+  }
+
+  // ─── Subscription Plans (Module 0) ──────────────────────
+  getPlans(): Observable<SubscriptionPlan[]> {
+    return this.http.get<ApiResponse<SubscriptionPlan[]>>(`${this.base}/plans`).pipe(map(r => r.data));
+  }
+  createPlan(body: Partial<SubscriptionPlan>): Observable<SubscriptionPlan> {
+    return this.http.post<ApiResponse<SubscriptionPlan>>(`${this.base}/plans`, body).pipe(map(r => r.data));
+  }
+  updatePlan(id: number, body: Partial<SubscriptionPlan>): Observable<SubscriptionPlan> {
+    return this.http.put<ApiResponse<SubscriptionPlan>>(`${this.base}/plans/${id}`, body).pipe(map(r => r.data));
+  }
+
+  // ─── Shops (Module 0) ──────────────────────────────────
+  getShops(): Observable<Shop[]> {
+    return this.http.get<ApiResponse<Shop[]>>(`${this.base}/shops`).pipe(map(r => r.data));
+  }
+  createShop(body: Partial<Shop>): Observable<Shop> {
+    return this.http.post<ApiResponse<Shop>>(`${this.base}/shops`, body).pipe(map(r => r.data));
+  }
+  getShopByDomain(domain: string): Observable<Shop> {
+    return this.http.get<ApiResponse<Shop>>(`${this.base}/shops/domain?domain=${domain}`).pipe(map(r => r.data));
+  }
+  updateShop(id: number, body: Partial<Shop>): Observable<Shop> {
+    return this.http.put<ApiResponse<Shop>>(`${this.base}/shops/${id}`, body).pipe(map(r => r.data));
+  }
+  updateShopStatus(id: number, status: string): Observable<Shop> {
+    return this.http.patch<ApiResponse<Shop>>(`${this.base}/shops/${id}/status?status=${status}`, {}).pipe(map(r => r.data));
+  }
+
+  // ─── AI Sync (Module 5) ──────────────────────────────
+  getAiSyncStatus(): Observable<AIProductSync[]> {
+    return this.http.get<ApiResponse<AIProductSync[]>>(`${this.base}/ai-sync/status`).pipe(map(r => r.data));
+  }
+  syncProductAi(productId: number): Observable<AIProductSync> {
+    return this.http.post<ApiResponse<AIProductSync>>(`${this.base}/ai-sync/sync/${productId}`, {}).pipe(map(r => r.data));
   }
 }

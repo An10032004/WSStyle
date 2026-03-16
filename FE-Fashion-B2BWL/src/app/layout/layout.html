@@ -88,6 +88,80 @@
           <tui-icon icon="@tui.settings-2" class="nav-icon" />
           <span class="nav-text">{{ 'MENU.RULE_ENGINE' | transloco }}</span>
         </a>
+
+        <div class="nav-separator"></div>
+
+        <a 
+          class="nav-link" 
+          routerLink="/users" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.users" class="nav-icon" />
+          <span class="nav-text">{{ 'MEMBER.USERS_TITLE' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/customer-groups" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.users-round" class="nav-icon" />
+          <span class="nav-text">{{ 'MEMBER.GROUPS_TITLE' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/registration-forms" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.file-text" class="nav-icon" />
+          <span class="nav-text">{{ 'MEMBER.FORMS_TITLE' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/orders" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.shopping-cart" class="nav-icon" />
+          <span class="nav-text">{{ 'SIDEBAR.ORDERS' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/plans" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.credit-card" class="nav-icon" />
+          <span class="nav-text">{{ 'SIDEBAR.PLANS' | transloco }}</span>
+        </a>
+
+        <a 
+          class="nav-link" 
+          routerLink="/shops" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.store" class="nav-icon" />
+          <span class="nav-text">{{ 'SIDEBAR.SHOPS' | transloco }}</span>
+        </a>
+
+        <div class="nav-separator"></div>
+
+        <a 
+          class="nav-link" 
+          routerLink="/ai-sync" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          <tui-icon icon="@tui.bot" class="nav-icon" />
+          <span class="nav-text">Trợ lý AI (RAG)</span>
+        </a>
       </nav>
 
       <div class="sidebar-footer">

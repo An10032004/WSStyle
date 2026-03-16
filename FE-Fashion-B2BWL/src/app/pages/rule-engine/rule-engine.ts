@@ -5,6 +5,8 @@ import { PricingRulesComponent } from '../pricing-rules/pricing-rules';
 import { OrderLimitsComponent } from '../order-limits/order-limits';
 import { ShippingRulesComponent } from '../shipping-rules/shipping-rules';
 import { NetTermRulesComponent } from '../net-term-rules/net-term-rules';
+import { TaxDisplayRulesComponent } from '../tax-display-rules/tax-display-rules';
+import { HidePriceRulesComponent } from '../hide-price-rules/hide-price-rules';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -17,6 +19,8 @@ import { TranslocoModule } from '@jsverse/transloco';
     OrderLimitsComponent,
     ShippingRulesComponent,
     NetTermRulesComponent,
+    TaxDisplayRulesComponent,
+    HidePriceRulesComponent,
     TranslocoModule
   ],
   template: `
@@ -35,6 +39,12 @@ import { TranslocoModule } from '@jsverse/transloco';
           <button tuiTab>
             {{ 'RULE.NET_TERMS' | transloco }}
           </button>
+          <button tuiTab>
+            {{ 'RULE.TAX_DISPLAY' | transloco }}
+          </button>
+          <button tuiTab>
+            {{ 'RULE.HIDE_PRICE' | transloco }}
+          </button>
         </nav>
       </div>
 
@@ -43,6 +53,8 @@ import { TranslocoModule } from '@jsverse/transloco';
         <app-order-limits *ngIf="activeTab === 1"></app-order-limits>
         <app-shipping-rules *ngIf="activeTab === 2"></app-shipping-rules>
         <app-net-term-rules *ngIf="activeTab === 3"></app-net-term-rules>
+        <app-tax-display-rules *ngIf="activeTab === 4"></app-tax-display-rules>
+        <app-hide-price-rules *ngIf="activeTab === 5"></app-hide-price-rules>
       </div>
     </div>
   `,

@@ -17,6 +17,16 @@
     "RULE_ENGINE": "Rule Engine",
     "HELP": "Help & Support"
   },
+  "SIDEBAR": {
+    "CATEGORIES": "Categories",
+    "PRODUCTS": "Products",
+    "VARIANTS": "Variants",
+    "RULE_ENGINE": "Rule Engine",
+    "ORDERS": "Orders & Payments",
+    "PLANS": "SaaS Plans",
+    "SHOPS": "Shops Management",
+    "HELP": "Help"
+  },
   "HEADER": {
     "LANGUAGE": "Language",
     "SELECT_LANGUAGE": "Select Language",
@@ -86,7 +96,35 @@
     "APPLY_CONDITION": "Apply Condition (JSON)",
     "BASE_ON": "Base On",
     "RATE_RANGES": "Rate Ranges (JSON)",
-    "NET_TERM_DAYS": "Net Term (Days)"
+    "NET_TERM_DAYS": "Net Term (Days)",
+    "TAX_DISPLAY_TITLE": "Tax Display Management",
+    "TAX_DISPLAY": "Tax Display",
+    "HIDE_PRICE_TITLE": "Hide Price / Add to Cart",
+    "HIDE_PRICE": "Hide Price",
+    "TAX_TYPE": "Tax Type",
+    "DISPLAY_TYPE": "Display Type",
+    "HIDE_ADD_TO_CART": "Hide Add to Cart",
+    "REPLACEMENT_TEXT": "Replacement Text"
+  },
+  "MEMBER": {
+    "GROUPS_TITLE": "Customer Groups",
+    "GROUP_NAME": "Group Name",
+    "DISCOUNT_RATE": "Default Discount Rate",
+    "USERS_TITLE": "User Accounts",
+    "FORMS_TITLE": "B2B Registration Forms",
+    "FORM_DATA": "Survey Responses (JSON)",
+    "EMAIL": "Email Address",
+    "NAME": "Full Name",
+    "ROLE": "Account Role",
+    "GROUP": "Assigned Group",
+    "STATUS": "Registration Status",
+    "COMPANY": "Company Name",
+    "TAX_CODE": "Tax Code",
+    "PASSWORD": "Password",
+    "PHONE": "Phone Number",
+    "GROUP_DETAIL": "Customer Group Details",
+    "USER_DETAIL": "User Account Details",
+    "FORM_DETAIL": "Registration Form Detail"
   },
   "ENUMS": {
     "ACTIVE": "✅ Active",
@@ -104,6 +142,37 @@
     "MIN_ORDER_AMOUNT": "Min Order Amount",
     "MAX_ORDER_AMOUNT": "Max Order Amount",
     "MIN_ORDER_QUANTITY": "Min Order Quantity",
-    "OVER_MONTHLY_SPEND": "Over Monthly Spend"
+    "OVER_MONTHLY_SPEND": "Over Monthly Spend",
+    "RETAIL": "Retail Customer",
+    "WHOLESALE": "Wholesale / B2B",
+    "GUEST": "Guest User",
+    "PENDING": "⌛ Pending Review",
+    "APPROVED": "✅ Approved",
+    "REJECTED": "❌ Rejected"
+  },
+  "ORDER": {
+    "TITLE": "Order Management",
+    "ID": "Order ID",
+    "USER": "Customer",
+    "TYPE": "Order Type",
+    "STATUS": "Order Status",
+    "PAYMENT_METHOD": "Payment Method",
+    "PAYMENT_STATUS": "Payment Status",
+    "TOTAL": "Total Amount",
+    "PAID": "Paid Amount",
+    "DEBT": "Debt Amount",
+    "DATE": "Created Date",
+    "ITEMS": "Order Items",
+    "TRANSACTIONS": "Payment History"
+  },
+  "SAAS": {
+    "PLANS_TITLE": "SaaS Plans Management",
+    "SHOPS_TITLE": "Tenant Shops Management",
+    "PLAN_NAME": "Plan Name",
+    "MONTHLY_PRICE": "Monthly Price",
+    "YEARLY_PRICE": "Yearly Price",
+    "FEATURES_JSON": "Features (JSON)",
+    "MONTH": "month",
+    "YEAR": "year"
   }
 }
