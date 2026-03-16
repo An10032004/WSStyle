@@ -22,6 +22,9 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "shop_id")
+    private Integer shopId;
+
     // --- Quan hệ N-1 với Category ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)

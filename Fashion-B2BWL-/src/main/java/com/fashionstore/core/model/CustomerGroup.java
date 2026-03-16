@@ -2,16 +2,16 @@ package com.fashionstore.core.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
-@Table(name = "shipping_rules")
+@Table(name = "customer_groups")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ShippingRule {
-
+public class CustomerGroup {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -22,15 +22,6 @@ public class ShippingRule {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private Integer priority;
-
-    @Column(nullable = false)
-    private String status;
-
-    @Column(name = "base_on", nullable = false, length = 50)
-    private String baseOn;
-
-    @Column(name = "rate_ranges", columnDefinition = "json")
-    private String rateRanges;
+    @Column(name = "default_discount_rate", precision = 5, scale = 2)
+    private BigDecimal defaultDiscountRate;
 }

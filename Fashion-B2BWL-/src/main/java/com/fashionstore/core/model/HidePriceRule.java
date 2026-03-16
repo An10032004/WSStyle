@@ -2,16 +2,15 @@ package com.fashionstore.core.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.math.BigDecimal;
 
 @Entity
-@Table(name = "order_limits")
+@Table(name = "hide_price_rules")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderLimit {
+public class HidePriceRule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,11 +28,14 @@ public class OrderLimit {
     @Column(nullable = false)
     private String status;
 
-    @Column(name = "limit_level", nullable = false, length = 50)
-    private String limitLevel;
+    @Column(name = "hide_price")
+    private Boolean hidePrice;
 
-    @Column(name = "limit_type", nullable = false, length = 50)
-    private String limitType;
+    @Column(name = "hide_add_to_cart")
+    private Boolean hideAddToCart;
+
+    @Column(name = "replacement_text")
+    private String replacementText;
 
     @Column(name = "apply_customer_type")
     private String applyCustomerType;
@@ -41,24 +43,9 @@ public class OrderLimit {
     @Column(name = "apply_customer_value", columnDefinition = "json")
     private String applyCustomerValue;
 
-    @Column(name = "exclude_customer_option")
-    private String excludeCustomerOption;
-
-    @Column(name = "exclude_customer_value", columnDefinition = "json")
-    private String excludeCustomerValue;
-
     @Column(name = "apply_product_type")
     private String applyProductType;
 
     @Column(name = "apply_product_value", columnDefinition = "json")
     private String applyProductValue;
-
-    @Column(name = "exclude_product_option")
-    private String excludeProductOption;
-
-    @Column(name = "exclude_product_value", columnDefinition = "json")
-    private String excludeProductValue;
-
-    @Column(name = "limit_value", nullable = false, precision = 15, scale = 2)
-    private BigDecimal limitValue;
 }
