@@ -22,6 +22,11 @@ public class UserController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Users fetched successfully", userService.getAllUsers()));
     }
 
+    @GetMapping("/roles")
+    public ResponseEntity<ApiResponse<List<User>>> getUsersByRoles(@RequestParam List<String> roles) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Users fetched successfully", userService.getUsersByRoles(roles)));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Integer id) {
         return ResponseEntity.ok(new ApiResponse<>(true, "User fetched successfully", userService.getUserById(id)));

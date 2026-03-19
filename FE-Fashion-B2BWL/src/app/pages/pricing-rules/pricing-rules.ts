@@ -30,6 +30,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { QuantityBreakEditorComponent } from './quantity-break-editor';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -51,7 +52,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     TuiBadge,
     TuiTextfield,
     TranslocoModule,
-    ActionRendererComponent
+    ActionRendererComponent,
+    QuantityBreakEditorComponent
   ],
   templateUrl: './pricing-rules.html',
   styleUrls: ['./pricing-rules.scss'],

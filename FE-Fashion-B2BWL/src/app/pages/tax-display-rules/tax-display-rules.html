@@ -7,68 +7,13 @@
     </button>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
-    
-    <div class="form-grid">
-      <label tuiLabel class="form-field full-width">
-        {{ 'RULE.NAME' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.name" />
-        </tui-textfield>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.STATUS' | transloco }}
-        <tui-select [(ngModel)]="formData.status">
-          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.TAX_TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.taxDisplayType">
-          <tui-data-list-wrapper *tuiDataList [items]="taxTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.DISPLAY_TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.displayType">
-          <tui-data-list-wrapper *tuiDataList [items]="displayTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <div class="json-section full-width">
-        <h4>{{ 'RULE.APPLY_CONDITION' | transloco }}</h4>
-        <div style="display: flex; gap: 16px;">
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Customer (JSON)
-            <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
-            </tui-textfield>
-          </label>
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Product (JSON)
-            <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyProductValue" class="json-textarea"></textarea>
-            </tui-textfield>
-          </label>
-        </div>
-      </div>
-
-      <div class="json-section full-width">
-        <h4>Design Config (JSON)</h4>
-        <tui-textfield>
-          <textarea tuiTextfield [(ngModel)]="formData.designConfig" class="json-textarea"></textarea>
-        </tui-textfield>
-      </div>
-    </div>
-
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
-    </div>
+  <div class="form-panel-premium" *ngIf="showForm">
+    <app-tax-display-editor
+      [data]="$any(formData)"
+      [isEdit]="!!editingId"
+      (save)="onSubmit()"
+      (cancel)="cancel()"
+    ></app-tax-display-editor>
   </div>
 
   <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
@@ -91,17 +36,18 @@
   </div>
 
   <div *ngIf="!showForm && !showDetails" class="grid-wrapper">
-    <ag-grid-angular
-      class="ag-theme-alpine"
-      [rowData]="rowData"
-      [columnDefs]="columnDefs"
-      [pagination]="true"
-      [paginationPageSize]="10"
-      domLayout="autoHeight"
-      [localeText]="localeText"
-      (gridReady)="onGridReady($event)"
-      [animateRows]="true"
-    ></ag-grid-angular>
+      <ag-grid-angular
+        class="ag-theme-alpine"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [pagination]="true"
+        [paginationPageSize]="10"
+        [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+        domLayout="autoHeight"
+        [localeText]="localeText"
+        (gridReady)="onGridReady($event)"
+        [animateRows]="true"
+      ></ag-grid-angular>
   </div>
 </div>
 

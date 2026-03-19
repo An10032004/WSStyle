@@ -1,5 +1,7 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.dto.request.LoginRequest;
+import com.fashionstore.core.dto.request.RegisterRequest;
 import com.fashionstore.core.dto.request.UserRequest;
 import com.fashionstore.core.model.CustomerGroup;
 import com.fashionstore.core.model.User;
@@ -8,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
 
 import java.util.List;
 
@@ -21,6 +24,10 @@ public class UserService {
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public List<User> getUsersByRoles(List<String> roles) {
+        return userRepository.findByRoleIn(roles);
     }
 
     public User getUserById(Integer id) {
@@ -74,6 +81,29 @@ public class UserService {
         user.setTaxCode(request.getTaxCode());
         
         return userRepository.save(user);
+    }
+
+
+    @Transactional
+    public User register(RegisterRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists: " + request.getEmail());
+        }
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFullName())
+                .phone(request.getPhone())
+                .role("RETAIL") // Default role for storefront users
+                .registrationStatus("APPROVED")
+                .build();
+        return userRepository.save(user);
+    }
+
+    public Optional<User> authenticate(LoginRequest request) {
+        return userRepository.findByEmail(request.getEmail())
+                .filter(user -> passwordEncoder.matches(request.getPassword(), user.getPasswordHash()));
     }
 
     @Transactional

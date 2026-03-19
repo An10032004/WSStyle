@@ -7,78 +7,85 @@
     </button>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
-    
-    <div class="form-grid">
-      <label tuiLabel class="form-field full-width">
-        {{ 'RULE.NAME' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.name" />
-        </tui-textfield>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.PRIORITY' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield type="number" [(ngModel)]="formData.priority" />
-        </tui-textfield>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.STATUS' | transloco }}
-        <tui-select [(ngModel)]="formData.status">
-          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.ruleType">
-          <tui-data-list-wrapper *tuiDataList [items]="ruleTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.APPLY_TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.applyCustomerType">
-          <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <div class="json-section full-width">
-        <h4>Điều kiện áp dụng (JSON)</h4>
-        <div style="display: flex; gap: 16px;">
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Values (JSON)
+  <div *ngIf="showForm" style="margin: 0 16px 16px;">
+    <div *ngIf="formData.ruleType !== 'QUANTITY_BREAK'; else qbEditor">
+      <div class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
+        
+        <div class="form-grid">
+          <label tuiLabel class="form-field full-width">
+            {{ 'RULE.NAME' | transloco }}
             <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
+              <input tuiTextfield [(ngModel)]="formData.name" />
             </tui-textfield>
           </label>
-          <label tuiLabel class="form-field" style="flex: 1">
-            Exclude Values (JSON)
+
+          <label tuiLabel class="form-field">
+            {{ 'RULE.PRIORITY' | transloco }}
             <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.excludeCustomerValue" class="json-textarea"></textarea>
+              <input tuiTextfield type="number" [(ngModel)]="formData.priority" />
             </tui-textfield>
           </label>
+
+          <label tuiLabel class="form-field">
+            {{ 'RULE.STATUS' | transloco }}
+            <tui-select [(ngModel)]="formData.status">
+              <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <label tuiLabel class="form-field">
+            {{ 'RULE.TYPE' | transloco }}
+            <tui-select [(ngModel)]="formData.ruleType">
+              <tui-data-list-wrapper *tuiDataList [items]="ruleTypeOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <label tuiLabel class="form-field">
+            {{ 'RULE.APPLY_TYPE' | transloco }}
+            <tui-select [(ngModel)]="formData.applyCustomerType">
+              <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <div class="json-section full-width">
+            <h4>Điều kiện áp dụng (JSON)</h4>
+            <div style="display: flex; gap: 16px;">
+              <label tuiLabel class="form-field" style="flex: 1">
+                Apply Values (JSON)
+                <tui-textfield>
+                  <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
+                </tui-textfield>
+              </label>
+              <label tuiLabel class="form-field" style="flex: 1">
+                Exclude Values (JSON)
+                <tui-textfield>
+                  <textarea tuiTextfield [(ngModel)]="formData.excludeCustomerValue" class="json-textarea"></textarea>
+                </tui-textfield>
+              </label>
+            </div>
+          </div>
+
+          <div class="json-section full-width">
+            <h4>Cấu hình hành động (JSON)</h4>
+            <label tuiLabel class="form-field full-width">
+              Action Config (JSON)
+              <tui-textfield>
+                <textarea tuiTextfield [(ngModel)]="formData.actionConfig" class="json-textarea"></textarea>
+              </tui-textfield>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
+          <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
+          <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
         </div>
       </div>
-
-      <div class="json-section full-width">
-        <h4>Cấu hình hành động (JSON)</h4>
-        <label tuiLabel class="form-field full-width">
-          Action Config (JSON)
-          <tui-textfield>
-            <textarea tuiTextfield [(ngModel)]="formData.actionConfig" class="json-textarea"></textarea>
-          </tui-textfield>
-        </label>
-      </div>
     </div>
-
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
-    </div>
+    <ng-template #qbEditor>
+      <app-quantity-break-editor [rule]="formData" (save)="onSubmit()" (cancel)="cancel()"></app-quantity-break-editor>
+    </ng-template>
   </div>
 
   <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">

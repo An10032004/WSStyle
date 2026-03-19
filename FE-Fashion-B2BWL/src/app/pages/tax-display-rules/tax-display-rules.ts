@@ -30,6 +30,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { TaxDisplayEditorComponent } from './tax-display-editor';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -39,7 +40,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
+    TaxDisplayEditorComponent
   ],
   templateUrl: './tax-display-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],

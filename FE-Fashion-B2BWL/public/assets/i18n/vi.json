@@ -15,9 +15,11 @@
     "MAIN_PRODUCTS": "Sản phẩm chính",
     "VARIANTS": "Quản lý biến thể",
     "RULE_ENGINE": "Lõi quy tắc",
+    "STAFF": "Quản lý nhân viên",
     "HELP": "Trợ giúp & Hỗ trợ"
   },
   "SIDEBAR": {
+    "DASHBOARD": "Bảng điều khiển",
     "CATEGORIES": "Danh mục",
     "PRODUCTS": "Sản phẩm",
     "VARIANTS": "Biến thể",
@@ -25,6 +27,7 @@
     "ORDERS": "Đơn hàng & Thanh toán",
     "PLANS": "Gói cước SaaS",
     "SHOPS": "Quản lý Cửa hàng",
+    "STAFF": "Nhân viên & Admin",
     "HELP": "Trợ giúp"
   },
   "HEADER": {
@@ -148,7 +151,9 @@
     "GUEST": "Khách vãng lai",
     "PENDING": "⌛ Chờ duyệt",
     "APPROVED": "✅ Đã duyệt",
-    "REJECTED": "❌ Đã từ chối"
+    "REJECTED": "❌ Đã từ chối",
+    "ADMIN": "🛡️ Quản trị viên",
+    "STAFF": "🧑‍💼 Nhân viên"
   },
   "ORDER": {
     "TITLE": "Quản lý đơn hàng",
@@ -175,5 +180,66 @@
     "MONTH": "tháng",
     "YEAR": "năm",
     "NO_PLANS": "Chưa có gói cước nào được tạo."
+  },
+  "QUANTITY_BREAK": {
+    "TITLE": "Cấu hình Giảm giá theo số lượng",
+    "GENERAL_TAB": "Cài đặt chung",
+    "DISCOUNT_TAB": "Cài đặt giảm giá",
+    "TABLE_TAB": "Cài đặt bảng",
+    "PREVIEW": "Xem trước",
+    "PREVIEW_PRODUCT": "Xem trước sản phẩm",
+    "PRICING_TABLE": "Bảng giá",
+    "QUANTITY_RANGE": "Khoảng số lượng",
+    "UNIT_PRICE": "Đơn giá",
+    "DISCOUNT": "Chiết khấu",
+    "NAME": "Tên giảm giá",
+    "NAME_HINT": "Tên giảm giá chỉ hiển thị trong cài đặt ứng dụng.",
+    "MESSAGE": "Thông điệp",
+    "MESSAGE_HINT": "Khách hàng sẽ thấy nội dung này trong giỏ hàng và khi thanh toán.",
+    "DESCRIPTION": "Mô tả",
+    "DESCRIPTION_HINT": "Mô tả chỉ hiển thị cho người bán.",
+    "PRIORITY_HINT": "0 là ưu tiên cao nhất, và giá trị ưu tiên không được trùng với giá B2B.",
+    "ACTIVE_DATES": "Ngày hiệu lực",
+    "START_DATE": "Ngày bắt đầu",
+    "START_TIME": "Giờ bắt đầu",
+    "SET_END_DATE": "Đặt ngày kết thúc"
+  },
+  "ORDER_LIMIT": {
+    "TITLE": "Cấu hình Giới hạn đơn hàng",
+    "SETTINGS_TAB": "Cài đặt Giới hạn",
+    "ADVANCED_TAB": "Cài đặt Nâng cao",
+    "GENERAL_SETTINGS": "Cài đặt chung",
+    "RULE_SECTION": "Quy tắc Giới hạn đơn hàng",
+    "APPLIES_SECTION": "Áp dụng cho khách hàng",
+    "TYPE": "Loại giới hạn",
+    "MIN_VALUE": "Giá trị tối thiểu"
+  },
+  "DASHBOARD": {
+    "TITLE": "Bảng điều khiển kinh doanh",
+    "REVENUE": "Tổng doanh thu",
+    "ORDERS": "Đơn hàng mới",
+    "EXPENSES": "Tổng chi phí",
+    "VAT_NET": "Thuế VAT ròng",
+    "BEST_SELLERS": "Sản phẩm bán chạy",
+    "RECENT_EXPENSES": "Chi phí gần đây"
+  },
+  "TAX_DISPLAY": {
+    "APPLY_TO_PRODUCTS": "Áp dụng cho sản phẩm",
+    "DESIGN_SECTION": "Thiết kế hiển thị thuế",
+    "TAX_TYPE": "Loại thuế",
+    "DISPLAY_TYPE": "Kiểu hiển thị",
+    "EXCL_COLOR": "Màu chữ (Chưa thuế)",
+    "EXCL_SIZE": "Cỡ chữ (Chưa thuế)",
+    "INC_COLOR": "Màu chữ (Có thuế)",
+    "INC_SIZE": "Cỡ chữ (Có thuế)",
+    "PREVIEW": "Xem trước",
+    "TARGETING": {
+      "ALL_CUSTOMERS": "Tất cả khách hàng",
+      "LOGGED_IN": "Khách hàng đã đăng nhập",
+      "GUEST": "Khách hàng vãng lai",
+      "SPECIFIC_GROUPS": "Nhóm khách hàng cụ thể",
+      "ALL_PRODUCTS": "Tất cả sản phẩm",
+      "SPECIFIC_CATEGORIES": "Danh mục cụ thể"
+    }
   }
 }

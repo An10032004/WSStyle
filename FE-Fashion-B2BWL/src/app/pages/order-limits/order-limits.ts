@@ -29,6 +29,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { OrderLimitEditorComponent } from './order-limit-editor';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -38,7 +39,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
+    OrderLimitEditorComponent
   ],
   templateUrl: './order-limits.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],

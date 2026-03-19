@@ -31,7 +31,7 @@ public class User {
     private String phone;
 
     @Column(length = 20)
-    private String role; // RETAIL, WHOLESALE, GUEST
+    private String role; // ADMIN, STAFF, RETAIL, WHOLESALE, GUEST
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_group_id")

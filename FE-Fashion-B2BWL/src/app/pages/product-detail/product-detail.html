@@ -1,0 +1,183 @@
+<div class="product-detail-page">
+  <app-storefront-header></app-storefront-header>
+
+  <!-- MAIN PRODUCT SECTION -->
+  <div class="product-detail-container" *ngIf="product">
+    <div class="product-layout">
+      
+      <!-- LEFT: GALLERY SECTION -->
+      <div class="gallery-section">
+        <div class="thumbnails">
+          <div class="thumb-item" 
+               *ngFor="let img of images" 
+               [class.active]="activeImage === img"
+               (click)="changeImage(img)">
+            <img [src]="img" alt="thumb">
+          </div>
+        </div>
+        <div class="main-image-wrapper">
+          <div class="main-image">
+            <img [src]="activeImage" [alt]="product.name" *ngIf="activeImage">
+            <div class="no-image" *ngIf="!activeImage">No Image Available</div>
+            <div class="zoom-btn" (click)="zoomImage()"><tui-icon icon="@tui.maximize"></tui-icon></div>
+          </div>
+          <div class="nav-btns">
+            <button class="nav-prev" (click)="prevImage()"><tui-icon icon="@tui.chevron-left"></tui-icon></button>
+            <button class="nav-next" (click)="nextImage()"><tui-icon icon="@tui.chevron-right"></tui-icon></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: PRODUCT INFO SECTION -->
+      <div class="info-section">
+        <div class="brand-link">Thương hiệu: <span>{{ brandName }}</span></div>
+        <h1 class="product-name">{{ product.name }}</h1>
+        <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
+
+        <div class="pricing-card">
+          <div class="main-price">
+            <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
+            <span class="original" *ngIf="product.basePrice > currentPrice">
+              {{ product.basePrice | number:'1.0-0' }} ₫
+            </span>
+            <span class="discount-badge" *ngIf="product.basePrice > currentPrice">-30%</span>
+          </div>
+          <div class="stats">
+            <div class="stars">
+              <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]"></tui-icon>
+              <span>0.0</span>
+            </div>
+            <div class="hearts">
+              <tui-icon icon="@tui.heart"></tui-icon>
+              <span>0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="variant-selector" *ngIf="availableColors.length > 0">
+          <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
+          <div class="color-options">
+            <div class="color-circle" 
+                 *ngFor="let color of availableColors" 
+                 [class.active]="selectedColor === color"
+                 (click)="selectColor(color)"
+                 [title]="color">
+                 <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
+            </div>
+          </div>
+        </div>
+
+        <div class="variant-selector" *ngIf="availableSizes.length > 0">
+          <div class="selector-label">Kích thước | <span>{{ selectedSize || 'Chưa chọn' }}</span></div>
+          <div class="size-options">
+            <button 
+              class="size-btn" 
+              *ngFor="let size of availableSizes"
+              [class.active]="selectedSize === size"
+              (click)="selectSize(size)"
+            >
+              {{ size }}
+            </button>
+          </div>
+        </div>
+
+        <div class="purchase-actions">
+          <div class="quantity-selector">
+            <button (click)="adjQuantity(-1)"><tui-icon icon="@tui.minus"></tui-icon></button>
+            <input type="number" [value]="quantity" readonly>
+            <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
+          </div>
+          <div class="stock-info">{{ selectedVariant?.stockQuantity || 0 }} sản phẩm có sẵn</div>
+        </div>
+
+        <div class="main-cta">
+          <button tuiButton appearance="secondary" class="buy-btn" (click)="addToCart()">
+            Đến trang mua hàng
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SECTIONS -->
+    <div class="content-tabs">
+      <div class="tab-header">
+        <div class="tab active">Thông tin sản phẩm</div>
+        <div class="tab">Mô tả sản phẩm</div>
+        <div class="tab">Đánh giá sản phẩm</div>
+      </div>
+      <div class="tab-content">
+        <div class="spec-grid">
+          <div class="spec-row">
+            <span class="label">Danh mục</span>
+            <span class="val">Áo Khoác / Jacket</span>
+          </div>
+          <div class="spec-row">
+            <span class="label">SKU</span>
+            <span class="val">{{ selectedVariant?.sku || product.productCode }}</span>
+          </div>
+        </div>
+        
+        <div class="empty-description">
+          <img src="https://dosi-in.com/design/themes/responsive/media/images/addons/dosiin_product_detail/no-description.png" alt="no-desc">
+          <p>Hiện chưa có mô tả cho sản phẩm này</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STICKY BOTTOM BAR -->
+  <div class="sticky-bar" *ngIf="product">
+    <div class="container">
+      <div class="p-mini-info">
+        <img [src]="activeImage" alt="mini">
+        <div class="texts">
+          <div class="name">{{ product.name }}</div>
+          <div class="price">{{ currentPrice | number:'1.0-0' }} ₫</div>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="quantity-selector mini">
+          <button (click)="adjQuantity(-1)"><tui-icon icon="@tui.minus"></tui-icon></button>
+          <span>{{ quantity }}</span>
+          <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
+        </div>
+        <div class="total-price">
+          Tạm tính: <span>{{ (currentPrice * quantity) | number:'1.0-0' }} ₫</span>
+        </div>
+        <button class="sticky-buy-btn" (click)="addToCart()">Đến trang mua hàng</button>
+      </div>
+    </div>
+  </div>
+
+  <app-storefront-footer></app-storefront-footer>
+
+  <!-- LIGHTBOX OVERLAY -->
+  <div class="lightbox-overlay" *ngIf="isLightboxOpen" (click)="closeLightbox()">
+    <div class="lightbox-content" (click)="$event.stopPropagation()">
+      <div class="lightbox-header">
+        <div class="counter">{{ lightboxIndex + 1 }} / {{ images.length }}</div>
+        <button class="close-btn" (click)="closeLightbox()">
+          <tui-icon icon="@tui.x"></tui-icon>
+        </button>
+      </div>
+      
+      <div class="image-viewer">
+        <button class="nav-btn prev" (click)="lightboxPrev()">
+          <tui-icon icon="@tui.chevron-left"></tui-icon>
+        </button>
+        
+        <div class="main-img-container">
+          <img [src]="images[lightboxIndex]" [alt]="product?.name">
+        </div>
+
+        <button class="nav-btn next" (click)="lightboxNext()">
+          <tui-icon icon="@tui.chevron-right"></tui-icon>
+        </button>
+      </div>
+
+      <div class="lightbox-footer">
+        <div class="product-mini-name">{{ product?.name }}</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,57 @@
+<!-- MINI TOP HEADER -->
+<div class="top-announcement">
+  <span>FREE SHIPPING ON ORDERS OVER 1.000.000 VNĐ</span>
+</div>
+
+<!-- DOSI-IN STYLE HEADER -->
+<header class="store-header">
+  <div class="header-container">
+    <div class="header-left">
+      <a routerLink="/storefront" class="logo">
+        <span class="brand">DOSI-IN</span>
+        <span class="clone">CLONE</span>
+      </a>
+    </div>
+
+    <nav class="header-center">
+      <ul class="nav-links">
+        <li *ngFor="let cat of categories"><a href="javascript:void(0)">{{ cat }}</a></li>
+      </ul>
+    </nav>
+
+    <div class="header-right">
+      <div class="search-bar">
+        <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
+        <input type="text" placeholder="Search brands, products...">
+      </div>
+
+      <div class="auth-box" *ngIf="user$ | async as user; else noUser">
+        <button
+          tuiButton
+          type="button"
+          appearance="flat"
+          size="s"
+          [tuiDropdown]="userMenu"
+        >
+          {{ user.fullName }}
+        </button>
+        <ng-template #userMenu>
+          <div class="user-dropdown">
+            <button tuiButton appearance="flat" size="s" (click)="logout()">Logout</button>
+          </div>
+        </ng-template>
+      </div>
+      <ng-template #noUser>
+        <div class="auth-links">
+          <a routerLink="/login">LOGIN</a>
+          <span class="sep">/</span>
+          <a routerLink="/register">REGISTER</a>
+        </div>
+      </ng-template>
+
+      <div class="cart-icon">
+        <tui-icon icon="@tui.shopping-bag"></tui-icon>
+      </div>
+    </div>
+  </div>
+</header>

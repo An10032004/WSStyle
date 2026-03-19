@@ -1,0 +1,106 @@
+<div class="login-container">
+  <div class="login-box">
+    <div class="logo-wrapper">
+      <a routerLink="/storefront" class="logo">DOSI-IN <span>CLONE</span></a>
+    </div>
+    
+    <h3>REGISTER</h3>
+    <p class="subtitle">Join our streetwear community today</p>
+
+    <div *ngIf="errorMsg" class="error-alert">
+      {{ errorMsg }}
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="form-field">
+        <label tuiLabel>FULL NAME</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+        >
+          <input
+            tuiTextfield
+            type="text"
+            formControlName="fullName"
+            placeholder="Your Name"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="fullName"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="form-field">
+        <label tuiLabel>EMAIL ADDRESS</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+        >
+          <input
+            tuiTextfield
+            type="email"
+            formControlName="email"
+            placeholder="example@mail.com"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="email"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="form-field">
+        <label tuiLabel>PHONE NUMBER</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+        >
+          <input
+            tuiTextfield
+            type="tel"
+            formControlName="phone"
+            placeholder="0123 456 789"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="phone"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="form-field">
+        <label tuiLabel>PASSWORD</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+          tuiPassword
+        >
+          <input
+            tuiTextfield
+            type="password"
+            formControlName="password"
+            placeholder="Minimum 6 characters"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="password"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="actions">
+        <button
+          tuiButton
+          type="submit"
+          appearance="primary"
+          [disabled]="loading"
+          class="submit-btn"
+        >
+          CREATE ACCOUNT
+        </button>
+      </div>
+    </form>
+
+    <div class="footer-links">
+      <span>Already have an account?</span>
+      <a routerLink="/login">Login here</a>
+    </div>
+  </div>
+</div>

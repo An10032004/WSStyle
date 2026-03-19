@@ -45,6 +45,9 @@ public class Product {
     @Column(name = "base_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal basePrice;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     // Lưu JSON string, ví dụ: {"material":"Cotton","origin":"Vietnam"}
     @Column(columnDefinition = "json")
     private String specifications;

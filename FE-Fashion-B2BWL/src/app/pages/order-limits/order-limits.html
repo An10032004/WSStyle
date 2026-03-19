@@ -7,63 +7,12 @@
     </button>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
-    
-    <div class="form-grid">
-      <label tuiLabel class="form-field full-width">
-        {{ 'RULE.NAME' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.name" />
-        </tui-textfield>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.LEVEL' | transloco }}
-        <tui-select [(ngModel)]="formData.limitLevel">
-          <tui-data-list-wrapper *tuiDataList [items]="levelOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.limitType">
-          <tui-data-list-wrapper *tuiDataList [items]="typeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.VALUE' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield type="number" [(ngModel)]="formData.limitValue" />
-        </tui-textfield>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'RULE.PRIORITY' | transloco }}
-        <tui-textfield>
-          <input tuiTextfield type="number" [(ngModel)]="formData.priority" />
-        </tui-textfield>
-      </label>
-
-      <div class="json-section full-width">
-        <h4>{{ 'RULE.APPLY_CONDITION' | transloco }}</h4>
-        <div style="display: flex; gap: 16px;">
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Values (JSON)
-            <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
-            </tui-textfield>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
-    </div>
-  </div>
+  <app-order-limit-editor
+    *ngIf="showForm"
+    [rule]="formData"
+    (save)="onSubmit()"
+    (cancel)="cancel()"
+  ></app-order-limit-editor>
 
   <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
     <h3 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}</h3>

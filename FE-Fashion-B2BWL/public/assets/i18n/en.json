@@ -15,9 +15,11 @@
     "MAIN_PRODUCTS": "Main Products",
     "VARIANTS": "Variant Management",
     "RULE_ENGINE": "Rule Engine",
+    "STAFF": "Staff Management",
     "HELP": "Help & Support"
   },
   "SIDEBAR": {
+    "DASHBOARD": "Dashboard",
     "CATEGORIES": "Categories",
     "PRODUCTS": "Products",
     "VARIANTS": "Variants",
@@ -25,6 +27,7 @@
     "ORDERS": "Orders & Payments",
     "PLANS": "SaaS Plans",
     "SHOPS": "Shops Management",
+    "STAFF": "Staff & Admin",
     "HELP": "Help"
   },
   "HEADER": {
@@ -148,7 +151,9 @@
     "GUEST": "Guest User",
     "PENDING": "⌛ Pending Review",
     "APPROVED": "✅ Approved",
-    "REJECTED": "❌ Rejected"
+    "REJECTED": "❌ Rejected",
+    "ADMIN": "🛡️ Administrator",
+    "STAFF": "🧑‍💼 Staff Member"
   },
   "ORDER": {
     "TITLE": "Order Management",
@@ -173,6 +178,68 @@
     "YEARLY_PRICE": "Yearly Price",
     "FEATURES_JSON": "Features (JSON)",
     "MONTH": "month",
-    "YEAR": "year"
+    "YEAR": "year",
+    "NO_PLANS": "No plans created yet."
+  },
+  "QUANTITY_BREAK": {
+    "TITLE": "Set up Quantity Break",
+    "GENERAL_TAB": "General settings",
+    "DISCOUNT_TAB": "Discount settings",
+    "TABLE_TAB": "Table settings",
+    "PREVIEW": "Preview",
+    "PREVIEW_PRODUCT": "Preview product",
+    "PRICING_TABLE": "Pricing table",
+    "QUANTITY_RANGE": "Quantity range",
+    "UNIT_PRICE": "Unit price",
+    "DISCOUNT": "Discount",
+    "NAME": "Discount name",
+    "NAME_HINT": "Discount name is only shown in the in-app settings.",
+    "MESSAGE": "Message",
+    "MESSAGE_HINT": "Customers will see this in their cart and at checkout.",
+    "DESCRIPTION": "Description",
+    "DESCRIPTION_HINT": "Description is only shown to merchants.",
+    "PRIORITY_HINT": "0 is the highest priority, and the priority value must not match the B2B pricing.",
+    "ACTIVE_DATES": "Active dates",
+    "START_DATE": "Start date",
+    "START_TIME": "Start time",
+    "SET_END_DATE": "Set end date"
+  },
+  "ORDER_LIMIT": {
+    "TITLE": "Set up Order Limit",
+    "SETTINGS_TAB": "Order Limit settings",
+    "ADVANCED_TAB": "Advanced settings",
+    "GENERAL_SETTINGS": "General settings",
+    "RULE_SECTION": "Order Limit Rule",
+    "APPLIES_SECTION": "Applies to Customers",
+    "TYPE": "Type",
+    "MIN_VALUE": "Minimum"
+  },
+  "DASHBOARD": {
+    "TITLE": "Business Dashboard",
+    "REVENUE": "Total Revenue",
+    "ORDERS": "New Orders",
+    "EXPENSES": "Total Expenses",
+    "VAT_NET": "Net VAT",
+    "BEST_SELLERS": "Best Sellers",
+    "RECENT_EXPENSES": "Recent Expenses"
+  },
+  "TAX_DISPLAY": {
+    "APPLY_TO_PRODUCTS": "Apply to products",
+    "DESIGN_SECTION": "Tax display design",
+    "TAX_TYPE": "Tax type",
+    "DISPLAY_TYPE": "Display type",
+    "EXCL_COLOR": "Excl Tax color",
+    "EXCL_SIZE": "Excl Tax size",
+    "INC_COLOR": "Inc Tax color",
+    "INC_SIZE": "Inc Tax size",
+    "PREVIEW": "Preview",
+    "TARGETING": {
+      "ALL_CUSTOMERS": "All customers",
+      "LOGGED_IN": "Logged in customers",
+      "GUEST": "Guest customers",
+      "SPECIFIC_GROUPS": "Specific customer groups",
+      "ALL_PRODUCTS": "All products",
+      "SPECIFIC_CATEGORIES": "Specific categories"
+    }
   }
 }

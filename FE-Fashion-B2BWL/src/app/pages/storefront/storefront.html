@@ -1,0 +1,157 @@
+<div class="storefront-page">
+  <app-storefront-header></app-storefront-header>
+
+  <!-- HERO CAROUSEL (3D CARD STYLE) -->
+  <section class="hero-section premium-3d">
+    <div class="carousel-wrapper">
+      <button class="nav-btn prev" (click)="prev()">
+        <tui-icon icon="@tui.chevron-left" />
+      </button>
+
+      <tui-carousel
+          [(index)]="activeBannerIndex"
+          [draggable]="true"
+          class="carousel"
+          style="height: 500px;"
+      >
+          <ng-container *ngFor="let banner of banners; let i = index">
+              <div *tuiItem class="banner-card" [attr.data-active]="activeBannerIndex === i">
+                  <img [src]="banner" alt="Hero Banner" />
+                  <div class="card-overlay">
+                    <div class="banner-content">
+                        <h2>NEW COLLECTION</h2>
+                        <button tuiButton appearance="white-grayscale" size="m">EXPLORE</button>
+                    </div>
+                  </div>
+              </div>
+          </ng-container>
+      </tui-carousel>
+
+      <button class="nav-btn next" (click)="next()">
+        <tui-icon icon="@tui.chevron-right" />
+      </button>
+    </div>
+
+    <!-- 3D INDEX PAGINATION -->
+    <div class="carousel-pagination text-style">
+        <ng-container *ngFor="let bt of banners; let idx = index">
+          <span 
+              class="idx-item" 
+              [class.active]="activeBannerIndex === idx"
+              (click)="activeBannerIndex = idx"
+          >{{ formatIndex(idx) }}</span>
+          <span class="sep" *ngIf="idx < banners.length - 1">-</span>
+        </ng-container>
+    </div>
+  </section>
+
+  <!-- BEST SELLERS SECTION -->
+  <section class="best-sellers-section">
+    <div class="container">
+      <h2 class="section-title">Sản phẩm bán chạy</h2>
+      
+      <div class="tag-scroller">
+        <div class="tag-container">
+          <button 
+            *ngFor="let tag of bestSellerTags" 
+            class="tag-item" 
+            [class.active]="selectedSellerTag === tag"
+            (click)="selectedSellerTag = tag"
+          >
+            {{ tag }}
+          </button>
+        </div>
+      </div>
+
+      <div class="product-grid sellers">
+        <a class="product-card" 
+           *ngFor="let p of products.slice(0, 5); let i = index"
+           [routerLink]="['/product', p.id]">
+          <div class="product-img-wrapper">
+            <div class="product-img">
+              <img [src]="p.imageUrl" [alt]="p.name" />
+            </div>
+            <!-- Brand Badge overlay like in reference -->
+            <div class="brand-badge" *ngIf="i % 2 === 0">
+              <span class="brand-text">{{ getBrand(p) }}</span>
+            </div>
+          </div>
+          <div class="product-info">
+            <div class="brand">{{ getBrand(p) }}</div>
+            <h4 class="product-name">{{ p.name }}</h4>
+            <div class="price-box">
+              <span class="original-price">{{ (p.basePrice * 2) | number:'1.0-0' }} đ</span>
+              <span class="discount">-50%</span>
+              <div class="final-price">{{ p.basePrice | number:'1.0-0' }} ₫</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW ALL SECTION -->
+  <section class="view-all-banner">
+    <div class="container">
+      <div class="banner-inner">
+        <div>
+          <h3>NEW ARRIVALS</h3>
+          <p>STREETWEAR EVOLUTION</p>
+        </div>
+        <button tuiButton appearance="outline" size="m">VIEW ALL</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRENDING CATEGORIES -->
+  <section class="trending-cats">
+    <div class="container">
+      <h3 class="section-title">TRENDING CATEGORIES</h3>
+      <div class="cat-grid">
+        <div class="cat-card" *ngFor="let banner of subBanners; let i = index">
+          <div class="cat-img">
+            <img [src]="banner" />
+          </div>
+          <div class="cat-label">OUTERWEAR</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEW ARRIVALS GRID -->
+  <section class="new-arrivals">
+    <div class="container">
+      <div class="section-header">
+        <h3 class="section-title">NEW ARRIVALS</h3>
+        <a href="javascript:void(0)" class="view-all">VIEW ALL</a>
+      </div>
+      
+      <div class="product-grid">
+        <a class="product-card" 
+           *ngFor="let p of products"
+           [routerLink]="['/product', p.id]">
+          <div class="product-img-wrapper">
+            <div class="product-img">
+               <tui-icon icon="@tui.image" *ngIf="!p.imageUrl" class="placeholder-icon" />
+               <img [src]="p.imageUrl" *ngIf="p.imageUrl" />
+            </div>
+            <div class="quick-add">
+              <button tuiButton appearance="white-grayscale" size="s">QUICK ADD</button>
+            </div>
+          </div>
+          <div class="product-info">
+            <div class="brand">{{ getBrand(p) }}</div>
+            <h4 class="product-name">{{ p.name }}</h4>
+            <div class="price">{{ p.basePrice | currency:'VND':'symbol':'1.0-0' }}</div>
+          </div>
+        </a>
+      </div>
+
+      <div *ngIf="products.length === 0" class="empty-products">
+         <p>No products found. Please add some in the Admin panel.</p>
+      </div>
+    </div>
+  </section>
+
+  <app-storefront-footer></app-storefront-footer>
+</div>

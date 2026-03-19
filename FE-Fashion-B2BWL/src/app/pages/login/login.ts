@@ -1,0 +1,67 @@
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
+import { TuiButton, TuiError, TuiTextfield, TuiLabel } from '@taiga-ui/core';
+import { TuiFieldErrorPipe, TuiPassword } from '@taiga-ui/kit';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TranslocoModule } from '@jsverse/transloco';
+import { AuthService } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterModule,
+    TuiButton,
+    TuiTextfield,
+    TuiLabel,
+    TuiPassword,
+    TuiError,
+    TuiFieldErrorPipe,
+    TuiTextfieldControllerModule,
+    TranslocoModule
+  ],
+  templateUrl: './login.html',
+  styleUrls: ['./login.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class LoginComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  readonly loginForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
+  });
+
+  errorMsg: string | null = null;
+  loading = false;
+
+  onSubmit(): void {
+    if (this.loginForm.invalid) return;
+
+    this.loading = true;
+    this.errorMsg = null;
+    
+    const { email, password } = this.loginForm.value;
+    this.auth.login({ email: email!, password: password! }).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.router.navigate(['/storefront']);
+        } else {
+          this.errorMsg = res.message;
+          this.loading = false;
+        }
+      },
+      error: (err) => {
+        this.errorMsg = 'An unexpected error occurred. Please try again.';
+        this.loading = false;
+      }
+    });
+  }
+}

@@ -1,0 +1,154 @@
+<div class="staff-container">
+  <div class="header-section">
+    <div class="title-group">
+      <h2 class="tui-text_h3">{{ 'MENU.STAFF' | transloco }}</h2>
+      <p class="tui-text_body-s-2 text-muted">Quản lý tài khoản quản trị viên và nhân viên vận hành hệ thống</p>
+    </div>
+    <button
+      tuiButton
+      type="button"
+      appearance="primary"
+      size="m"
+      iconStart="@tui.plus"
+      (click)="onAdd()"
+    >
+      {{ 'COMMON.ADD' | transloco }}
+    </button>
+  </div>
+
+  <div class="table-card">
+    <ag-grid-angular
+      class="ag-theme-alpine"
+      style="width: 100%;"
+      [rowData]="rowData"
+      [columnDefs]="columnDefs"
+      [defaultColDef]="{ sortable: true, filter: true, resizable: true }"
+      [pagination]="true"
+      [paginationPageSize]="10"
+      [paginationPageSizeSelector]="[5,10, 20, 50, 100]"
+      [domLayout]="'autoHeight'"
+      [localeText]="localeText"
+      [headerHeight]="48"
+      [rowHeight]="48"
+      (gridReady)="onGridReady($event)"
+    />
+  </div>
+
+  <!-- FORM OVERLAY -->
+  <div class="form-overlay" *ngIf="showForm">
+    <div class="form-card">
+      <div class="form-header">
+        <h3 class="tui-text_h5">
+          {{ (editingId ? 'COMMON.EDIT' : 'COMMON.ADD') | transloco }}
+        </h3>
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="s"
+          iconStart="@tui.x"
+          (click)="cancel()"
+        ></button>
+      </div>
+
+      <div class="form-content">
+        <label tuiLabel>
+          {{ 'MEMBER.EMAIL' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield type="email" [(ngModel)]="formData.email" />
+            <tui-icon icon="@tui.mail" />
+          </tui-textfield>
+        </label>
+
+        <label tuiLabel *ngIf="!editingId">
+          {{ 'MEMBER.PASSWORD' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield type="password" [(ngModel)]="formData.password" />
+            <tui-icon icon="@tui.lock" />
+          </tui-textfield>
+        </label>
+
+        <label tuiLabel>
+          {{ 'MEMBER.NAME' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.fullName" />
+            <tui-icon icon="@tui.user" />
+          </tui-textfield>
+        </label>
+
+        <label tuiLabel>
+          {{ 'MEMBER.PHONE' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.phone" />
+            <tui-icon icon="@tui.phone" />
+          </tui-textfield>
+        </label>
+
+        <label tuiLabel>
+          {{ 'MEMBER.ROLE' | transloco }}
+          <tui-select [(ngModel)]="formData.role">
+            <tui-data-list-wrapper
+              *tuiDataList
+              [items]="roleOptions"
+              [itemContent]="roleContent"
+            />
+            <ng-template #roleContent let-item>
+              {{ 'ENUMS.' + item | transloco }}
+            </ng-template>
+          </tui-select>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button tuiButton appearance="flat" size="m" (click)="cancel()">
+          {{ 'GLOBAL.CANCEL' | transloco }}
+        </button>
+        <button tuiButton appearance="primary" size="m" (click)="onSubmit()">
+          {{ 'GLOBAL.SAVE' | transloco }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRMATION -->
+<ng-template #deleteDialog let-observer>
+  <div class="dialog-content">
+    <h3 class="tui-text_h5">Xác nhận xóa tài khoản</h3>
+    <p class="tui-text_body-m">Bạn có chắc chắn muốn xóa nhân viên <strong>{{ deleteTargetName }}</strong>?</p>
+    <div class="dialog-actions">
+      <button tuiButton appearance="flat" size="m" (click)="observer.next(false); observer.complete()">
+        {{ 'GLOBAL.CANCEL' | transloco }}
+      </button>
+      <button tuiButton appearance="secondary" size="m" (click)="observer.next(true); observer.complete()">
+        {{ 'COMMON.DELETE' | transloco }}
+      </button>
+    </div>
+  </div>
+</ng-template>
+
+<!-- VIEW DETAIL -->
+<ng-template #viewDialog let-observer>
+  <div class="view-detail" *ngIf="selectedUser">
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.NAME' | transloco }}:</span>
+      <span class="value">{{ selectedUser.fullName }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.EMAIL' | transloco }}:</span>
+      <span class="value">{{ selectedUser.email }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
+      <span class="value">{{ 'ENUMS.' + selectedUser.role | transloco }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>
+      <span class="value">{{ selectedUser.phone }}</span>
+    </div>
+    <div class="tui-form__buttons">
+      <button tuiButton appearance="flat" size="m" (click)="observer.complete()">
+        {{ 'GLOBAL.CLOSE' | transloco }}
+      </button>
+    </div>
+  </div>
+</ng-template>

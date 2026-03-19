@@ -1,0 +1,50 @@
+<div class="banner-manager">
+  <header class="page-header">
+    <h1>Banner Management</h1>
+    <p>Easily update your storefront's hero and promotional banners.</p>
+  </header>
+
+  <div tuiNotification *ngIf="success" status="success" class="notif">
+    Banners updated successfully! Refresh the storefront to see changes.
+  </div>
+
+  <section class="manager-section">
+    <h3>Hero Banners (Top Carousel)</h3>
+    <div class="banner-inputs">
+      <div class="input-group" *ngFor="let banner of heroBanners; let i = index; trackBy: trackByFn">
+        <label tuiLabel>
+          Hero Banner {{ i + 1 }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="heroBanners[i]" placeholder="Paste image URL here..." />
+          </tui-textfield>
+        </label>
+        <div class="preview" *ngIf="heroBanners[i]">
+          <img [src]="heroBanners[i]" alt="Preview" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr />
+
+  <section class="manager-section">
+    <h3>Sub Banners (Trending Categories)</h3>
+    <div class="banner-inputs">
+       <div class="input-group" *ngFor="let banner of subBanners; let i = index; trackBy: trackByFn">
+        <label tuiLabel>
+          Sub Banner {{ i + 1 }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="subBanners[i]" placeholder="Paste image URL here..." />
+          </tui-textfield>
+        </label>
+        <div class="preview" *ngIf="subBanners[i]">
+          <img [src]="subBanners[i]" alt="Preview" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button tuiButton (click)="save()" [disabled]="loading">SAVE CHANGES</button>
+  </div>
+</div>
