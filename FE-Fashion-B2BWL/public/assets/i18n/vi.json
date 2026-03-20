@@ -28,6 +28,13 @@
     "PLANS": "Gói cước SaaS",
     "SHOPS": "Quản lý Cửa hàng",
     "STAFF": "Nhân viên & Admin",
+    "COUPONS": "Mã giảm giá",
+    "CAMPAIGNS": "Chiến dịch Sale",
+    "WALLETS": "Ví điện tử",
+    "ADVANCED_REPORTS": "Báo cáo chuyên sâu",
+    "MESSAGES": "Tin nhắn khách hàng",
+    "REVIEWS": "Đánh giá sản phẩm",
+    "PERMISSIONS": "Phân quyền người dùng",
     "HELP": "Trợ giúp"
   },
   "HEADER": {
@@ -241,5 +248,15 @@
       "ALL_PRODUCTS": "Tất cả sản phẩm",
       "SPECIFIC_CATEGORIES": "Danh mục cụ thể"
     }
+  },
+  "STOREFRONT": {
+    "CUSTOM_PRICING": "Giá tùy chỉnh",
+    "CUSTOM_PRICING_DESC": "Cung cấp mức giá cá nhân hóa cho từng nhóm khách hàng.",
+    "ORDER_LIMITS": "Giới hạn đơn hàng",
+    "ORDER_LIMITS_DESC": "Kiểm soát kho hàng với các điều kiện số lượng tối thiểu/tối đa.",
+    "NET_TERMS": "Điều khoản thanh toán",
+    "NET_TERMS_DESC": "Cho phép thanh toán linh hoạt B2B như Trả sau 15, 30, 60 ngày.",
+    "ADVANCED_DEMO": "Bản mẫu chuyên sâu",
+    "ADVANCED_DEMO_DESC": "Trải nghiệm sức mạnh toàn diện của cửa hàng B2B tùy chỉnh."
   }
 }

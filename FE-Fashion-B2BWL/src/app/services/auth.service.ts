@@ -8,7 +8,10 @@ export interface AuthResponse {
   success: boolean;
   message: string;
   user: User;
-  token?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenType?: string;
+  expiresIn?: number;
 }
 
 @Injectable({
@@ -43,15 +46,34 @@ export class AuthService {
   logout() {
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     this.userSubject.next(null);
   }
 
+  refreshToken(): Observable<AuthResponse> {
+    const refreshToken = localStorage.getItem('refresh_token');
+    return this.http.post<AuthResponse>('/api/auth/refresh-token', { refreshToken }).pipe(
+      tap(res => {
+        if (res.success) {
+          this.setSession(res);
+        }
+      })
+    );
+  }
+
   private setSession(authRes: AuthResponse) {
-    localStorage.setItem('auth_user', JSON.stringify(authRes.user));
-    if (authRes.token) {
-      localStorage.setItem('auth_token', authRes.token);
+    if (authRes.user) {
+      localStorage.setItem('auth_user', JSON.stringify(authRes.user));
+      this.userSubject.next(authRes.user);
     }
-    this.userSubject.next(authRes.user);
+    
+    if (authRes.accessToken) {
+      localStorage.setItem('auth_token', authRes.accessToken);
+    }
+    
+    if (authRes.refreshToken) {
+      localStorage.setItem('refresh_token', authRes.refreshToken);
+    }
   }
 
   private getStoredUser(): User | null {

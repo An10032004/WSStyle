@@ -238,6 +238,68 @@ export interface HomeSetting {
   shopId: number;
 }
 
+export interface Coupon {
+  id: number;
+  code: string;
+  discountType: 'FIXED_AMOUNT' | 'PERCENTAGE';
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  startDate?: string;
+  endDate?: string;
+  usageLimit?: number;
+  usedCount: number;
+  status: string;
+}
+
+export interface SaleCampaign {
+  id: number;
+  name: string;
+  description?: string;
+  bannerUrl?: string;
+  discountPercentage?: number;
+  startDate?: string;
+  endDate?: string;
+  isActive: boolean;
+}
+
+export interface Wallet {
+  id: number;
+  userId: number;
+  balance: number;
+  currency: string;
+  updatedAt: string;
+}
+
+export interface WalletTransaction {
+  id: number;
+  walletId: number;
+  amount: number;
+  type: 'TOP_UP' | 'PAYMENT' | 'REFUND' | 'WITHDRAW';
+  description?: string;
+  createdAt: string;
+}
+
+export interface ProductReview {
+  id: number;
+  productId: number;
+  userId: number;
+  rating: number;
+  comment?: string;
+  replyMessage?: string;
+  isPinned: boolean;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  senderId: number;
+  receiverId: number;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private base = '/api';
@@ -489,5 +551,62 @@ export class ApiService {
   }
   updateHomeSetting(body: { settingKey: string; settingValue: string }): Observable<HomeSetting> {
     return this.http.post<ApiResponse<HomeSetting>>(`${this.base}/home-settings`, body).pipe(map(r => r.data));
+  }
+
+  // ─── Coupons ───────────────────────────────────────────
+  getCoupons(): Observable<Coupon[]> {
+    return this.http.get<Coupon[]>(`${this.base}/coupons`); // Note: Backend uses simple List skip ApiResponse for now per my implementation
+  }
+
+  createCoupon(body: Partial<Coupon>): Observable<Coupon> {
+    return this.http.post<Coupon>(`${this.base}/coupons`, body);
+  }
+
+  deleteCoupon(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/coupons/${id}`);
+  }
+
+  // ─── Sale Campaigns ────────────────────────────────────
+  getSaleCampaigns(): Observable<SaleCampaign[]> {
+    return this.http.get<SaleCampaign[]>(`${this.base}/sale-campaigns`);
+  }
+
+  createSaleCampaign(body: Partial<SaleCampaign>): Observable<SaleCampaign> {
+    return this.http.post<SaleCampaign>(`${this.base}/sale-campaigns`, body);
+  }
+
+  deleteSaleCampaign(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/sale-campaigns/${id}`);
+  }
+
+  // ─── Wallets ───────────────────────────────────────────
+  getWallets(): Observable<Wallet[]> {
+    return this.http.get<Wallet[]>(`${this.base}/wallets`);
+  }
+
+  getWalletByUserId(userId: number): Observable<Wallet> {
+    return this.http.get<Wallet>(`${this.base}/wallets/${userId}`);
+  }
+
+  getWalletTransactions(walletId: number): Observable<WalletTransaction[]> {
+    return this.http.get<WalletTransaction[]>(`${this.base}/wallets/${walletId}/transactions`);
+  }
+
+  // ─── Reviews ───────────────────────────────────────────
+  getReviews(): Observable<ProductReview[]> {
+    return this.http.get<ProductReview[]>(`${this.base}/reviews`);
+  }
+
+  replyToReview(reviewId: number, message: string): Observable<ProductReview> {
+    return this.http.post<ProductReview>(`${this.base}/reviews/${reviewId}/reply`, message);
+  }
+
+  // ─── Messaging ─────────────────────────────────────────
+  getChat(user1: number, user2: number): Observable<ChatMessage[]> {
+    return this.http.get<ChatMessage[]>(`${this.base}/messages/chat/${user1}/${user2}`);
+  }
+
+  sendMessage(message: Partial<ChatMessage>): Observable<ChatMessage> {
+    return this.http.post<ChatMessage>(`${this.base}/messages`, message);
   }
 }

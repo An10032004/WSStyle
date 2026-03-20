@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { 
@@ -134,19 +134,31 @@ interface QuantityBracket {
             <!-- DISCOUNT SETTINGS -->
             <div *ngSwitchCase="1" class="form-section">
               <div class="bracket-list">
-                <div *ngFor="let b of brackets; let i = index" class="bracket-row">
+                <div *ngFor="let b of brackets; let i = index; trackBy: trackByFn" class="bracket-row">
                    <div class="bracket-field">
-                      <tui-input-number [(ngModel)]="b.min" [name]="'min' + i" tuiTextfieldSize="l">
+                      <tui-input-number 
+                        [(ngModel)]="b.min" 
+                        (ngModelChange)="onBracketChange()" 
+                        [name]="'min' + i" 
+                        tuiTextfieldSize="l">
                          Min
                       </tui-input-number>
                    </div>
                    <div class="bracket-field">
-                      <tui-input-number [(ngModel)]="b.max" [name]="'max' + i" tuiTextfieldSize="l">
+                      <tui-input-number 
+                        [(ngModel)]="b.max" 
+                        (ngModelChange)="onBracketChange()" 
+                        [name]="'max' + i" 
+                        tuiTextfieldSize="l">
                          Max
                       </tui-input-number>
                    </div>
                    <div class="bracket-field">
-                      <tui-input-number [(ngModel)]="b.discount" [name]="'discount' + i" tuiTextfieldSize="l">
+                      <tui-input-number 
+                        [(ngModel)]="b.discount" 
+                        (ngModelChange)="onBracketChange()" 
+                        [name]="'discount' + i" 
+                        tuiTextfieldSize="l">
                          Discount %
                       </tui-input-number>
                    </div>
@@ -295,6 +307,8 @@ export class QuantityBreakEditorComponent implements OnInit {
   @Input() rule!: Partial<PricingRule>;
   @Output() save = new EventEmitter<Partial<PricingRule>>();
   @Output() cancel = new EventEmitter<void>();
+  
+  private readonly cdr = inject(ChangeDetectorRef);
 
   activeTab = 0;
   message = '';
@@ -308,6 +322,15 @@ export class QuantityBreakEditorComponent implements OnInit {
     { min: 1, max: 30, discount: 5 },
     { min: 31, max: 60, discount: 10 }
   ];
+
+  onBracketChange() {
+    this.brackets = [...this.brackets];
+    this.cdr.markForCheck();
+  }
+
+  trackByFn(index: number) {
+    return index;
+  }
 
   ngOnInit() {
     if (this.rule.actionConfig) {
@@ -330,6 +353,7 @@ export class QuantityBreakEditorComponent implements OnInit {
       max: (last?.max || 0) + 30, 
       discount: (last?.discount || 0) + 5 
     });
+    this.cdr.markForCheck();
   }
 
   removeBracket(index: number) {

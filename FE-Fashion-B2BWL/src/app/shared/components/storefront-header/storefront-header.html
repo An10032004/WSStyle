@@ -30,15 +30,29 @@
           tuiButton
           type="button"
           appearance="flat"
-          size="s"
+          size="m"
+          [(tuiDropdownOpen)]="dropdownOpen"
           [tuiDropdown]="userMenu"
         >
-          {{ user.fullName }}
+          <tui-icon icon="@tui.user"></tui-icon>
+          <span class="ms-1">{{ user.fullName }}</span>
+          <tui-icon icon="@tui.chevron-down" class="ms-1 dropdown-chevron"></tui-icon>
         </button>
         <ng-template #userMenu>
-          <div class="user-dropdown">
-            <button tuiButton appearance="flat" size="s" (click)="logout()">Logout</button>
-          </div>
+          <tui-data-list>
+            <button tuiOption routerLink="/profile">
+              <tui-icon icon="@tui.user" class="me-2"></tui-icon>
+              Profile
+            </button>
+            <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">
+              <tui-icon icon="@tui.layout-dashboard" class="me-2"></tui-icon>
+              Admin Dashboard
+            </button>
+            <button tuiOption (click)="logout()">
+              <tui-icon icon="@tui.log-out" class="me-2"></tui-icon>
+              Logout
+            </button>
+          </tui-data-list>
         </ng-template>
       </div>
       <ng-template #noUser>

@@ -92,24 +92,24 @@ import { forkJoin } from 'rxjs';
     </div>
   `,
   styles: [`
-    .dashboard-container { padding: 32px; background: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    .dashboard-container { padding: 32px; background: var(--bg-light); min-height: 100vh; font-family: var(--font-family); }
     .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .title { margin: 0; font-size: 28px; font-weight: 800; color: #1e293b; }
+    .title { margin: 0; font-size: 28px; font-weight: 800; color: var(--text-main); }
 
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px; }
     
-    .stat-card { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: flex; gap: 20px; align-items: center; border: 1px solid #f1f5f9; transition: transform 0.2s; }
-    .stat-card:hover { transform: translateY(-4px); }
+    .stat-card { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); display: flex; gap: 20px; align-items: center; border: 1px solid #f1f5f9; transition: all 0.2s; }
+    .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
     
-    .card-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-    .revenue .card-icon { background: #eff6ff; color: #3b82f6; }
+    .card-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .revenue .card-icon { background: rgba(0, 166, 122, 0.1); color: var(--primary); }
     .orders .card-icon { background: #f0fdf4; color: #10b981; }
     .expenses .card-icon { background: #fff1f2; color: #f43f5e; }
     .vat .card-icon { background: #faf5ff; color: #a855f7; }
 
     .card-info { flex: 1; display: flex; flex-direction: column; }
-    .card-label { font-size: 14px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
-    .card-value { margin: 0; font-size: 24px; font-weight: 800; color: #1e293b; }
+    .card-label { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { margin: 0; font-size: 26px; font-weight: 800; color: var(--text-main); }
     .sub-text { font-size: 11px; color: #94a3b8; }
 
     .trend { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px; margin-top: 6px; }

@@ -38,10 +38,32 @@
         type="button"
         class="action-btn"
       ></button>
-      <div class="user-profile">
-        <tui-avatar appearance="primary" size="s" text="Admin" />
-        <span class="user-name">Administrator</span>
+      <div 
+        class="user-profile"
+        (click)="open = !open"
+        [tuiDropdown]="profileMenu"
+        [(tuiDropdownOpen)]="open"
+        tuiDropdownAlign="right"
+      >
+        <tui-avatar appearance="primary" size="s">
+          {{ user?.fullName?.charAt(0) || 'A' }}
+        </tui-avatar>
+        <span class="user-name">{{ user?.fullName || 'Administrator' }}</span>
+        <tui-icon icon="@tui.chevron-down" class="dropdown-icon" />
       </div>
+
+      <ng-template #profileMenu>
+        <tui-data-list>
+          <button tuiOption (click)="viewProfile()">
+            <tui-icon icon="@tui.user" />
+            {{ 'MEMBER.PROFILE' | transloco }}
+          </button>
+          <button tuiOption (click)="logout()">
+            <tui-icon icon="@tui.log-out" />
+            {{ 'AUTH.LOGOUT' | transloco }}
+          </button>
+        </tui-data-list>
+      </ng-template>
     </div>
   </header>
 
@@ -49,131 +71,26 @@
     <!-- SIDEBAR -->
     <aside class="app-sidebar" [class.collapsed]="!sidebarExpanded">
       <nav class="nav-menu">
-        <a 
-          class="nav-link" 
-          routerLink="/dashboard" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.layout-grid" class="nav-icon" />
-          <span class="nav-text">{{ 'SIDEBAR.DASHBOARD' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/categories" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.folder-open" class="nav-icon" />
-          <span class="nav-text">{{ 'MENU.CATEGORIES' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/products" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.package" class="nav-icon" />
-          <span class="nav-text">{{ 'MENU.MAIN_PRODUCTS' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/product-variants" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.layers" class="nav-icon" />
-          <span class="nav-text">{{ 'MENU.VARIANTS' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/rule-engine" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.settings-2" class="nav-icon" />
-          <span class="nav-text">{{ 'MENU.RULE_ENGINE' | transloco }}</span>
-        </a>
-
-        <div class="nav-separator"></div>
-
-        <a 
-          class="nav-link" 
-          routerLink="/users" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.users" class="nav-icon" />
-          <span class="nav-text">{{ 'MEMBER.USERS_TITLE' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/customer-groups" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.users-round" class="nav-icon" />
-          <span class="nav-text">{{ 'MEMBER.GROUPS_TITLE' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/registration-forms" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.file-text" class="nav-icon" />
-          <span class="nav-text">{{ 'MEMBER.FORMS_TITLE' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/orders" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.shopping-cart" class="nav-icon" />
-          <span class="nav-text">{{ 'SIDEBAR.ORDERS' | transloco }}</span>
-        </a>
-
-        <a 
-          class="nav-link" 
-          routerLink="/staff" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.shield-check" class="nav-icon" />
-          <span class="nav-text">{{ 'SIDEBAR.STAFF' | transloco }}</span>
-        </a>
-
-        <div class="nav-separator"></div>
-
-        <a 
-          class="nav-link" 
-          routerLink="/ai-sync" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.bot" class="nav-icon" />
-          <span class="nav-text">Trợ lý AI (RAG)</span>
-        </a>
-
-        <div class="nav-separator"></div>
-
-        <a 
-          class="nav-link" 
-          routerLink="/banner-manager" 
-          routerLinkActive="active" 
-          [routerLinkActiveOptions]="{ exact: false }"
-        >
-          <tui-icon icon="@tui.image" class="nav-icon" />
-          <span class="nav-text">Quản lý Banner</span>
-        </a>
+        <a *ngIf="canSee('dashboard')" class="nav-link" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.layout-grid" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.DASHBOARD' | transloco }}</span></a>
+        <a *ngIf="canSee('categories')" class="nav-link" routerLink="/categories" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.folder-open" class="nav-icon" /><span class="nav-text">{{ 'MENU.CATEGORIES' | transloco }}</span></a>
+        <a *ngIf="canSee('products')" class="nav-link" routerLink="/products" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.package" class="nav-icon" /><span class="nav-text">{{ 'MENU.MAIN_PRODUCTS' | transloco }}</span></a>
+        <a *ngIf="canSee('variants')" class="nav-link" routerLink="/product-variants" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.layers" class="nav-icon" /><span class="nav-text">{{ 'MENU.VARIANTS' | transloco }}</span></a>
+        <a *ngIf="canSee('rule-engine')" class="nav-link" routerLink="/rule-engine" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.settings-2" class="nav-icon" /><span class="nav-text">{{ 'MENU.RULE_ENGINE' | transloco }}</span></a>
+        <a *ngIf="canSee('coupons')" class="nav-link" routerLink="/coupons" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.ticket" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.COUPONS' | transloco }}</span></a>
+        <a *ngIf="canSee('sale-campaigns')" class="nav-link" routerLink="/sale-campaigns" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.zap" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.CAMPAIGNS' | transloco }}</span></a>
+        <a *ngIf="canSee('users')" class="nav-link" routerLink="/users" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.users" class="nav-icon" /><span class="nav-text">{{ 'MEMBER.USERS_TITLE' | transloco }}</span></a>
+        <a *ngIf="canSee('customer-groups')" class="nav-link" routerLink="/customer-groups" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.users-round" class="nav-icon" /><span class="nav-text">{{ 'MEMBER.GROUPS_TITLE' | transloco }}</span></a>
+        <a *ngIf="canSee('registration-forms')" class="nav-link" routerLink="/registration-forms" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.file-text" class="nav-icon" /><span class="nav-text">{{ 'MEMBER.FORMS_TITLE' | transloco }}</span></a>
+        <a *ngIf="canSee('orders')" class="nav-link" routerLink="/orders" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.shopping-cart" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.ORDERS' | transloco }}</span></a>
+        <a *ngIf="canSee('staff')" class="nav-link" routerLink="/staff" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.shield-check" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.STAFF' | transloco }}</span></a>
+        <a *ngIf="canSee('permissions')" class="nav-link" routerLink="/permissions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.user-cog" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.PERMISSIONS' | transloco }}</span></a>
+        <a *ngIf="canSee('wallets')" class="nav-link" routerLink="/wallets" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.wallet" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.WALLETS' | transloco }}</span></a>
+        <div class="nav-separator" *ngIf="canSee('ai-sync') || canSee('home-settings') || canSee('messages')"></div>
+        <a *ngIf="canSee('ai-sync')" class="nav-link" routerLink="/ai-sync" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.bot" class="nav-icon" /><span class="nav-text">Trợ lý AI (RAG)</span></a>
+        <a *ngIf="canSee('home-settings')" class="nav-link" routerLink="/banner-manager" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.image" class="nav-icon" /><span class="nav-text">Quản lý Banner</span></a>
+        <a *ngIf="canSee('messages')" class="nav-link" routerLink="/messages" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.message-square" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.MESSAGES' | transloco }}</span></a>
+        <a *ngIf="canSee('reviews')" class="nav-link" routerLink="/reviews" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.star" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.REVIEWS' | transloco }}</span></a>
+        <a *ngIf="canSee('advanced-reports')" class="nav-link" routerLink="/advanced-reports" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"><tui-icon icon="@tui.trending-up" class="nav-icon" /><span class="nav-text">{{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}</span></a>
       </nav>
 
       <div class="sidebar-footer">

@@ -9,6 +9,7 @@
   </header>
 
   <a
+    *ngIf="canSee('dashboard')"
     tuiAsideItem
     routerLink="/dashboard"
     routerLinkActive="active"
@@ -19,6 +20,7 @@
   </a>
 
   <a
+    *ngIf="canSee('categories')"
     tuiAsideItem
     routerLink="/categories"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -28,6 +30,7 @@
   </a>
 
   <a
+    *ngIf="canSee('products')"
     tuiAsideItem
     routerLink="/products"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -37,6 +40,7 @@
   </a>
 
   <a
+    *ngIf="canSee('variants')"
     tuiAsideItem
     routerLink="/product-variants"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -46,6 +50,7 @@
   </a>
 
   <a
+    *ngIf="canSee('rule-engine')"
     tuiAsideItem
     routerLink="/rule-engine"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -55,6 +60,7 @@
   </a>
 
   <a
+    *ngIf="canSee('users')"
     tuiAsideItem
     routerLink="/users"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -64,6 +70,7 @@
   </a>
 
   <a
+    *ngIf="canSee('customer-groups')"
     tuiAsideItem
     routerLink="/customer-groups"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -73,6 +80,7 @@
   </a>
 
   <a
+    *ngIf="canSee('orders')"
     tuiAsideItem
     routerLink="/orders"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -82,6 +90,7 @@
   </a>
 
   <a
+    *ngIf="canSee('staff')"
     tuiAsideItem
     routerLink="/staff"
     [routerLinkActiveOptions]="{ exact: false }"
@@ -89,8 +98,79 @@
     <tui-icon icon="@tui.shield-check" />
     {{ 'SIDEBAR.STAFF' | transloco }}
   </a>
+  
+  <a
+    *ngIf="canSee('coupons')"
+    tuiAsideItem
+    routerLink="/coupons"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.ticket" />
+    {{ 'SIDEBAR.COUPONS' | transloco }}
+  </a>
 
   <a
+    *ngIf="canSee('sale-campaigns')"
+    tuiAsideItem
+    routerLink="/sale-campaigns"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.zap" />
+    {{ 'SIDEBAR.CAMPAIGNS' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('wallets')"
+    tuiAsideItem
+    routerLink="/wallets"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.wallet" />
+    {{ 'SIDEBAR.WALLETS' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('advanced-reports')"
+    tuiAsideItem
+    routerLink="/advanced-reports"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.trending-up" />
+    {{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('messages')"
+    tuiAsideItem
+    routerLink="/messages"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.message-square" />
+    {{ 'SIDEBAR.MESSAGES' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('reviews')"
+    tuiAsideItem
+    routerLink="/reviews"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.star" />
+    {{ 'SIDEBAR.REVIEWS' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('permissions')"
+    tuiAsideItem
+    routerLink="/permissions"
+    [routerLinkActiveOptions]="{ exact: false }"
+  >
+    <tui-icon icon="@tui.user-cog" />
+    {{ 'SIDEBAR.PERMISSIONS' | transloco }}
+  </a>
+
+  <a
+    *ngIf="canSee('registration-forms')"
     tuiAsideItem
     routerLink="/registration-forms"
     [routerLinkActiveOptions]="{ exact: false }"

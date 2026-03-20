@@ -12,17 +12,17 @@
     width: 100%;
     max-width: 440px;
     border: 1px solid #eeeeee;
-    border-radius: 0; // Minimalist Dosi-in vibe
+    border-radius: 4px; // Align with SnapB2B radius
 
     .logo-wrapper {
       text-align: center;
       margin-bottom: 40px;
 
       .logo {
-        font-family: 'Inter', sans-serif;
-        font-weight: 900;
+        font-family: var(--font-family);
+        font-weight: 800;
         font-size: 28px;
-        color: #000;
+        color: var(--text-main);
         text-decoration: none;
         letter-spacing: -1.5px;
 
@@ -35,13 +35,13 @@
     }
 
     h3 {
-      font-family: 'Inter', sans-serif;
-      font-weight: 800;
+      font-family: var(--font-family);
+      font-weight: 700;
       font-size: 24px;
       margin-bottom: 12px;
       text-align: center;
-      letter-spacing: 2px;
-      color: #000;
+      letter-spacing: 0;
+      color: var(--text-main);
     }
 
     .subtitle {
@@ -110,16 +110,18 @@
       .submit-btn {
         width: 100%;
         height: 54px;
-        background-color: #000 !important;
+        background-color: var(--primary) !important;
         color: #fff !important;
-        font-weight: 800;
+        font-weight: 700;
         font-size: 14px;
-        letter-spacing: 2px;
-        border-radius: 0;
-        transition: opacity 0.3s;
+        letter-spacing: 1px;
+        border-radius: 4px;
+        transition: all 0.3s;
+        text-transform: uppercase;
 
         &:hover {
-          opacity: 0.8;
+          background-color: var(--primary-hover) !important;
+          transform: translateY(-1px);
         }
 
         &[disabled] {

@@ -28,6 +28,13 @@
     "PLANS": "SaaS Plans",
     "SHOPS": "Shops Management",
     "STAFF": "Staff & Admin",
+    "COUPONS": "Coupons",
+    "CAMPAIGNS": "Sale Campaigns",
+    "WALLETS": "Digital Wallets",
+    "ADVANCED_REPORTS": "Advanced Reports",
+    "MESSAGES": "Messages & Chat",
+    "REVIEWS": "Product Reviews",
+    "PERMISSIONS": "Roles & Permissions",
     "HELP": "Help"
   },
   "HEADER": {
@@ -241,5 +248,15 @@
       "ALL_PRODUCTS": "All products",
       "SPECIFIC_CATEGORIES": "Specific categories"
     }
+  },
+  "STOREFRONT": {
+    "CUSTOM_PRICING": "Custom Pricing",
+    "CUSTOM_PRICING_DESC": "Offer personalized rates for different customer segments.",
+    "ORDER_LIMITS": "Order Limits",
+    "ORDER_LIMITS_DESC": "Control inventory with minimum and maximum order constraints.",
+    "NET_TERMS": "Net Terms",
+    "NET_TERMS_DESC": "Enable flexible B2B payment schedules like Net 15, 30, 60.",
+    "ADVANCED_DEMO": "Advanced Demo",
+    "ADVANCED_DEMO_DESC": "Experience the full power of a custom B2B storefront."
   }
 }

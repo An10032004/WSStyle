@@ -7,6 +7,7 @@ import com.fashionstore.core.model.CustomerGroup;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -102,8 +104,18 @@ public class UserService {
     }
 
     public Optional<User> authenticate(LoginRequest request) {
+        log.debug("Authenticating user: {}", request.getEmail());
+        
         return userRepository.findByEmail(request.getEmail())
-                .filter(user -> passwordEncoder.matches(request.getPassword(), user.getPasswordHash()));
+                .filter(user -> {
+                    boolean matches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
+                    if (!matches) {
+                        log.warn("Authentication failed for user: {} - Invalid credentials", request.getEmail());
+                    } else {
+                        log.info("User {} authenticated successfully", request.getEmail());
+                    }
+                    return matches;
+                });
     }
 
     @Transactional

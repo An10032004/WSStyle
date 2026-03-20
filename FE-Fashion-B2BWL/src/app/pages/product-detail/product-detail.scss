@@ -1,6 +1,6 @@
 .product-detail-page {
-  font-family: 'Inter', sans-serif;
-  color: #000;
+  font-family: var(--font-family);
+  color: var(--text-main);
   background: #fff;
   overflow-x: hidden;
 
@@ -56,7 +56,7 @@
           transition: opacity 0.3s, border 0.3s;
           border: 2px solid transparent;
           img { width: 100%; height: 100%; object-fit: cover; }
-          &.active { opacity: 1; border-color: #000; }
+          &.active { opacity: 1; border-color: var(--primary); }
           &:hover { opacity: 1; }
         }
       }
@@ -114,7 +114,7 @@
         font-size: 13px;
         font-weight: 700;
         margin-bottom: 8px;
-        span { color: #e52c80; cursor: pointer; }
+        span { color: var(--primary); cursor: pointer; }
       }
 
       .product-name {
@@ -133,8 +133,8 @@
           align-items: baseline;
           gap: 12px;
           margin-bottom: 12px;
-          .current { font-size: 32px; font-weight: 900; color: #000; }
-          .original { font-size: 16px; color: #999; text-decoration: line-through; }
+          .current { font-size: 32px; font-weight: 900; color: var(--text-main); }
+          .original { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
           .discount-badge {
             background: #ef4444; color: #fff; font-size: 12px; font-weight: 900;
             padding: 2px 6px; border-radius: 4px;
@@ -158,8 +158,8 @@
             background: #f5f5f5;
             position: relative;
             
-            &.active { border-color: #000; background: #000; color: #fff; }
-            &:hover:not(.active) { border-color: #ccc; }
+            &.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+            &:hover:not(.active) { border-color: var(--primary-hover); }
             
             tui-icon { font-size: 18px; }
           }
@@ -169,8 +169,8 @@
           .size-btn {
             min-width: 60px; height: 44px; border: 1px solid #eee; background: #fff; font-weight: 700; border-radius: 4px; cursor: pointer;
             transition: all 0.2s;
-            &:hover { border-color: #000; }
-            &.active { background: #000; color: #fff; border-color: #000; }
+            &:hover { border-color: var(--primary); }
+            &.active { background: var(--primary); color: #fff; border-color: var(--primary); }
           }
         }
       }
@@ -186,7 +186,9 @@
       }
 
       .main-cta .buy-btn {
-        width: 100%; height: 56px; background: #e52c80 !important; color: #fff !important; font-weight: 900; font-size: 16px; border-radius: 28px; border: none;
+        width: 100%; height: 56px; background: var(--primary) !important; color: #fff !important; font-weight: 700; font-size: 16px; border-radius: 4px; border: none;
+        text-transform: uppercase; letter-spacing: 1px;
+        &:hover { background: var(--primary-hover) !important; transform: translateY(-1px); }
       }
     }
 
@@ -199,8 +201,8 @@
         .tab {
           padding: 24px 0; font-size: 16px; font-weight: 800; color: #888; cursor: pointer; position: relative;
           &.active {
-            color: #000;
-            &::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #000; }
+            color: var(--primary);
+            &::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--primary); }
           }
         }
       }
@@ -274,13 +276,15 @@
       }
 
       .sticky-buy-btn {
-        background: #e52c80;
+        background: var(--primary);
         color: #fff;
         border: none;
         padding: 12px 32px;
-        border-radius: 25px;
-        font-weight: 900;
+        border-radius: 4px;
+        font-weight: 700;
+        text-transform: uppercase;
         cursor: pointer;
+        &:hover { background: var(--primary-hover); }
       }
     }
   }
