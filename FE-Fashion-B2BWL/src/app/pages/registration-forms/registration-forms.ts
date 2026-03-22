@@ -140,9 +140,15 @@ export class RegistrationFormsComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'user.email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), flex: 1 },
-      { field: 'user.fullName', headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { field: 'user.email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), width: 250 },
+      { 
+        field: 'user.fullName', 
+        headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), 
+        width: 250,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
         width: 150,

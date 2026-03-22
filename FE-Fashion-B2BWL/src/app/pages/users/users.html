@@ -39,18 +39,18 @@
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.ROLE' | transloco }}
-        <tui-select [(ngModel)]="formData.role">
-          <tui-data-list-wrapper *tuiDataList [items]="roleOptions"></tui-data-list-wrapper>
+      <label tuiLabel class="form-field full-width">
+        <span style="color: #1976d2; font-weight: bold;">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
+        <tui-select [(ngModel)]="formData.customerGroupId">
+          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="content"></tui-data-list-wrapper>
+          <ng-template #content let-item>{{ item.name }}</ng-template>
         </tui-select>
       </label>
 
       <label tuiLabel class="form-field">
-        {{ 'MEMBER.GROUP' | transloco }}
-        <tui-select [(ngModel)]="formData.customerGroupId">
-          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="content"></tui-data-list-wrapper>
-          <ng-template #content let-item>{{ item.name }}</ng-template>
+        {{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)
+        <tui-select [(ngModel)]="formData.role">
+          <tui-data-list-wrapper *tuiDataList [items]="roleOptions"></tui-data-list-wrapper>
         </tui-select>
       </label>
 

@@ -38,6 +38,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           [paginationPageSize]="20"
           [paginationPageSizeSelector]="[10, 20, 50, 100]"
           [localeText]="localeText"
+          [defaultColDef]="defaultColDef"
           (gridReady)="onGridReady($event)"
           [animateRows]="true"
         ></ag-grid-angular>
@@ -135,7 +136,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
   rowData: Order[] = [];
   gridApi!: GridApi;
   columnDefs: ColDef[] = [];
-  localeText: any = {};
+  defaultColDef: ColDef = { resizable: true, minWidth: 100 };
+  localeText: any = AG_GRID_LOCALE_VI;
   private langSub?: Subscription;
 
   constructor(
@@ -171,9 +173,20 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerValueGetter: () => this.transloco.translate('ORDER.ID'), width: 100 },
-      { field: 'createdAt', headerValueGetter: () => this.transloco.translate('ORDER.DATE'), width: 150, valueFormatter: params => new Date(params.value).toLocaleString() },
-      { field: 'user.fullName', headerValueGetter: () => this.transloco.translate('ORDER.USER'), flex: 1 },
+      { 
+        field: 'id', 
+        headerValueGetter: () => this.transloco.translate('ORDER.ID'), 
+        width: 100,
+        pinned: 'left'
+      },
+      { field: 'createdAt', headerValueGetter: () => this.transloco.translate('ORDER.DATE'), width: 170, valueFormatter: params => new Date(params.value).toLocaleString() },
+      { 
+        field: 'user.fullName', 
+        headerValueGetter: () => this.transloco.translate('ORDER.USER'), 
+        width: 250,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         field: 'status', 
         headerValueGetter: () => this.transloco.translate('ORDER.STATUS'), 
@@ -231,6 +244,5 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
   }
 }

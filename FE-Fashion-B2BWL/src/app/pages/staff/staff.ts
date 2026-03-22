@@ -55,6 +55,7 @@ export class StaffComponent implements OnInit, OnDestroy {
   gridApi!: GridApi;
   columnDefs: ColDef[] = [];
   localeText: any = {};
+  defaultColDef: ColDef = { resizable: true, minWidth: 100 };
   
   showForm = false;
   editingId: number | null = null;
@@ -65,10 +66,12 @@ export class StaffComponent implements OnInit, OnDestroy {
     fullName: '',
     phone: '',
     role: 'STAFF',
-    registrationStatus: 'APPROVED'
+    registrationStatus: 'APPROVED',
+    customerGroup: null
   };
 
-  roleOptions = ['ADMIN', 'STAFF'];
+  roleOptions = ['ADMIN', 'STAFF', 'CUSTOMER'];
+  customerGroups: any[] = [];
 
   private langSub?: Subscription;
 
@@ -84,6 +87,7 @@ export class StaffComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
+    this.loadCustomerGroups();
 
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
@@ -98,26 +102,45 @@ export class StaffComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
 
   loadData(): void {
-    this.api.getUsersByRoles(['ADMIN', 'STAFF']).subscribe(data => {
+    this.api.getUsers().subscribe(data => {
       this.rowData = data;
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadCustomerGroups(): void {
+    this.api.getCustomerGroups().subscribe(groups => {
+      this.customerGroups = groups;
       this.cdr.detectChanges();
     });
   }
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), flex: 1 },
-      { field: 'fullName', headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { field: 'email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), width: 250 },
+      { 
+        field: 'fullName', 
+        headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), 
+        width: 250,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         field: 'role', 
         headerValueGetter: () => this.transloco.translate('MEMBER.ROLE'), 
         width: 150,
         cellRenderer: (params: any) => {
           const role = params.value;
-          const color = role === 'ADMIN' ? 'primary' : 'neutral';
+          const color = role === 'ADMIN' ? 'primary' : (role === 'STAFF' ? 'neutral' : 'accent');
           return `<span class="tui-badge tui-badge_${color}">${this.transloco.translate('ENUMS.' + role)}</span>`;
         }
+      },
+      { 
+        field: 'customerGroup.name', 
+        headerValueGetter: () => this.transloco.translate('MEMBER.GROUP'), 
+        width: 150,
+        valueFormatter: (params: any) => params.value || '-'
       },
       { field: 'phone', headerValueGetter: () => this.transloco.translate('MEMBER.PHONE'), width: 130 },
       { 
@@ -141,14 +164,13 @@ export class StaffComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
   }
 
   onAdd(): void {
     this.editingId = null;
     this.formData = {
-      email: '', password: '', fullName: '', phone: '', role: 'STAFF',
-      registrationStatus: 'APPROVED'
+      email: '', password: '', fullName: '', phone: '', role: 'CUSTOMER',
+      registrationStatus: 'APPROVED', customerGroup: null
     };
     this.showForm = true;
     this.cdr.detectChanges();
@@ -158,7 +180,8 @@ export class StaffComponent implements OnInit, OnDestroy {
     this.editingId = user.id;
     this.formData = { 
       ...user, 
-      password: '' // Don't show password hash
+      password: '', // Don't show password hash
+      customerGroup: user.customerGroup ? user.customerGroup : null
     };
     this.showForm = true;
     this.cdr.detectChanges();

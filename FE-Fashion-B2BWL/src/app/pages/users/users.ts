@@ -115,9 +115,15 @@ export class UsersComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), flex: 1 },
-      { field: 'fullName', headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { field: 'email', headerValueGetter: () => this.transloco.translate('MEMBER.EMAIL'), width: 250 },
+      { 
+        field: 'fullName', 
+        headerValueGetter: () => this.transloco.translate('MEMBER.NAME'), 
+        width: 250,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         field: 'role', 
         headerValueGetter: () => this.transloco.translate('MEMBER.ROLE'), 

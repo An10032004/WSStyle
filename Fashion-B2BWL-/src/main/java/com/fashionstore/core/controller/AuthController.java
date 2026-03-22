@@ -9,6 +9,7 @@ import com.fashionstore.core.model.RefreshToken;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.service.JwtService;
 import com.fashionstore.core.service.RefreshTokenService;
+import com.fashionstore.core.service.RoleService;
 import com.fashionstore.core.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public class AuthController {
     private final UserService userService;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final RoleService roleService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
@@ -84,6 +86,14 @@ public class AuthController {
     }
 
     private UserResponse mapToUserResponse(User user) {
+        String permissions = "[]";
+        try {
+            permissions = roleService.getRoleByName(user.getRole()).getPermissionsJson();
+        } catch (Exception e) {
+            // Fallback for roles not in app_roles table yet
+            if ("ADMIN".equals(user.getRole())) permissions = "[\"ALL\"]";
+        }
+
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -92,6 +102,7 @@ public class AuthController {
                 .role(user.getRole())
                 .companyName(user.getCompanyName())
                 .registrationStatus(user.getRegistrationStatus())
+                .permissions(permissions)
                 .build();
     }
 }

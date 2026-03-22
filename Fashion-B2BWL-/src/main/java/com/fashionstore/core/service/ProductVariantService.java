@@ -68,6 +68,19 @@ public class ProductVariantService {
                 .stockQuantity(request.getStockQuantity())
                 .priceAdjustment(request.getPriceAdjustment())
                 .imageUrl(request.getImageUrl())
+                .color(request.getColor())
+                .size(request.getSize())
+                .weight(request.getWeight())
+                .length(request.getLength())
+                .width(request.getWidth())
+                .height(request.getHeight())
+                .costPrice(request.getCostPrice())
+                .price(request.getPrice())
+                .discountPrice(request.getDiscountPrice())
+                .status(request.getStatus())
+                .barcode(request.getBarcode())
+                .imageUrls(request.getImageUrls())
+                .shopId(1)
                 .build();
 
         return productVariantRepository.save(variant);
@@ -88,6 +101,18 @@ public class ProductVariantService {
         variant.setStockQuantity(request.getStockQuantity());
         variant.setPriceAdjustment(request.getPriceAdjustment());
         variant.setImageUrl(request.getImageUrl());
+        variant.setColor(request.getColor());
+        variant.setSize(request.getSize());
+        variant.setWeight(request.getWeight());
+        variant.setLength(request.getLength());
+        variant.setWidth(request.getWidth());
+        variant.setHeight(request.getHeight());
+        variant.setCostPrice(request.getCostPrice());
+        variant.setPrice(request.getPrice());
+        variant.setDiscountPrice(request.getDiscountPrice());
+        variant.setStatus(request.getStatus());
+        variant.setBarcode(request.getBarcode());
+        variant.setImageUrls(request.getImageUrls());
 
         return productVariantRepository.save(variant);
     }

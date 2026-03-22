@@ -13,4 +13,5 @@ public class UserResponse {
     private String role;
     private String companyName;
     private String registrationStatus;
+    private String permissions;
 }

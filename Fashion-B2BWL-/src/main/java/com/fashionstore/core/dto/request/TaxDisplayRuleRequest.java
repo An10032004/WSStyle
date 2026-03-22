@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class TaxDisplayRuleRequest {
     private String name;
+    private Integer priority;
     private String status;
     private String taxDisplayType;
     private String displayType;

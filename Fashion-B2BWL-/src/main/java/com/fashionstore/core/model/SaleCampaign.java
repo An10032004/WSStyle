@@ -43,6 +43,28 @@ public class SaleCampaign {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Builder.Default
+    @Column(name = "priority")
+    private Integer priority = 0;
+
+    @Builder.Default
+    @Column(name = "status", length = 20)
+    private String status = "ACTIVE";
+
+    @Builder.Default
+    @Column(name = "apply_product_type", length = 50)
+    private String applyProductType = "ALL";
+
+    @Column(name = "apply_product_value", columnDefinition = "TEXT")
+    private String applyProductValue;
+
+    @Builder.Default
+    @Column(name = "apply_customer_type", length = 50)
+    private String applyCustomerType = "ALL";
+
+    @Column(name = "apply_customer_value", columnDefinition = "TEXT")
+    private String applyCustomerValue;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

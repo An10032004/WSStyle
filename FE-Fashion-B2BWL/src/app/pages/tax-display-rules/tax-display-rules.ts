@@ -107,8 +107,14 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'name', headerValueGetter: () => this.transloco.translate('RULE.NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { 
+        field: 'name', 
+        headerValueGetter: () => this.transloco.translate('RULE.NAME'), 
+        width: 300,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         field: 'taxDisplayType', 
         headerValueGetter: () => this.transloco.translate('RULE.TAX_TYPE'), 

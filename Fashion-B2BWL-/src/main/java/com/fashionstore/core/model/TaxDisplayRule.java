@@ -17,7 +17,11 @@ public class TaxDisplayRule {
     private Integer id;
 
     @Column(name = "shop_id")
-    private Integer shopId;
+    private Integer shopId = 1;
+
+    @Builder.Default
+    @Column(name = "priority")
+    private Integer priority = 0;
 
     @Column(nullable = false)
     private String name;

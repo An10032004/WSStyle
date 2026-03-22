@@ -23,8 +23,8 @@
 
     .product-layout {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 60px;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 50px;
       margin-bottom: 80px;
 
       @media (max-width: 1024px) {
@@ -127,17 +127,56 @@
       .sku-info { font-size: 13px; color: #888; margin-bottom: 40px; }
 
       .pricing-card {
-        margin-bottom: 40px;
+        margin-bottom: 24px;
+        padding: 24px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+
+        &.b2b-active {
+          background: linear-gradient(135deg, #fff7ed 0%, #fff 100%);
+          border: 1.5px solid #fb923c;
+          position: relative;
+          overflow: hidden;
+
+          &::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(251, 146, 60, 0.1);
+            border-radius: 50%;
+          }
+        }
+
+        .b2b-badge {
+           display: inline-flex;
+           align-items: center;
+           gap: 6px;
+           background: #ffedd5;
+           color: #9a3412;
+           padding: 4px 12px;
+           border-radius: 20px;
+           font-size: 12px;
+           font-weight: 700;
+           margin-bottom: 12px;
+           border: 1px solid #fed7aa;
+        }
+
         .main-price {
           display: flex;
-          align-items: baseline;
+          align-items: center;
           gap: 12px;
           margin-bottom: 12px;
-          .current { font-size: 32px; font-weight: 900; color: var(--text-main); }
-          .original { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
+          .current { font-size: 36px; font-weight: 900; color: #000; letter-spacing: -1px; }
+          .original { font-size: 18px; color: #94a3b8; text-decoration: line-through; }
           .discount-badge {
-            background: #ef4444; color: #fff; font-size: 12px; font-weight: 900;
-            padding: 2px 6px; border-radius: 4px;
+            background: #000; color: #fff; font-size: 11px; font-weight: 800;
+            padding: 4px 10px; border-radius: 20px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
           }
         }
         .stats {
@@ -148,29 +187,129 @@
       }
 
       .variant-selector {
-        margin-bottom: 32px;
+        margin-bottom: 24px;
         .selector-label { font-size: 14px; font-weight: 700; margin-bottom: 16px; span { color: #888; font-weight: 400; } }
-        .color-options {
-          display: flex; gap: 12px;
+        .color-swatch-wrapper {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+
           .color-circle {
-            width: 44px; height: 44px; border-radius: 50%; border: 2px solid #eee; cursor: pointer; transition: all 0.3s;
-            display: flex; align-items: center; justify-content: center;
-            background: #f5f5f5;
-            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             
-            &.active { border-color: var(--primary); background: var(--primary); color: #fff; }
-            &:hover:not(.active) { border-color: var(--primary-hover); }
+            &.active {
+              border-color: #000;
+              transform: scale(1.15);
+              box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+              color: #fff;
+              
+              tui-icon {
+                 filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+              }
+            }
+
+            &:hover:not(.active) {
+              border-color: #94a3b8;
+              transform: translateY(-2px);
+            }
             
-            tui-icon { font-size: 18px; }
+            tui-icon { font-size: 16px; }
+          }
+
+          .color-name {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #000;
+            letter-spacing: 0.5px;
+            animation: fadeIn 0.3s ease;
           }
         }
         .size-options {
-          display: flex; gap: 8px; flex-wrap: wrap;
+          display: flex; gap: 10px; flex-wrap: wrap;
           .size-btn {
-            min-width: 60px; height: 44px; border: 1px solid #eee; background: #fff; font-weight: 700; border-radius: 4px; cursor: pointer;
-            transition: all 0.2s;
-            &:hover { border-color: var(--primary); }
-            &.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+            min-width: 54px; height: 40px; border: 1px solid #e2e8f0; background: #fff; font-weight: 700; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            color: #475569;
+
+            &:hover { border-color: #000; color: #000; background: #f8fafc; }
+            &.active { background: #000; color: #fff; border-color: #000; transform: scale(1.05); }
+          }
+        }
+      }
+
+      /* QUANTITY BREAK STYLES */
+      .qb-section {
+        margin-bottom: 24px;
+        background: #fff8f8;
+        border: 1px solid #fee2e2;
+        border-radius: 12px;
+        padding: 16px;
+        animation: fadeIn 0.4s ease-out;
+
+        .qb-title {
+          font-weight: 700;
+          color: #b91c1c;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          font-size: 15px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .qb-table-wrapper {
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #fecaca;
+        }
+
+        .qb-table {
+          width: 100%;
+          border-collapse: collapse;
+          background: #fff;
+          font-size: 14px;
+
+          th {
+            background: #fef2f2;
+            color: #991b1b;
+            text-align: left;
+            padding: 10px 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #fee2e2;
+          }
+
+          td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #fef2f2;
+            color: #450a0a;
+          }
+
+          tr:last-child td {
+            border-bottom: none;
+          }
+
+          .price-val {
+            font-weight: 700;
+            color: #1e293b;
+          }
+
+          .discount-val {
+            color: #dc2626;
+            font-weight: 800;
+            text-align: right;
           }
         }
       }

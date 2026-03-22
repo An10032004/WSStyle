@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel } from '@taiga-ui/core';
 import { TUI_CONFIRM, TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
+import { ApiService, Role } from '../../services/api.service';
 
 @Component({
   standalone: true,
@@ -84,7 +85,7 @@ import { TUI_CONFIRM, TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
           </div>
           <div class="role-actions">
              <button tuiButton type="button" size="s" appearance="secondary" (click)="showEditPermissionsDialog(role)">Edit Permissions</button>
-             <button tuiButton type="button" size="s" appearance="flat" color="red" (click)="deleteRole(role.name)">Delete</button>
+             <button tuiButton type="button" size="s" appearance="secondary-destructive" (click)="deleteRole(role)">Delete</button>
           </div>
         </div>
       </div>
@@ -107,34 +108,33 @@ import { TUI_CONFIRM, TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 })
 export class PermissionsComponent {
   private readonly dialogs = inject(TuiDialogService);
+  private readonly api = inject(ApiService);
   
-  readonly roles = signal([
-    { 
-      name: 'Admin', 
-      isAdmin: true, 
-      description: 'Toàn quyền quản trị hệ thống (Full System Access)',
-      permissions: [
-        'Quản lý nhân viên', 'Quản lý report', 'Quản lý coupon', 'Quản lý ví điện tử',
-        'Quản lý chiến dịch sale', 'Quản lý hồ sơ đại lý', 'Quản lý sản phẩm',
-        'Quản lý danh mục', 'Quản lý đơn hàng', 'Quản lý nhóm khách hàng',
-        'Quản lý ẩn giá', 'Quản lý AI', 'Quản lý banner', 'Quản lý chiết khấu',
-        'Quản lý người dùng', 'Quản lý biến thể', 'Quản lý giới hạn đặt hàng',
-        'Quản lý phí vận chuyển', 'Hỗ trợ khách hàng', 'Point of sale',
-        'Quản lý công nợ', 'Quản lý giá thuê'
-      ]
-    },
-    { 
-      name: 'Staff', 
-      isAdmin: false, 
-      description: 'Nhân viên vận hành cửa hàng (Store Operation Staff)',
-      permissions: [
-        'Quản lý sản phẩm', 'Quản lý danh mục', 'Quản lý đơn hàng',
-        'Quản lý nhóm khách hàng', 'Quản lý ẩn giá', 'Quản lý AI',
-        'Quản lý banner', 'Hỗ trợ khách hàng', 'Point of sale',
-        'Quản lý biến thể'
-      ]
+  readonly roles = signal<any[]>([]);
+
+  constructor() {
+    this.loadRoles();
+  }
+
+  loadRoles() {
+    this.api.getRoles().subscribe(data => {
+      // Map JSON string permissions back to arrays for display
+      const mapped = data.map(r => ({
+        ...r,
+        permissions: this.safeParse(r.permissionsJson)
+      }));
+      this.roles.set(mapped);
+    });
+  }
+
+  private safeParse(json: string | null): string[] {
+    if (!json) return [];
+    try {
+      return JSON.parse(json) || [];
+    } catch (e) {
+      return [];
     }
-  ]);
+  }
 
   @ViewChild('addRoleDialog') addRoleDialogTemplate!: TemplateRef<any>;
   @ViewChild('editPermissionsDialog') editPermissionsDialogTemplate!: TemplateRef<any>;
@@ -183,38 +183,42 @@ export class PermissionsComponent {
   }
 
   addRole() {
-    this.roles.update(r => [...r, {
+    const newRole: Role = {
        name: this.newRoleName,
        isAdmin: false,
        description: this.newRoleDescription || 'New role created by admin',
-       permissions: []
-    }]);
+       permissionsJson: '[]'
+    };
+    this.api.saveRole(newRole).subscribe(() => this.loadRoles());
   }
 
   savePermissions() {
     const newPerms = this.allPermissions.filter(p => this.selectedPermissions[p]);
-    this.roles.update(list => list.map(r => 
-      r.name === this.editingRoleOriginalName ? { 
-        ...r, 
-        name: this.editingRoleName, 
-        description: this.editingRoleDescription,
-        permissions: newPerms 
-      } : r
-    ));
+    const targetRole = this.roles().find(r => r.name === this.editingRoleOriginalName);
+    if (!targetRole) return;
+
+    const updatedRole: Role = {
+      ...targetRole,
+      name: this.editingRoleName,
+      description: this.editingRoleDescription,
+      permissionsJson: JSON.stringify(newPerms)
+    };
+
+    this.api.saveRole(updatedRole).subscribe(() => this.loadRoles());
   }
 
-  deleteRole(name: string) {
+  deleteRole(role: Role) {
     this.dialogs.open<boolean>(TUI_CONFIRM, {
       label: 'Delete Role',
       size: 's',
       data: {
-        content: `Are you sure you want to delete the "${name}" role?`,
+        content: `Are you sure you want to delete the "${role.name}" role?`,
         yes: 'Delete',
         no: 'Cancel'
       }
     }).subscribe(res => {
-      if (res) {
-        this.roles.update(r => r.filter(x => x.name !== name));
+      if (res && role.id) {
+        this.api.deleteRole(role.id).subscribe(() => this.loadRoles());
       }
     });
   }

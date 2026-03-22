@@ -66,8 +66,14 @@ export class AiSyncComponent implements OnInit {
   gridApi!: GridApi;
   
   columnDefs: ColDef[] = [
-    { field: 'productId', headerName: 'ID', width: 80 },
-    { field: 'productName', headerName: 'Tên sản phẩm', flex: 1 },
+    { field: 'productId', headerName: 'ID', width: 100, pinned: 'left' },
+    { 
+      field: 'productName', 
+      headerName: 'Tên sản phẩm', 
+      width: 300, 
+      pinned: 'left',
+      tooltipValueGetter: (params: any) => params.value
+    },
     { 
       field: 'status', 
       headerName: 'Trạng thái đồng bộ', 

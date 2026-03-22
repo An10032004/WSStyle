@@ -1,0 +1,57 @@
+<div class="b2b-container" *transloco="let t">
+  <div class="b2b-card">
+    <div class="header">
+      <h1 class="tui-text_h3">Trở thành Đối tác B2B</h1>
+      <p class="tui-text_body-m">Đăng ký tài khoản đại lý để nhận ưu đãi chiết khấu và chính sách giá sỉ tốt nhất.</p>
+    </div>
+
+    <div *ngIf="success" class="success-message">
+      <tui-notification status="success" hasIcon="true">
+        Hồ sơ của bạn đã được gửi thành công! Đội ngũ của chúng tôi sẽ xem xét và phản hồi qua email trong vòng 24-48 giờ làm việc.
+      </tui-notification>
+      <button tuiButton type="button" size="m" class="tui-space_top-5" routerLink="/storefront">Quay lại trang chủ</button>
+    </div>
+
+    <form *ngIf="!success" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="form-grid">
+        <tui-textfield>
+          <input tuiTextfield formControlName="companyName" placeholder="Ví dụ: Công ty TNHH Thời trang ABC" />
+          Tên công ty / Doanh nghiệp
+        </tui-textfield>
+
+        <tui-textfield>
+          <input tuiTextfield formControlName="taxCode" placeholder="Mã số thuế" />
+          Mã số thuế
+        </tui-textfield>
+
+        <tui-textfield>
+          <input tuiTextfield formControlName="address" placeholder="Địa chỉ đăng ký kinh doanh" />
+          Địa chỉ
+        </tui-textfield>
+
+        <tui-textfield>
+          <input tuiTextfield formControlName="businessType" placeholder="Ví dụ: Bán lẻ, Bán sỉ, Dropshipping" />
+          Loại hình kinh doanh
+        </tui-textfield>
+
+        <tui-textfield class="full-width">
+          <textarea tuiTextfield formControlName="description" placeholder="Giới thiệu ngắn về doanh nghiệp của bạn..."></textarea>
+          Mô tả thêm (Tùy chọn)
+        </tui-textfield>
+      </div>
+
+      <div *ngIf="errorMsg" class="tui-space_top-4">
+        <tui-notification status="error" hasIcon="true">{{ errorMsg }}</tui-notification>
+      </div>
+
+      <div class="actions">
+        <button tuiButton type="submit" size="l" [disabled]="loading">
+          <tui-loader [showLoader]="loading" [inheritColor]="true" [overlay]="true">
+            Gửi hồ sơ đăng ký
+          </tui-loader>
+        </button>
+        <button tuiButton type="button" size="l" appearance="flat" routerLink="/storefront">Hủy</button>
+      </div>
+    </form>
+  </div>
+</div>

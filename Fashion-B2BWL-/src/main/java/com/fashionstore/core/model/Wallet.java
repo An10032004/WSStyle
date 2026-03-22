@@ -32,6 +32,13 @@ public class Wallet {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder.Default
+    @Column(name = "status", length = 20)
+    private String status = "ACTIVE";
+
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
+
     @PreUpdate
     @PrePersist
     protected void onUpdate() {

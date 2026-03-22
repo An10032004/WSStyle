@@ -23,6 +23,22 @@
           </tui-textfield>
         </label>
         <label tuiLabel class="form-field">
+          {{ 'VARIANT.STATUS' | transloco }} *
+          <tui-select
+            [(ngModel)]="formData.status"
+            [valueContent]="statusContent"
+            tuiTextfieldSize="m"
+          >
+            <tui-data-list *tuiDataList>
+              <button tuiOption value="ACTIVE">✅ Kích hoạt</button>
+              <button tuiOption value="INACTIVE">❌ Ngừng bán</button>
+            </tui-data-list>
+          </tui-select>
+          <ng-template #statusContent let-status>
+            {{ status === 'ACTIVE' ? '✅ Kích hoạt' : '❌ Ngừng bán' }}
+          </ng-template>
+        </label>
+        <label tuiLabel class="form-field">
           {{ 'VARIANT.PRODUCT' | transloco }} *
           <tui-select
             [(ngModel)]="formData.productId"
@@ -52,6 +68,67 @@
             <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
           </tui-textfield>
         </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.COST_PRICE' | transloco }} (VNĐ)
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.costPrice" placeholder="0" maxlength="13" />
+            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          Giá bán riêng (VNĐ)
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.price" placeholder="Theo giá gốc" maxlength="13" />
+            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          Giá giảm riêng (VNĐ)
+          <tui-textfield>
+            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.discountPrice" placeholder="0" maxlength="13" />
+            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          Mã vạch (Barcode)
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.barcode" placeholder="893..." />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.COLOR' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.color" placeholder="Red, Blue..." />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.SIZE' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.size" placeholder="S, M, L..." />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          {{ 'VARIANT.WEIGHT' | transloco }}
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.weight" placeholder="10kg, 200g..." />
+          </tui-textfield>
+        </label>
+        <div class="form-field full-width dimensions-row">
+          <label tuiLabel>
+            Kích thước (Dài x Rộng x Cao cm)
+            <div class="dim-inputs">
+              <tui-textfield tuiTextfieldSize="m">
+                <input tuiTextfield type="number" [(ngModel)]="formData.length" placeholder="Dài" />
+              </tui-textfield>
+              <tui-textfield tuiTextfieldSize="m">
+                <input tuiTextfield type="number" [(ngModel)]="formData.width" placeholder="Rộng" />
+              </tui-textfield>
+              <tui-textfield tuiTextfieldSize="m">
+                <input tuiTextfield type="number" [(ngModel)]="formData.height" placeholder="Cao" />
+              </tui-textfield>
+            </div>
+          </label>
+        </div>
 
         <div class="form-field full-width">
           <label tuiLabel>
@@ -68,11 +145,28 @@
         </div>
 
         <label tuiLabel class="form-field full-width">
-          {{ 'VARIANT.IMAGE_URL' | transloco }}
+          {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
           <tui-textfield>
-            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://..." />
+            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://example.com/image.jpg" />
+            <tui-icon *tuiTextfieldElement icon="@tui.image" />
           </tui-textfield>
         </label>
+
+        <div class="form-field full-width gallery-section">
+          <label tuiLabel>Bộ sưu tập ảnh biến thể</label>
+          <div *ngFor="let url of formData.imageUrls; let i = index; trackBy: trackByIndex" class="gallery-item">
+            <tui-textfield class="gallery-input">
+              <input tuiTextfield [(ngModel)]="formData.imageUrls[i]" [placeholder]="'URL ảnh ' + (i + 1)" />
+            </tui-textfield>
+            <button tuiButton type="button" appearance="flat" size="s" (click)="removeImageUrl(i)">
+              <tui-icon icon="@tui.trash"></tui-icon>
+            </button>
+          </div>
+          <button tuiButton type="button" appearance="outline" size="s" (click)="addImageUrl()" style="margin-top: 8px">
+            <tui-icon icon="@tui.plus" style="margin-right: 4px"></tui-icon>
+            Thêm ảnh vào bộ sưu tập
+          </button>
+        </div>
       </div>
       <div class="form-actions">
         <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSave()">{{ 'GLOBAL.SAVE' | transloco }}</button>
@@ -90,6 +184,23 @@
          <p><strong>{{ 'VARIANT.PRODUCT' | transloco }}:&nbsp;</strong> {{ getProductDisplay(selectedVariant.productId ?? null) }}</p>
          <p><strong>{{ 'VARIANT.STOCK' | transloco }}:&nbsp;</strong> {{ selectedVariant.stockQuantity | number }}</p>
          <p><strong>{{ 'VARIANT.PRICE_ADJ' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedVariant.priceAdjustment | number }} VND</span></p>
+         <p><strong>{{ 'VARIANT.COLOR' | transloco }}:&nbsp;</strong> {{ selectedVariant.color || ('CATEGORY.ROOT' | transloco) }}</p>
+         <p><strong>{{ 'VARIANT.SIZE' | transloco }}:&nbsp;</strong> {{ selectedVariant.size || ('CATEGORY.ROOT' | transloco) }}</p>
+         <p><strong>{{ 'VARIANT.WEIGHT' | transloco }}:&nbsp;</strong> {{ selectedVariant.weight || ('CATEGORY.ROOT' | transloco) }}</p>
+         <p><strong>Kích thước:&nbsp;</strong> {{ selectedVariant.length }} x {{ selectedVariant.width }} x {{ selectedVariant.height }} cm</p>
+         <p><strong>Giá nhập:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.costPrice | number }} VND</span></p>
+         <p><strong>Giá bán riêng:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.price ? (selectedVariant.price | number) : 'Theo giá gốc' }} VND</span></p>
+         <p><strong>Giá giảm riêng:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedVariant.discountPrice | number }} VND</span></p>
+         <p><strong>Mã vạch:&nbsp;</strong> {{ selectedVariant.barcode || 'N/A' }}</p>
+         <p><strong>Trạng thái:&nbsp;</strong> {{ selectedVariant.status === 'ACTIVE' ? '✅ Kích hoạt' : '❌ Ngừng bán' }}</p>
+         
+         <div class="form-field full-width" *ngIf="selectedVariant.imageUrl || (parseImageUrls(selectedVariant.imageUrls).length > 0)" style="margin-top: 16px">
+            <strong>Bộ sưu tập ảnh:&nbsp;</strong>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+               <img *ngIf="selectedVariant.imageUrl" [src]="selectedVariant.imageUrl" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid var(--tui-border-normal)" title="Ảnh chính">
+               <img *ngFor="let url of parseImageUrls(selectedVariant.imageUrls)" [src]="url" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--tui-border-light)">
+            </div>
+         </div>
          <p><strong>{{ 'VARIANT.IMAGE_URL' | transloco }}:&nbsp;</strong> <a [href]="selectedVariant.imageUrl" target="_blank">{{ selectedVariant.imageUrl || ('CATEGORY.ROOT' | transloco) }}</a></p>
          <div class="form-field full-width">
             <strong>{{ 'VARIANT.ATTRIBUTES' | transloco }}:</strong>
@@ -110,7 +221,6 @@
         [rowData]="rowData"
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
-        [rowSelection]="{ mode: 'singleRow' }"
         [animateRows]="true"
         [pagination]="true"
         [paginationPageSize]="20"

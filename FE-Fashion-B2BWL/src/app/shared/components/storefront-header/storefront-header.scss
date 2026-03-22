@@ -64,6 +64,12 @@
       &:hover {
         color: var(--primary);
       }
+
+      &.highlight-link {
+        color: #d0011b; // Storefront theme red
+        font-weight: 600;
+        &:hover { color: #b0011b; }
+      }
     }
   }
 

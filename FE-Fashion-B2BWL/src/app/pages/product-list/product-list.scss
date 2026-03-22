@@ -25,3 +25,63 @@
   font-family: "Courier New", Courier, monospace;
   background: var(--tui-base-01);
 }
+
+.gallery-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--tui-base-01);
+  border-radius: 8px;
+  border: 1px dashed var(--tui-base-03);
+}
+
+.gallery-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gallery-input {
+  flex: 1;
+}
+
+.detail-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gallery-thumb {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--tui-base-03);
+  box-shadow: var(--tui-shadow-s);
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+    z-index: 1;
+  }
+
+  &.main {
+    border: 2px solid var(--tui-primary);
+    position: relative;
+    
+    &::after {
+      content: '★';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: var(--tui-primary);
+      color: white;
+      font-size: 10px;
+      padding: 2px;
+      border-radius: 4px;
+    }
+  }
+}

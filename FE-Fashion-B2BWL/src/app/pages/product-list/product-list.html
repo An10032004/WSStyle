@@ -53,6 +53,36 @@
             {{ getCategoryName(id) }}
           </ng-template>
         </label>
+        <label tuiLabel class="form-field">
+          {{ 'PRODUCT.BRAND' | transloco }} *
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.brand" [placeholder]="'PRODUCT.BRAND' | transloco" />
+          </tui-textfield>
+        </label>
+
+        <label tuiLabel class="form-field full-width">
+          {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://example.com/image.jpg" />
+            <tui-icon *tuiTextfieldElement icon="@tui.image" />
+          </tui-textfield>
+        </label>
+
+        <div class="form-field full-width gallery-section">
+          <label tuiLabel>{{ 'PRODUCT.GALLERY' | transloco }}</label>
+          <div *ngFor="let url of formData.imageUrls; let i = index; trackBy: trackByIndex" class="gallery-item">
+            <tui-textfield class="gallery-input">
+              <input tuiTextfield [(ngModel)]="formData.imageUrls[i]" [placeholder]="'URL ảnh ' + (i + 1)" />
+            </tui-textfield>
+            <button tuiButton type="button" appearance="flat" size="s" (click)="removeImageUrl(i)">
+              <tui-icon icon="@tui.trash"></tui-icon>
+            </button>
+          </div>
+          <button tuiButton type="button" appearance="outline" size="s" (click)="addImageUrl()" style="margin-top: 8px">
+            <tui-icon icon="@tui.plus" style="margin-right: 4px"></tui-icon>
+            {{ 'PRODUCT.ADD_IMAGE' | transloco }}
+          </button>
+        </div>
 
         <div class="form-field full-width">
           <label tuiLabel>
@@ -84,9 +114,18 @@
          <p><strong>{{ 'PRODUCT.NAME' | transloco }}:&nbsp;</strong> {{ selectedProduct.name }}</p>
          <p><strong>{{ 'PRODUCT.PRICE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedProduct.basePrice | number }} VND</span></p>
          <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
+         <p><strong>{{ 'PRODUCT.BRAND' | transloco }}:&nbsp;</strong> {{ selectedProduct.brand }}</p>
          <div class="form-field full-width">
             <strong>{{ 'PRODUCT.SPECIFICATIONS' | transloco }} JSON:</strong>
             <pre style="background: var(--tui-base-02); padding: 12px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin-top: 8px;">{{ selectedProduct.specifications || ('CATEGORY.ROOT' | transloco) }}</pre>
+         </div>
+
+         <div class="form-field full-width" *ngIf="selectedProduct.imageUrl || (parseImageUrls(selectedProduct.imageUrls).length > 0)">
+            <strong>{{ 'PRODUCT.GALLERY' | transloco }}:</strong>
+            <div class="detail-gallery">
+               <img *ngIf="selectedProduct.imageUrl" [src]="selectedProduct.imageUrl" class="gallery-thumb main" title="Ảnh chính">
+               <img *ngFor="let url of parseImageUrls(selectedProduct.imageUrls)" [src]="url" class="gallery-thumb">
+            </div>
          </div>
       </div>
       <div class="form-actions">
@@ -103,7 +142,6 @@
         [rowData]="rowData"
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
-        [rowSelection]="{ mode: 'singleRow' }"
         [animateRows]="true"
         [pagination]="true"
         [paginationPageSize]="20"

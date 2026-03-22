@@ -10,11 +10,13 @@
   <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
     <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
     
+    <app-rule-conflict-warning [conflicts]="conflicts"></app-rule-conflict-warning>
+    
     <div class="form-grid">
       <label tuiLabel class="form-field full-width">
         {{ 'RULE.NAME' | transloco }}
         <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.name" />
+          <input tuiTextfield [(ngModel)]="formData.name" (ngModelChange)="checkConflicts()" />
         </tui-textfield>
       </label>
 
@@ -28,9 +30,71 @@
       <label tuiLabel class="form-field">
         {{ 'RULE.PRIORITY' | transloco }}
         <tui-textfield>
-          <input tuiTextfield type="number" [(ngModel)]="formData.priority" />
+          <input tuiTextfield type="number" [(ngModel)]="formData.priority" (ngModelChange)="checkConflicts()" />
         </tui-textfield>
       </label>
+
+      <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
+        <h4 style="margin-bottom: 16px;">{{ 'RULE.TARGETING' | transloco }} (Đối tượng áp dụng)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <label tuiLabel class="form-field">
+            {{ 'RULE.APPLY_CUSTOMER' | transloco }}
+            <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <label tuiLabel class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
+            {{ 'RULE.CUSTOMER_GROUP' | transloco }}
+            <tui-multi-select [(ngModel)]="selectedGroupIds" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+              <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
+
+          <label tuiLabel class="form-field">
+            Áp dụng cho loại sản phẩm
+            <tui-select [(ngModel)]="formData.applyProductType" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <label tuiLabel class="form-field" *ngIf="formData.applyProductType === 'CATEGORY'">
+            Chọn danh mục
+            <tui-multi-select [(ngModel)]="selectedCategoryIds" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
+              <ng-template #catContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
+
+          <label tuiLabel class="form-field" *ngIf="formData.applyProductType === 'SPECIFIC'">
+            Chọn sản phẩm
+            <tui-multi-select [(ngModel)]="selectedProductIds" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
+              <ng-template #prodContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
+        </div>
+      </div>
+
+      <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
+        <h4 style="margin-bottom: 16px;">{{ 'RULE.DISCOUNT' | transloco }} (Chiết khấu phí vận chuyển)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <label tuiLabel class="form-field">
+            Loại chiết khấu
+            <tui-select [(ngModel)]="formData.discountType">
+              <tui-data-list-wrapper *tuiDataList [items]="discountTypeOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+
+          <label tuiLabel class="form-field" *ngIf="formData.discountType !== 'FREE'">
+            Giá trị chiết khấu
+            <tui-input-number [(ngModel)]="formData.discountValue">
+              {{ formData.discountType === 'PERCENTAGE' ? '%' : 'đ' }}
+            </tui-input-number>
+          </label>
+        </div>
+      </div>
 
       <div class="json-section full-width">
         <h4>{{ 'RULE.RATE_RANGES' | transloco }}</h4>
@@ -57,6 +121,11 @@
        <p><strong>{{ 'RULE.BASE_ON' | transloco }}:</strong> {{ 'ENUMS.' + selectedRule.baseOn | transloco }}</p>
        <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
        
+       <div class="full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
+          <p><strong>Đối tượng:</strong> {{ selectedRule.applyCustomerType }} {{ selectedRule.applyCustomerValue !== '{}' ? selectedRule.applyCustomerValue : '' }}</p>
+          <p><strong>Chiết khấu:</strong> {{ selectedRule.discountType }} {{ selectedRule.discountType !== 'FREE' ? (selectedRule.discountValue + (selectedRule.discountType === 'PERCENTAGE' ? '%' : 'đ')) : '' }}</p>
+       </div>
+
        <div class="full-width">
           <strong>{{ 'RULE.RATE_RANGES' | transloco }}:</strong>
           <pre style="background: #f4f4f4; padding: 12px; border-radius: 4px; overflow: auto;">{{ selectedRule.rateRanges }}</pre>

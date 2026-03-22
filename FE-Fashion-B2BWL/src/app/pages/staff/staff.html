@@ -1,8 +1,8 @@
 <div class="staff-container">
   <div class="header-section">
     <div class="title-group">
-      <h2 class="tui-text_h3">{{ 'MENU.STAFF' | transloco }}</h2>
-      <p class="tui-text_body-s-2 text-muted">Quản lý tài khoản quản trị viên và nhân viên vận hành hệ thống</p>
+      <h2 class="tui-text_h3">{{ 'MENU.STAFF' | transloco }} / {{ 'MENU.CUSTOMERS' | transloco }}</h2>
+      <p class="tui-text_body-s-2 text-muted">Quản lý tài khoản quản trị viên, nhân viên và khách hàng đại lý</p>
     </div>
     <button
       tuiButton
@@ -96,6 +96,20 @@
             </ng-template>
           </tui-select>
         </label>
+
+        <label tuiLabel *ngIf="formData.role === 'CUSTOMER'">
+          {{ 'MEMBER.GROUP' | transloco }}
+          <tui-select [(ngModel)]="formData.customerGroup" [valueContent]="groupContent">
+            <tui-data-list-wrapper
+              *tuiDataList
+              [items]="customerGroups"
+              [itemContent]="groupContent"
+            />
+            <ng-template #groupContent let-item>
+              {{ item.name }}
+            </ng-template>
+          </tui-select>
+        </label>
       </div>
 
       <div class="form-actions">
@@ -144,6 +158,10 @@
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>
       <span class="value">{{ selectedUser.phone }}</span>
+    </div>
+    <div class="detail-row" *ngIf="selectedUser.customerGroup">
+      <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
+      <span class="value">{{ selectedUser.customerGroup.name }}</span>
     </div>
     <div class="tui-form__buttons">
       <button tuiButton appearance="flat" size="m" (click)="observer.complete()">

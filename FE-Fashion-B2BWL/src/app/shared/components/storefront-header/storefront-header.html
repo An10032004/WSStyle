@@ -16,6 +16,7 @@
     <nav class="header-center">
       <ul class="nav-links">
         <li *ngFor="let cat of categories"><a href="javascript:void(0)">{{ cat }}</a></li>
+        <li><a routerLink="/become-a-partner" class="highlight-link">TRỞ THÀNH ĐỐI TÁC</a></li>
       </ul>
     </nav>
 
@@ -43,6 +44,10 @@
             <button tuiOption routerLink="/profile">
               <tui-icon icon="@tui.user" class="me-2"></tui-icon>
               Profile
+            </button>
+            <button tuiOption routerLink="/become-a-partner">
+              <tui-icon icon="@tui.handshake" class="me-2"></tui-icon>
+              Become a Partner
             </button>
             <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">
               <tui-icon icon="@tui.layout-dashboard" class="me-2"></tui-icon>

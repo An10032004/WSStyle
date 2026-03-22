@@ -135,5 +135,9 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/profile/profile').then(m => m.ProfileComponent)
   },
+  {
+    path: 'become-a-partner',
+    loadComponent: () => import('./pages/register/b2b-register').then(m => m.B2BRegisterComponent)
+  },
   { path: '**', redirectTo: 'storefront' }
 ];

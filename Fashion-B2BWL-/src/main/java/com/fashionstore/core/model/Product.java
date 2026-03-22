@@ -48,6 +48,12 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "image_urls", columnDefinition = "json")
+    private String imageUrls;
+
+    @Column(name = "brand")
+    private String brand;
+
     // Lưu JSON string, ví dụ: {"material":"Cotton","origin":"Vietnam"}
     @Column(columnDefinition = "json")
     private String specifications;

@@ -23,20 +23,45 @@ export class SidebarComponent {
     const user = this.auth.currentUserValue;
     if (!user) return false;
     
-    // Admin has full access
+    // Admin has full access (legacy role check or permission check)
     if (user.role?.toUpperCase() === 'ADMIN' || user.role?.toUpperCase() === 'SUPER_ADMIN') {
       return true;
     }
 
-    // Staff access mapping from diagram
-    const staffModules = [
-      'categories', 'products', 'variants', 'orders', 
-      'customer-groups', 'rule-engine', 'ai-sync', 
-      'home-settings', 'messages', 'reviews', 'pos'
-    ];
+    // New Granular Permission Check
+    if (user.permissions) {
+      try {
+        const perms: string[] = JSON.parse(user.permissions);
+        if (perms.includes('ALL')) return true;
+        
+        const permissionMapping: Record<string, string> = {
+          'dashboard': 'Quản lý report',
+          'categories': 'Quản lý danh mục',
+          'products': 'Quản lý sản phẩm',
+          'variants': 'Quản lý biến thể',
+          'orders': 'Quản lý đơn hàng',
+          'customer-groups': 'Quản lý nhóm khách hàng',
+          'rule-engine': 'Quản lý chiết khấu',
+          'ai-sync': 'Quản lý AI',
+          'home-settings': 'Quản lý banner',
+          'messages': 'Hỗ trợ khách hàng',
+          'reviews': 'Quản lý report',
+          'pos': 'Point of sale',
+          'staff': 'Quản lý nhân viên',
+          'coupons': 'Quản lý coupon',
+          'sale-campaigns': 'Quản lý chiến dịch sale',
+          'wallets': 'Quản lý ví điện tử',
+          'advanced-reports': 'Quản lý report',
+          'users': 'Quản lý người dùng',
+          'permissions': 'Quản lý nhân viên',
+          'registration-forms': 'Quản lý hồ sơ đại lý'
+        };
 
-    if (user.role?.toUpperCase() === 'STAFF') {
-      return staffModules.includes(module);
+        const requiredPermission = permissionMapping[module];
+        return requiredPermission ? perms.includes(requiredPermission) : false;
+      } catch (e) {
+        return false;
+      }
     }
 
     return false;

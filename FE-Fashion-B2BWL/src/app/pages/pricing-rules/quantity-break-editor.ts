@@ -70,7 +70,7 @@ interface QuantityBracket {
             <div *ngSwitchCase="0" class="form-section">
               <div class="field-item">
                 <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield [(ngModel)]="rule.name" name="ruleName" />
+                   <input tuiTextfield [(ngModel)]="rule.name" [ngModelOptions]="{standalone: true}" />
                    {{ 'QUANTITY_BREAK.NAME' | transloco }}
                 </tui-textfield>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.NAME_HINT' | transloco }}</div>
@@ -78,7 +78,7 @@ interface QuantityBracket {
 
               <div class="field-item">
                 <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield [(ngModel)]="message" name="ruleMessage" />
+                   <input tuiTextfield [(ngModel)]="message" [ngModelOptions]="{standalone: true}" />
                    {{ 'QUANTITY_BREAK.MESSAGE' | transloco }}
                 </tui-textfield>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.MESSAGE_HINT' | transloco }}</div>
@@ -86,7 +86,7 @@ interface QuantityBracket {
 
               <div class="field-item">
                 <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield [(ngModel)]="description" name="ruleDescription" />
+                   <input tuiTextfield [(ngModel)]="description" [ngModelOptions]="{standalone: true}" />
                    {{ 'QUANTITY_BREAK.DESCRIPTION' | transloco }}
                 </tui-textfield>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.DESCRIPTION_HINT' | transloco }}</div>
@@ -94,7 +94,7 @@ interface QuantityBracket {
 
               <div class="field-item">
                 <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield type="number" [(ngModel)]="rule.priority" name="rulePriority" />
+                   <input tuiTextfield type="number" [(ngModel)]="rule.priority" [ngModelOptions]="{standalone: true}" />
                    {{ 'RULE.PRIORITY' | transloco }}
                 </tui-textfield>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.PRIORITY_HINT' | transloco }}</div>
@@ -136,31 +136,31 @@ interface QuantityBracket {
               <div class="bracket-list">
                 <div *ngFor="let b of brackets; let i = index; trackBy: trackByFn" class="bracket-row">
                    <div class="bracket-field">
-                      <tui-input-number 
-                        [(ngModel)]="b.min" 
-                        (ngModelChange)="onBracketChange()" 
-                        [name]="'min' + i" 
-                        tuiTextfieldSize="l">
-                         Min
-                      </tui-input-number>
+                      <tui-textfield tuiTextfieldSize="l" style="width: 100%;">
+                          <input tuiTextfield type="number" 
+                                 [ngModel]="b.min" 
+                                 (ngModelChange)="b.min = $event; onBracketChange()" 
+                                 [ngModelOptions]="{standalone: true}" />
+                          Min
+                      </tui-textfield>
                    </div>
                    <div class="bracket-field">
-                      <tui-input-number 
-                        [(ngModel)]="b.max" 
-                        (ngModelChange)="onBracketChange()" 
-                        [name]="'max' + i" 
-                        tuiTextfieldSize="l">
-                         Max
-                      </tui-input-number>
+                      <tui-textfield tuiTextfieldSize="l" style="width: 100%;">
+                          <input tuiTextfield type="number" 
+                                 [ngModel]="b.max" 
+                                 (ngModelChange)="b.max = $event; onBracketChange()" 
+                                 [ngModelOptions]="{standalone: true}" />
+                          Max
+                      </tui-textfield>
                    </div>
                    <div class="bracket-field">
-                      <tui-input-number 
-                        [(ngModel)]="b.discount" 
-                        (ngModelChange)="onBracketChange()" 
-                        [name]="'discount' + i" 
-                        tuiTextfieldSize="l">
-                         Discount %
-                      </tui-input-number>
+                      <tui-textfield tuiTextfieldSize="l" style="width: 100%;">
+                          <input tuiTextfield type="number" 
+                                 [ngModel]="b.discount" 
+                                 (ngModelChange)="b.discount = $event; onBracketChange()" 
+                                 [ngModelOptions]="{standalone: true}" />
+                          Discount %
+                      </tui-textfield>
                    </div>
                    <button tuiIconButton type="button" iconStart="@tui.trash" appearance="flat" size="l" (click)="removeBracket(i)" class="delete-btn" title="Remove Range"></button>
                 </div>
@@ -264,8 +264,9 @@ interface QuantityBracket {
     .bracket-list { display: flex; flex-direction: column; gap: 24px; }
     .bracket-row { display: flex; gap: 16px; align-items: flex-end; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #edf2f7; transition: all 0.2s; }
     .bracket-row:hover { border-color: #cbd5e0; background: #f1f5f9; }
-    .bracket-field { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-    .delete-btn { margin-bottom: 4px; color: #e74c3c; border-radius: 8px; }
+    .bracket-field { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .bracket-field tui-textfield { width: 100%; }
+    .delete-btn { margin-bottom: 4px; color: #e74c3c; border-radius: 8px; flex-shrink: 0; }
     .add-range-btn { width: fit-content; margin-top: 8px; font-weight: 600; }
 
     .empty-tab-message { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 40px; text-align: center; color: #7f8c8d; }
@@ -324,7 +325,6 @@ export class QuantityBreakEditorComponent implements OnInit {
   ];
 
   onBracketChange() {
-    this.brackets = [...this.brackets];
     this.cdr.markForCheck();
   }
 

@@ -1,17 +1,29 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiIcon, TuiButton } from '@taiga-ui/core';
-import { ApiService, Wallet, WalletTransaction } from '../../services/api.service';
+import { TuiIcon, TuiButton, TuiTextfield } from '@taiga-ui/core';
+import { FormsModule } from '@angular/forms';
+import { ApiService, Wallet, WalletTransaction, User } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, TranslocoModule, TuiIcon, TuiButton],
+  imports: [CommonModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, FormsModule],
   template: `
     <div class="page-container" *transloco="let t">
       <div class="page-header">
         <h1 class="tui-text_h3">{{ 'SIDEBAR.WALLETS' | transloco }}</h1>
+        <div class="search-box">
+          <tui-textfield tuiTextfieldSize="m" class="tui-space_bottom-4">
+            <input
+              tuiTextfield
+              [ngModel]="search()"
+              (ngModelChange)="search.set($event)"
+              placeholder="Tìm theo tên, email hoặc ID khách hàng..."
+            />
+            <tui-icon *tuiTextfieldElement icon="@tui.search"></tui-icon>
+          </tui-textfield>
+        </div>
       </div>
       
       <div class="wallet-stats">
@@ -26,18 +38,25 @@ import { firstValueFrom } from 'rxjs';
           <table class="tui-table">
             <thead>
               <tr class="tui-table__tr">
-                <th class="tui-table__th">User ID</th>
+                <th class="tui-table__th">User</th>
                 <th class="tui-table__th">Balance</th>
-                <th class="tui-table__th">Currency</th>
+                <th class="tui-table__th">Status</th>
                 <th class="tui-table__th">Last Activity</th>
                 <th class="tui-table__th">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let wallet of wallets()" class="tui-table__tr" [class.selected]="selectedWallet()?.id === wallet.id">
-                <td class="tui-table__td">#{{ wallet.userId }}</td>
-                <td class="tui-table__td"><strong>{{ wallet.balance | number }}</strong></td>
-                <td class="tui-table__td">{{ wallet.currency }}</td>
+              <tr *ngFor="let wallet of filteredWallets()" class="tui-table__tr" [class.selected]="selectedWallet()?.id === wallet.id">
+                <td class="tui-table__td">
+                  <div class="user-cell">
+                    <strong>{{ wallet.user?.fullName || 'Unknown' }}</strong>
+                    <span class="email">{{ wallet.user?.email }}</span>
+                  </div>
+                </td>
+                <td class="tui-table__td"><strong>{{ wallet.balance | number }}</strong> {{ wallet.currency }}</td>
+                <td class="tui-table__td">
+                  <span class="tui-badge" [class.tui-badge_primary]="wallet.status === 'ACTIVE'">{{ wallet.status }}</span>
+                </td>
                 <td class="tui-table__td">{{ wallet.updatedAt | date:'medium' }}</td>
                 <td class="tui-table__td">
                   <button tuiButton type="button" size="s" appearance="flat" (click)="viewTransactions(wallet)">Transactions</button>
@@ -49,7 +68,7 @@ import { firstValueFrom } from 'rxjs';
 
         <div class="transactions-panel" *ngIf="selectedWallet()">
            <div class="panel-header">
-              <h3>Transactions: User #{{ selectedWallet()?.userId }}</h3>
+              <h3>Transactions: {{ selectedWallet()?.user?.fullName }}</h3>
               <button tuiButton type="button" size="xs" appearance="flat" (click)="selectedWallet.set(null)">Close</button>
            </div>
            <div class="tx-list">
@@ -69,8 +88,9 @@ import { firstValueFrom } from 'rxjs';
     </div>
   `,
   styles: [`
-    .page-container { padding: 32px; }
-    .page-header { margin-bottom: 24px; }
+    .page-container { padding: 32px; background: #f8fafc; min-height: 100vh; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .search-box { width: 350px; }
     .wallet-stats { display: flex; gap: 24px; margin-bottom: 32px; }
     .stat-card { padding: 24px; background: #3f51b5; color: #fff; border-radius: 16px; flex: 1; }
     .stat-card .label { display: block; font-size: 14px; opacity: 0.8; margin-bottom: 8px; }
@@ -79,6 +99,8 @@ import { firstValueFrom } from 'rxjs';
     .content-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; flex: 1; }
     table { width: 100%; border-collapse: collapse; }
     tr.selected { background: #f0f4ff; }
+    .user-cell { display: flex; flex-direction: column; }
+    .user-cell .email { font-size: 11px; color: #666; }
     .transactions-panel { width: 400px; background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; }
     .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
     .tx-list { display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; }
@@ -95,23 +117,46 @@ import { firstValueFrom } from 'rxjs';
 })
 export class WalletsComponent {
   private readonly api = inject(ApiService);
-  readonly wallets = signal<Wallet[]>([]);
+  readonly wallets = signal<any[]>([]);
   readonly totalBalance = signal(0);
-  readonly selectedWallet = signal<Wallet | null>(null);
+  readonly selectedWallet = signal<any | null>(null);
   readonly transactions = signal<WalletTransaction[]>([]);
+  readonly search = signal('');
+  
+  readonly filteredWallets = computed(() => {
+    const s = this.search().toLowerCase();
+    return this.wallets().filter(w => 
+      !s || 
+      w.user?.fullName?.toLowerCase().includes(s) || 
+      w.user?.email?.toLowerCase().includes(s) ||
+      w.userId.toString().includes(s)
+    );
+  });
+  
+  users: User[] = [];
 
   constructor() {
     this.refresh();
   }
 
   async refresh() {
+    const usersData = await firstValueFrom(this.api.getUsers());
+    this.users = usersData;
+
     const data = await firstValueFrom(this.api.getWallets());
-    this.wallets.set(data);
+    
+    // Map user info into wallet
+    const enrichedWallets = data.map(w => ({
+      ...w,
+      user: this.users.find(u => u.id === w.userId)
+    }));
+
+    this.wallets.set(enrichedWallets);
     const total = data.reduce((acc, w) => acc + w.balance, 0);
     this.totalBalance.set(total);
   }
 
-  async viewTransactions(wallet: Wallet) {
+  async viewTransactions(wallet: any) {
     this.selectedWallet.set(wallet);
     const data = await firstValueFrom(this.api.getWalletTransactions(wallet.id));
     this.transactions.set(data);

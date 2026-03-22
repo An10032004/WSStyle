@@ -9,9 +9,19 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface RuleTarget {
+  applyProductType: string;
+  applyProductValue: string;
+  applyCustomerType: string;
+  applyCustomerValue: string;
+  priority: number;
+  name: string;
+}
+
 export interface Category {
   id: number;
   name: string;
+  parentId?: number | null;
   parent?: Category;
   children?: Category[];
 }
@@ -24,6 +34,8 @@ export interface Product {
   basePrice: number;
   specifications?: string;
   imageUrl?: string;
+  imageUrls?: string;
+  brand?: string;
 }
 
 export interface ProductVariant {
@@ -34,6 +46,18 @@ export interface ProductVariant {
   stockQuantity: number;
   priceAdjustment?: number;
   imageUrl?: string;
+  color?: string;
+  size?: string;
+  weight?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  costPrice?: number;
+  price?: number;
+  discountPrice?: number;
+  imageUrls?: string;
+  status?: string;
+  barcode?: string;
 }
 
 export interface Translation {
@@ -66,6 +90,8 @@ export interface PricingRule {
   excludeProductOption?: string;
   excludeProductValue?: string;
   actionConfig?: string;
+  discountValue?: number;
+  discountType?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -95,6 +121,12 @@ export interface ShippingRule {
   status: string;
   baseOn: string;
   rateRanges?: string;
+  applyCustomerType?: string;
+  applyCustomerValue?: string;
+  applyProductType?: string;
+  applyProductValue?: string;
+  discountType?: string;
+  discountValue?: number;
 }
 
 export interface NetTermRule {
@@ -141,6 +173,14 @@ export interface CustomerGroup {
   defaultDiscountRate?: number;
 }
 
+export interface Role {
+  id?: number;
+  name: string;
+  description?: string;
+  isAdmin?: boolean;
+  permissionsJson: string; // JSON string array
+}
+
 export interface User {
   id: number;
   email: string;
@@ -152,12 +192,18 @@ export interface User {
   registrationStatus?: string;
   companyName?: string;
   taxCode?: string;
+  permissions?: string; // JSON string array from backend
 }
 
 export interface B2BRegistrationForm {
   id: number;
   user: User;
-  formData: any;
+  formData: string; // JSON string
+}
+
+export interface B2BRegistrationFormRequest {
+  userId: number;
+  formData: string;
 }
 
 export interface Order {
@@ -241,7 +287,7 @@ export interface HomeSetting {
 export interface Coupon {
   id: number;
   code: string;
-  discountType: 'FIXED_AMOUNT' | 'PERCENTAGE';
+  discountType: string;
   discountValue: number;
   minOrderAmount?: number;
   maxDiscountAmount?: number;
@@ -250,6 +296,11 @@ export interface Coupon {
   usageLimit?: number;
   usedCount: number;
   status: string;
+  applyProductType?: string;
+  applyProductValue?: string;
+  applyCustomerType?: string;
+  applyCustomerValue?: string;
+  priority: number;
 }
 
 export interface SaleCampaign {
@@ -257,10 +308,16 @@ export interface SaleCampaign {
   name: string;
   description?: string;
   bannerUrl?: string;
-  discountPercentage?: number;
-  startDate?: string;
-  endDate?: string;
+  discountPercentage: number;
+  startDate: string;
+  endDate: string;
   isActive: boolean;
+  priority: number;
+  status: string;
+  applyProductType?: string;
+  applyProductValue?: string;
+  applyCustomerType?: string;
+  applyCustomerValue?: string;
 }
 
 export interface Wallet {
@@ -269,6 +326,8 @@ export interface Wallet {
   balance: number;
   currency: string;
   updatedAt: string;
+  status?: string;
+  metadata?: string;
 }
 
 export interface WalletTransaction {
@@ -608,5 +667,29 @@ export class ApiService {
 
   sendMessage(message: Partial<ChatMessage>): Observable<ChatMessage> {
     return this.http.post<ChatMessage>(`${this.base}/messages`, message);
+  }
+
+  // ─── RBAC / Roles ──────────────────────────────────────
+  getRoles(): Observable<Role[]> {
+    return this.http.get<ApiResponse<Role[]>>(`${this.base}/roles`).pipe(map(r => r.data));
+  }
+
+  saveRole(role: Role): Observable<Role> {
+    return this.http.post<ApiResponse<Role>>(`${this.base}/roles`, role).pipe(map(r => r.data));
+  }
+
+  deleteRole(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/roles/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── B2B Registration Forms ────────────────────────────
+  getB2BForms(): Observable<B2BRegistrationForm[]> {
+    return this.http.get<ApiResponse<B2BRegistrationForm[]>>(`${this.base}/b2b-registration-forms`).pipe(map(r => r.data));
+  }
+  createB2BForm(body: B2BRegistrationFormRequest): Observable<B2BRegistrationForm> {
+    return this.http.post<ApiResponse<B2BRegistrationForm>>(`${this.base}/b2b-registration-forms`, body).pipe(map(r => r.data));
+  }
+  checkRuleConflicts(ruleType: string, newRule: RuleTarget): Observable<string[]> {
+    return this.http.post<string[]>(`${this.base}/rules/conflicts/check`, { ruleType, newRule });
   }
 }

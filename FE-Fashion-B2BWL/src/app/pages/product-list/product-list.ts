@@ -49,7 +49,10 @@ export class ProductListComponent implements OnInit, OnDestroy {
     productCode: '',
     basePrice: 0,
     categoryId: null as number | null,
+    brand: '',
     specifications: '',
+    imageUrl: '',
+    imageUrls: [] as string[],
   };
 
   currentLanguage: string = 'vi';
@@ -78,7 +81,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   columnDefs: ColDef[] = [];
   originalProduct: Product | null = null; // Store original for partial updates
 
-  defaultColDef: ColDef = { resizable: true };
+  defaultColDef: ColDef = { resizable: true, minWidth: 100 };
 
   constructor(
     private api: ApiService, 
@@ -138,20 +141,33 @@ export class ProductListComponent implements OnInit, OnDestroy {
   updateColumnDefs(): void {
     const isEn = this.currentLanguage === 'en';
     this.columnDefs = [
-      { headerName: 'ID', field: 'id', width: 70, sortable: true, cellStyle: { fontWeight: '500' } },
+      { headerName: 'ID', field: 'id', width: 100, sortable: true, cellStyle: { fontWeight: '500' }, pinned: 'left' },
       { 
         headerName: this.transloco.translate('PRODUCT.CODE'), 
         field: 'productCode', 
-        width: 130, 
+        width: 150, 
+        sortable: true, 
+        filter: true 
+      },
+      { 
+        headerName: this.transloco.translate('PRODUCT.BRAND'), 
+        field: 'brand', 
+        width: 150, 
         sortable: true, 
         filter: true 
       },
       { 
         headerName: this.transloco.translate('PRODUCT.NAME'), 
         field: 'name', 
-        flex: 1, 
+        width: 300, 
         sortable: true, 
-        filter: true
+        filter: true,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value,
+        cellRenderer: (params: any) => {
+          const img = params.data.imageUrl ? `<img src="${params.data.imageUrl}" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; margin-right: 8px; vertical-align: middle;">` : '';
+          return `${img}<span>${params.value || ''}</span>`;
+        }
       },
       {
         headerName: this.transloco.translate('PRODUCT.PRICE'),
@@ -243,6 +259,9 @@ export class ProductListComponent implements OnInit, OnDestroy {
   loadCategories(): void {
     this.api.getCategories().subscribe((data) => {
       this.categories = data;
+      if (this.gridApi) {
+        this.gridApi.refreshCells({ columns: ['categoryId'] });
+      }
     });
   }
 
@@ -261,7 +280,6 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
   }
 
   loadData(): void {
@@ -274,7 +292,16 @@ export class ProductListComponent implements OnInit, OnDestroy {
   onAdd(): void {
     this.editingId = null;
     this.originalProduct = null;
-    this.formData = { name: '', productCode: '', basePrice: 0, categoryId: null, specifications: '' };
+    this.formData = { 
+      name: '', 
+      productCode: '', 
+      brand: '', 
+      basePrice: 0, 
+      categoryId: null, 
+      specifications: '',
+      imageUrl: '',
+      imageUrls: []
+    };
     this.showForm = true;
     this.showDetails = false;
   }
@@ -323,9 +350,12 @@ export class ProductListComponent implements OnInit, OnDestroy {
       this.formData = {
         name: p.name,
         productCode: p.productCode,
+        brand: p.brand ?? '',
         basePrice: p.basePrice,
         categoryId: p.categoryId ?? null,
         specifications: p.specifications && p.specifications !== 'Seeded translation' ? p.specifications : '',
+        imageUrl: p.imageUrl ?? '',
+        imageUrls: this.parseImageUrls(p.imageUrls),
       };
       
       this.api.getTranslationByLang('PRODUCT', p.id, this.currentLanguage).subscribe({
@@ -349,9 +379,12 @@ export class ProductListComponent implements OnInit, OnDestroy {
       this.formData = {
         name: p.name,
         productCode: p.productCode,
+        brand: p.brand ?? '',
         basePrice: p.basePrice,
         categoryId: p.categoryId ?? null,
         specifications: p.specifications ?? '',
+        imageUrl: p.imageUrl ?? '',
+        imageUrls: this.parseImageUrls(p.imageUrls),
       };
       this.showForm = true;
     }
@@ -380,11 +413,13 @@ export class ProductListComponent implements OnInit, OnDestroy {
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields in Multi-lingual mode
       // We keep the original (Vietnamese) name and specifications in the main table
-      const globalUpdate = {
-        ...this.formData,
+      const { imageUrls: _urls, ...restData } = this.formData;
+      const globalUpdate: any = {
+        ...restData,
         name: this.originalProduct?.name || this.formData.name,
         specifications: this.originalProduct?.specifications || this.formData.specifications,
-        basePrice: numericPrice
+        basePrice: numericPrice,
+        imageUrls: JSON.stringify(this.formData.imageUrls)
       };
       
       this.api.updateProduct(this.editingId, globalUpdate).subscribe(() => {
@@ -406,11 +441,13 @@ export class ProductListComponent implements OnInit, OnDestroy {
         });
       });
     } else {
-      // Primary Language (vi) or New Product
-      const body = { 
-        ...this.formData,
-        basePrice: numericPrice
-      };
+    // Primary Language (vi) or New Product
+    const { imageUrls: _, ...rest } = this.formData;
+    const body: any = { 
+      ...rest,
+      basePrice: numericPrice,
+      imageUrls: JSON.stringify(this.formData.imageUrls)
+    };
       
       if (this.editingId) {
         this.api.updateProduct(this.editingId, body).subscribe(() => {
@@ -430,5 +467,27 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   onCancel(): void {
     this.showForm = false;
+  }
+
+  parseImageUrls(json: any): string[] {
+    if (!json) return [];
+    if (Array.isArray(json)) return json;
+    try {
+      return JSON.parse(json);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  addImageUrl(): void {
+    this.formData.imageUrls.push('');
+  }
+
+  removeImageUrl(index: number): void {
+    this.formData.imageUrls.splice(index, 1);
+  }
+
+  trackByIndex(index: number): number {
+    return index;
   }
 }

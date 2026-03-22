@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -31,7 +31,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   templateUrl: './variant-list.html',
   styleUrl: './variant-list.scss',
 })
-export class VariantListComponent implements OnInit {
+export class VariantListComponent implements OnInit, OnDestroy {
   rowData: ProductVariant[] = [];
   gridApi!: GridApi;
   theme = themeQuartz;
@@ -45,13 +45,25 @@ export class VariantListComponent implements OnInit {
   selectedVariant: ProductVariant | null = null;
   editingId: number | null = null;
   originalVariant: ProductVariant | null = null;
-  formData = {
+  formData: any = {
     sku: '',
     productId: null as number | null,
     attributes: '',
     stockQuantity: 0,
     priceAdjustment: 0,
     imageUrl: '',
+    imageUrls: [] as string[],
+    color: '',
+    size: '',
+    weight: '',
+    length: 0,
+    width: 0,
+    height: 0,
+    costPrice: 0,
+    price: 0,
+    discountPrice: 0,
+    status: 'ACTIVE',
+    barcode: '',
   };
 
   currentLanguage: string = 'vi';
@@ -78,7 +90,7 @@ export class VariantListComponent implements OnInit {
   variantTranslations: Map<number, string> = new Map();
   columnDefs: ColDef[] = [];
 
-  defaultColDef: ColDef = { resizable: true };
+  defaultColDef: ColDef = { resizable: true, minWidth: 100 };
 
   constructor(
     private api: ApiService, 
@@ -151,7 +163,6 @@ export class VariantListComponent implements OnInit {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
   }
 
   loadData(): void {
@@ -164,40 +175,88 @@ export class VariantListComponent implements OnInit {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { headerName: 'ID', field: 'id', width: 70, sortable: true, cellStyle: { fontWeight: '500' } },
-      { headerName: 'SKU', field: 'sku', width: 160, sortable: true, filter: true, cellStyle: { fontWeight: '500' } },
+      { headerName: 'ID', field: 'id', width: 100, sortable: true, cellStyle: { fontWeight: '500' }, pinned: 'left'},
+      { 
+        headerName: this.transloco.translate('VARIANT.SKU'), 
+        field: 'sku', 
+        width: 150, 
+        sortable: true, 
+        filter: true,
+        pinned: 'left'
+      },
+      {
+        headerName: this.transloco.translate('VARIANT.STATUS') || 'Trạng thái',
+        field: 'status',
+        width: 120,
+        cellRenderer: (params: any) => {
+          const status = params.value === 'ACTIVE' ? '✅' : '❌';
+          const text = params.value === 'ACTIVE' ? 'Kích hoạt' : 'Ngừng bán';
+          return `<span>${status} ${text}</span>`;
+        }
+      },
       { 
         headerName: this.transloco.translate('VARIANT.PRODUCT'), 
         field: 'productId', 
-        width: 180,
-        valueGetter: (params) => this.getProductDisplay(params.data.productId)
+        width: 250, 
+        sortable: true, 
+        filter: true,
+        valueFormatter: (params) => this.getProductDisplay(params.value),
+        tooltipValueGetter: (params: any) => this.getProductDisplay(params.value)
+      },
+      { headerName: this.transloco.translate('VARIANT.STOCK'), field: 'stockQuantity', width: 100, sortable: true },
+      { 
+        headerName: this.transloco.translate('VARIANT.COST_PRICE') || 'Giá nhập', 
+        field: 'costPrice', 
+        width: 140, 
+        sortable: true,
+        valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : ''
       },
       { 
-        headerName: this.transloco.translate('VARIANT.STOCK'), 
-        field: 'stockQuantity', 
-        width: 100, 
-        sortable: true 
-      },
-      {
-        headerName: this.transloco.translate('VARIANT.PRICE_ADJ'),
-        field: 'priceAdjustment',
-        width: 150,
+        headerName: this.transloco.translate('VARIANT.PRICE_ADJ'), 
+        field: 'priceAdjustment', 
+        width: 150, 
         sortable: true,
-        valueFormatter: (p: any) => {
-          if (p.value == null) return '';
+        valueFormatter: (params) => {
+          if (params.value == null) return '';
           const isEn = this.currentLanguage === 'en';
           const exchangeRate = 25450;
           
           if (isEn) {
-            const usdValue = p.value / exchangeRate;
+            const usdValue = params.value / exchangeRate;
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usdValue);
           } else {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(p.value);
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(params.value);
           }
         },
         cellStyle: { fontWeight: '500', color: 'var(--tui-status-positive)' },
       },
-      { headerName: this.transloco.translate('VARIANT.IMAGE_URL'), field: 'imageUrl', flex: 1 },
+      { 
+        headerName: 'Giá bán riêng', 
+        field: 'price', 
+        width: 140, 
+        sortable: true,
+        valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : 'Theo giá gốc'
+      },
+      { 
+        headerName: 'Giá giảm riêng', 
+        field: 'discountPrice', 
+        width: 140, 
+        sortable: true,
+        valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : '-'
+      },
+      { headerName: this.transloco.translate('VARIANT.COLOR'), field: 'color', width: 120 },
+      { headerName: this.transloco.translate('VARIANT.SIZE'), field: 'size', width: 120 },
+      { headerName: this.transloco.translate('VARIANT.WEIGHT'), field: 'weight', width: 120 },
+      { headerName: 'Dài (cm)', field: 'length', width: 100 },
+      { headerName: 'Rộng (cm)', field: 'width', width: 100 },
+      { headerName: 'Cao (cm)', field: 'height', width: 100 },
+      { headerName: 'Mã vạch', field: 'barcode', width: 150 },
+      { 
+        headerName: this.transloco.translate('VARIANT.IMAGE_URL'), 
+        field: 'imageUrl', 
+        width: 120,
+        cellRenderer: (params: any) => params.value ? `<img src="${params.value}" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px;">` : ''
+      },
       {
         headerName: this.transloco.translate('PRODUCT.ACTIONS'),
         cellRenderer: ActionRendererComponent,
@@ -219,7 +278,7 @@ export class VariantListComponent implements OnInit {
       return;
     }
 
-    // Fetch Product Translations (for the Product Name column)
+    // Fetch Product Translations
     this.api.getTranslationsByTypeAndLang('PRODUCT', this.currentLanguage).subscribe((data) => {
       this.productTranslations.clear();
       data.forEach(t => {
@@ -251,7 +310,26 @@ export class VariantListComponent implements OnInit {
   onAdd(): void {
     this.editingId = null;
     this.originalVariant = null;
-    this.formData = { sku: '', productId: null, attributes: '', stockQuantity: 0, priceAdjustment: 0, imageUrl: '' };
+    this.formData = { 
+      sku: '', 
+      productId: null, 
+      attributes: '', 
+      stockQuantity: 0, 
+      priceAdjustment: 0, 
+      imageUrl: '', 
+      imageUrls: [],
+      color: '', 
+      size: '', 
+      weight: '',
+      length: 0,
+      width: 0,
+      height: 0,
+      costPrice: 0,
+      price: 0,
+      discountPrice: 0,
+      status: 'ACTIVE',
+      barcode: '',
+    };
     this.showForm = true;
     this.showDetails = false;
   }
@@ -295,16 +373,29 @@ export class VariantListComponent implements OnInit {
     this.originalVariant = { ...v };
     this.showDetails = false;
 
+    const baseData = {
+      sku: v.sku,
+      productId: v.productId,
+      attributes: v.attributes ?? '',
+      stockQuantity: v.stockQuantity,
+      priceAdjustment: v.priceAdjustment,
+      imageUrl: v.imageUrl ?? '',
+      imageUrls: this.parseImageUrls(v.imageUrls),
+      color: v.color ?? '',
+      size: v.size ?? '',
+      weight: v.weight ?? '',
+      length: v.length ?? 0,
+      width: v.width ?? 0,
+      height: v.height ?? 0,
+      costPrice: v.costPrice ?? 0,
+      price: v.price ?? 0,
+      discountPrice: v.discountPrice ?? 0,
+      status: v.status ?? 'ACTIVE',
+      barcode: v.barcode ?? '',
+    };
+
     if (this.currentLanguage !== 'vi') {
-      this.formData = {
-        sku: v.sku,
-        productId: v.productId ?? null,
-        attributes: v.attributes && v.attributes !== 'Seeded translation' ? v.attributes : '',
-        stockQuantity: v.stockQuantity,
-        priceAdjustment: v.priceAdjustment ?? 0,
-        imageUrl: v.imageUrl ?? '',
-      };
-      
+      this.formData = { ...baseData };
       this.api.getTranslationByLang('PRODUCT_VARIANT', v.id, this.currentLanguage).subscribe({
         next: (translation) => {
           if (translation && translation.content) {
@@ -322,20 +413,12 @@ export class VariantListComponent implements OnInit {
         }
       });
     } else {
-      this.formData = {
-        sku: v.sku,
-        productId: v.productId ?? null,
-        attributes: v.attributes ?? '',
-        stockQuantity: v.stockQuantity,
-        priceAdjustment: v.priceAdjustment ?? 0,
-        imageUrl: v.imageUrl ?? '',
-      };
+      this.formData = { ...baseData };
       this.showForm = true;
     }
   }
 
   onDelete(v: ProductVariant): void {
-
     this.deleteTargetName = v.sku;
     this.dialogs
       .open<boolean>(this.deleteDialogTemplate, {
@@ -353,24 +436,41 @@ export class VariantListComponent implements OnInit {
 
   onSave(): void {
     const numericStock = this.getNumericValue(this.formData.stockQuantity);
-    const numericPriceAdj = this.getNumericValue(this.formData.priceAdjustment);
+    const numericAdjustment = this.getNumericValue(this.formData.priceAdjustment);
+    const numericCost = this.getNumericValue(this.formData.costPrice);
+    const numericPrice = this.getNumericValue(this.formData.price);
+    const numericDiscount = this.getNumericValue(this.formData.discountPrice);
+    const numericLength = this.getNumericValue(this.formData.length);
+    const numericWidth = this.getNumericValue(this.formData.width);
+    const numericHeight = this.getNumericValue(this.formData.height);
+
+    const body: any = { 
+      ...this.formData, 
+      stockQuantity: numericStock, 
+      priceAdjustment: numericAdjustment,
+      costPrice: numericCost,
+      price: numericPrice,
+      discountPrice: numericDiscount,
+      length: numericLength,
+      width: numericWidth,
+      height: numericHeight,
+      imageUrls: JSON.stringify(this.formData.imageUrls)
+    };
 
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields
-      const globalUpdate = {
-        ...this.formData,
-        attributes: this.originalVariant?.attributes || this.formData.attributes,
-        stockQuantity: numericStock,
-        priceAdjustment: numericPriceAdj
-      };
+      body.attributes = this.originalVariant?.attributes || this.formData.attributes;
       
-      this.api.updateProductVariant(this.editingId, globalUpdate).subscribe(() => {
-        // 2. Save Translation for Attributes
+      this.api.updateProductVariant(this.editingId, body).subscribe(() => {
+        // 2. Save Translation
         const req: TranslationRequest = {
-           resourceId: this.editingId!,
-           resourceType: 'PRODUCT_VARIANT',
-           languageCode: this.currentLanguage,
-           content: JSON.stringify({ attributes: this.formData.attributes })
+          resourceId: this.editingId!,
+          resourceType: 'PRODUCT_VARIANT',
+          languageCode: this.currentLanguage,
+          content: JSON.stringify({ 
+            attributes: this.formData.attributes,
+            sku: this.originalVariant?.sku || this.formData.sku
+          })
         };
         
         this.api.saveTranslation(req).subscribe(() => {
@@ -380,13 +480,6 @@ export class VariantListComponent implements OnInit {
         });
       });
     } else {
-      // Primary or New Variant
-      const body = { 
-        ...this.formData,
-        stockQuantity: numericStock,
-        priceAdjustment: numericPriceAdj
-      };
-      
       if (this.editingId) {
         this.api.updateProductVariant(this.editingId, body).subscribe(() => {
           this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
@@ -395,7 +488,7 @@ export class VariantListComponent implements OnInit {
         });
       } else {
         this.api.createProductVariant(body).subscribe(() => {
-          this.alerts.open('Tạo thành công', { appearance: 'success' }).subscribe();
+          this.alerts.open('Tạo biến thể thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
         });
@@ -405,5 +498,27 @@ export class VariantListComponent implements OnInit {
 
   onCancel(): void {
     this.showForm = false;
+  }
+
+  parseImageUrls(json: any): string[] {
+    if (!json) return [];
+    if (Array.isArray(json)) return json;
+    try {
+      return JSON.parse(json);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  addImageUrl(): void {
+    this.formData.imageUrls.push('');
+  }
+
+  removeImageUrl(index: number): void {
+    this.formData.imageUrls.splice(index, 1);
+  }
+
+  trackByIndex(index: number): number {
+    return index;
   }
 }

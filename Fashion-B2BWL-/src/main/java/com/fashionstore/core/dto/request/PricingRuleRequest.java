@@ -18,6 +18,8 @@ public class PricingRuleRequest {
     private String excludeProductOption;
     private String excludeProductValue;
     private String actionConfig;
+    private java.math.BigDecimal discountValue;
+    private String discountType;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 }

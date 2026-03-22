@@ -9,7 +9,7 @@
       <div class="gallery-section">
         <div class="thumbnails">
           <div class="thumb-item" 
-               *ngFor="let img of images" 
+               *ngFor="let img of displayImages" 
                [class.active]="activeImage === img"
                (click)="changeImage(img)">
             <img [src]="img" alt="thumb">
@@ -34,13 +34,24 @@
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
 
-        <div class="pricing-card">
+        <div class="pricing-card" [class.b2b-active]="isB2BApplied">
+          <div class="b2b-badge" *ngIf="isB2BApplied">
+            <tui-icon icon="@tui.shield-check"></tui-icon>
+            Giá dành riêng cho {{ (user$ | async)?.customerGroup?.name }}
+          </div>
           <div class="main-price">
             <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
-            <span class="original" *ngIf="product.basePrice > currentPrice">
-              {{ product.basePrice | number:'1.0-0' }} ₫
+            <span class="original" *ngIf="(selectedVariant?.price || product.basePrice + (selectedVariant?.priceAdjustment || 0)) > currentPrice">
+              {{ (selectedVariant?.price || product.basePrice + (selectedVariant?.priceAdjustment || 0)) | number:'1.0-0' }} ₫
             </span>
-            <span class="discount-badge" *ngIf="product.basePrice > currentPrice">-30%</span>
+            <ng-container *ngIf="isB2BApplied">
+              <span class="discount-badge">
+                -{{ b2bRule.discountValue ?? b2bRule.parsedConfig?.discountValue }}{{ (b2bRule.discountType ?? b2bRule.parsedConfig?.discountType) === 'PERCENTAGE' ? '%' : '₫' }}
+              </span>
+            </ng-container>
+            <ng-container *ngIf="!isB2BApplied && (selectedVariant?.price || product.basePrice) > currentPrice">
+               <span class="discount-badge">Sale</span>
+            </ng-container>
           </div>
           <div class="stats">
             <div class="stars">
@@ -56,15 +67,16 @@
 
         <div class="variant-selector" *ngIf="availableColors.length > 0">
           <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
-          <div class="color-options">
-            <div class="color-circle" 
-                 *ngFor="let color of availableColors" 
-                 [class.active]="selectedColor === color"
-                 (click)="selectColor(color)"
-                 [title]="color">
-                 <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
+            <div class="color-swatch-wrapper" *ngFor="let color of availableColors">
+              <div class="color-circle" 
+                   [class.active]="selectedColor === color"
+                   (click)="selectColor(color)"
+                   [title]="color"
+                   [style.background-color]="color">
+                   <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
+              </div>
+              <span class="color-name" *ngIf="selectedColor === color">{{ color }}</span>
             </div>
-          </div>
         </div>
 
         <div class="variant-selector" *ngIf="availableSizes.length > 0">
@@ -79,6 +91,36 @@
               {{ size }}
             </button>
           </div>
+        </div>
+
+        <!-- QUANTITY BREAK TABLE -->
+        <div class="qb-section" *ngIf="qbRules.length > 0">
+           <div class="qb-title">
+             <tui-icon icon="@tui.tags"></tui-icon>
+             Mua càng nhiều, giá càng rẻ
+           </div>
+           <div class="qb-table-wrapper">
+             <table class="qb-table">
+               <thead>
+                 <tr>
+                   <th>Số lượng</th>
+                   <th>Giá đơn vị</th>
+                   <th>Giảm</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 <ng-container *ngFor="let rule of qbRules">
+                   <tr *ngFor="let b of rule.parsedConfig?.brackets">
+                     <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
+                     <td class="price-val">
+                       {{ (currentPrice * (1 - b.discount/100)) | number:'1.0-0' }} ₫
+                     </td>
+                     <td class="discount-val">-{{ b.discount }}%</td>
+                   </tr>
+                 </ng-container>
+               </tbody>
+             </table>
+           </div>
         </div>
 
         <div class="purchase-actions">
@@ -155,7 +197,7 @@
   <div class="lightbox-overlay" *ngIf="isLightboxOpen" (click)="closeLightbox()">
     <div class="lightbox-content" (click)="$event.stopPropagation()">
       <div class="lightbox-header">
-        <div class="counter">{{ lightboxIndex + 1 }} / {{ images.length }}</div>
+        <div class="counter">{{ lightboxIndex + 1 }} / {{ displayImages.length }}</div>
         <button class="close-btn" (click)="closeLightbox()">
           <tui-icon icon="@tui.x"></tui-icon>
         </button>
@@ -167,7 +209,7 @@
         </button>
         
         <div class="main-img-container">
-          <img [src]="images[lightboxIndex]" [alt]="product?.name">
+          <img [src]="displayImages[lightboxIndex]" [alt]="product?.name">
         </div>
 
         <button class="nav-btn next" (click)="lightboxNext()">

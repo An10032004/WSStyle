@@ -32,6 +32,12 @@ public class ShippingRuleService {
                 .status(request.getStatus())
                 .baseOn(request.getBaseOn())
                 .rateRanges(request.getRateRanges())
+                .applyCustomerType(request.getApplyCustomerType())
+                .applyCustomerValue(request.getApplyCustomerValue())
+                .applyProductType(request.getApplyProductType())
+                .applyProductValue(request.getApplyProductValue())
+                .discountType(request.getDiscountType())
+                .discountValue(request.getDiscountValue())
                 .build();
         return shippingRuleRepository.save(rule);
     }
@@ -44,6 +50,12 @@ public class ShippingRuleService {
         rule.setStatus(request.getStatus());
         rule.setBaseOn(request.getBaseOn());
         rule.setRateRanges(request.getRateRanges());
+        rule.setApplyCustomerType(request.getApplyCustomerType());
+        rule.setApplyCustomerValue(request.getApplyCustomerValue());
+        rule.setApplyProductType(request.getApplyProductType());
+        rule.setApplyProductValue(request.getApplyProductValue());
+        rule.setDiscountType(request.getDiscountType());
+        rule.setDiscountValue(request.getDiscountValue());
         return shippingRuleRepository.save(rule);
     }
 

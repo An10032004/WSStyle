@@ -40,6 +40,8 @@ public class PricingRuleService {
                 .excludeProductOption(request.getExcludeProductOption())
                 .excludeProductValue(request.getExcludeProductValue())
                 .actionConfig(request.getActionConfig())
+                .discountValue(request.getDiscountValue())
+                .discountType(request.getDiscountType())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .build();
@@ -62,6 +64,8 @@ public class PricingRuleService {
         rule.setExcludeProductOption(request.getExcludeProductOption());
         rule.setExcludeProductValue(request.getExcludeProductValue());
         rule.setActionConfig(request.getActionConfig());
+        rule.setDiscountValue(request.getDiscountValue());
+        rule.setDiscountType(request.getDiscountType());
         rule.setStartDate(request.getStartDate());
         rule.setEndDate(request.getEndDate());
         return pricingRuleRepository.save(rule);

@@ -28,6 +28,7 @@ public class TaxDisplayRuleService {
     public TaxDisplayRule createRule(TaxDisplayRuleRequest request) {
         TaxDisplayRule rule = TaxDisplayRule.builder()
                 .name(request.getName())
+                .priority(request.getPriority())
                 .status(request.getStatus())
                 .taxDisplayType(request.getTaxDisplayType())
                 .displayType(request.getDisplayType())
@@ -44,6 +45,7 @@ public class TaxDisplayRuleService {
     public TaxDisplayRule updateRule(Integer id, TaxDisplayRuleRequest request) {
         TaxDisplayRule rule = getRuleById(id);
         rule.setName(request.getName());
+        rule.setPriority(request.getPriority());
         rule.setStatus(request.getStatus());
         rule.setTaxDisplayType(request.getTaxDisplayType());
         rule.setDisplayType(request.getDisplayType());

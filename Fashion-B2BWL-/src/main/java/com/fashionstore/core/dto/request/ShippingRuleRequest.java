@@ -9,4 +9,10 @@ public class ShippingRuleRequest {
     private String status;
     private String baseOn;
     private String rateRanges;
+    private String applyCustomerType;
+    private String applyCustomerValue;
+    private String applyProductType;
+    private String applyProductValue;
+    private String discountType;
+    private Double discountValue;
 }

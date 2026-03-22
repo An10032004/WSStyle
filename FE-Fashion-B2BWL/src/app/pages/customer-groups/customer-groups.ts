@@ -99,8 +99,14 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'name', headerValueGetter: () => this.transloco.translate('MEMBER.GROUP_NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { 
+        field: 'name', 
+        headerValueGetter: () => this.transloco.translate('MEMBER.GROUP_NAME'), 
+        width: 300,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { 
         field: 'defaultDiscountRate', 
         headerValueGetter: () => this.transloco.translate('MEMBER.DISCOUNT_RATE'), 

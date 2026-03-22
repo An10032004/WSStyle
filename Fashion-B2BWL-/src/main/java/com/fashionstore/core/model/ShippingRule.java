@@ -33,4 +33,22 @@ public class ShippingRule {
 
     @Column(name = "rate_ranges", columnDefinition = "json")
     private String rateRanges;
+
+    @Column(name = "apply_customer_type", length = 50)
+    private String applyCustomerType = "ALL";
+
+    @Column(name = "apply_customer_value", columnDefinition = "TEXT")
+    private String applyCustomerValue;
+
+    @Column(name = "apply_product_type", length = 50)
+    private String applyProductType = "ALL";
+
+    @Column(name = "apply_product_value", columnDefinition = "TEXT")
+    private String applyProductValue;
+
+    @Column(name = "discount_type", length = 50)
+    private String discountType = "FIXED"; // FREE, FLAT, PERCENTAGE
+
+    @Column(name = "discount_value")
+    private Double discountValue = 0.0;
 }

@@ -1,35 +1,111 @@
-@use '../product-list/product-list' as *;
+.page-container {
+  padding: 0;
+  background: #f8fafc;
+  min-height: 100vh;
+}
 
-.form-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+.form-panel {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+.form-field {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.form-container {
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  width: 800px;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.json-section {
-  background: var(--tui-base-02);
-  padding: 16px;
-  border-radius: 8px;
-  margin-top: 12px;
-  h4 { margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+  flex-direction: column;
+  gap: 8px;
 }
 
 .json-textarea {
-  font-family: monospace;
-  background: var(--tui-base-01) !important;
-  min-height: 80px;
+  min-height: 100px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+}
+
+.grid-wrapper {
+  margin: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+}
+
+.info-block {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  
+  p {
+    margin: 12px 0;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dashed #e2e8f0;
+    padding-bottom: 8px;
+    
+    strong {
+      color: #64748b;
+    }
+  }
+}
+
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+
+  th {
+    background: #1e293b;
+    color: #fff;
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 500;
+  }
+
+  td {
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.b2b-summary {
+  margin-top: 16px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
