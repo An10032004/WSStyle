@@ -1,0 +1,66 @@
+<div class="page-container">
+  <div class="header-section" style="padding: 16px">
+    <h2 class="title">{{ 'RULE.TAX_DISPLAY_TITLE' | transloco }}</h2>
+    <button tuiButton type="button" size="m" (click)="onAdd()">
+      <tui-icon icon="@tui.plus"></tui-icon>
+      {{ 'COMMON.ADD' | transloco }}
+    </button>
+  </div>
+
+  <div class="form-panel-premium" *ngIf="showForm">
+    <app-tax-display-editor
+      [data]="$any(formData)"
+      [isEdit]="!!editingId"
+      (save)="onSubmit()"
+      (cancel)="cancel()"
+    ></app-tax-display-editor>
+  </div>
+
+  <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
+    <h3 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}</h3>
+    <div class="form-grid">
+       <p><strong>ID:</strong> {{ selectedRule.id }}</p>
+       <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
+       <p><strong>{{ 'RULE.TAX_TYPE' | transloco }}:</strong> {{ selectedRule.taxDisplayType }}</p>
+       <p><strong>{{ 'RULE.DISPLAY_TYPE' | transloco }}:</strong> {{ selectedRule.displayType }}</p>
+       <p><strong>{{ 'RULE.STATUS' | transloco }}:</strong> <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">{{ 'ENUMS.' + selectedRule.status | transloco }}</tui-badge></p>
+       
+       <div class="full-width">
+          <strong>Design Config:</strong>
+          <pre style="background: #f4f4f4; padding: 12px; border-radius: 4px; overflow: auto;">{{ selectedRule.designConfig }}</pre>
+       </div>
+    </div>
+    <div class="form-actions" style="margin-top: 20px;">
+       <button tuiButton type="button" appearance="outline" (click)="showDetails = false">{{ 'COMMON.CLOSE' | transloco }}</button>
+    </div>
+  </div>
+
+  <div *ngIf="!showForm && !showDetails" class="grid-wrapper">
+      <ag-grid-angular
+        class="ag-theme-alpine"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [pagination]="true"
+        [paginationPageSize]="10"
+        [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+        domLayout="autoHeight"
+        [localeText]="localeText"
+        (gridReady)="onGridReady($event)"
+        [animateRows]="true"
+      ></ag-grid-angular>
+  </div>
+</div>
+
+<ng-template #deleteDialog let-observer>
+  <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
+    <tui-icon icon="@tui.triangle-alert" style="font-size: 24px; color: #d97706;"></tui-icon>
+    <div>
+      <h3 style="margin: 0 0 8px;">Xác nhận xóa</h3>
+      <p style="margin: 0; color: #666;">Bạn có chắc chắn muốn xóa quy tắc <strong>{{ deleteTargetName }}</strong> này không?</p>
+    </div>
+  </div>
+  <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+    <button tuiButton size="m" appearance="outline" (click)="observer.next(false); observer.complete()">Hủy</button>
+    <button tuiButton size="m" appearance="accent" (click)="observer.next(true); observer.complete()">Xác nhận xóa</button>
+  </div>
+</ng-template>

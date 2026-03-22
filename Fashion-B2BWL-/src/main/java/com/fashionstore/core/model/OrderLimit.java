@@ -17,6 +17,9 @@ public class OrderLimit {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "shop_id")
+    private Integer shopId;
+
     @Column(nullable = false)
     private String name;
 

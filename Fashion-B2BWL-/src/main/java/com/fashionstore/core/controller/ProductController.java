@@ -2,8 +2,12 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.dto.request.ProductRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.ProductResponseDTO;
 import com.fashionstore.core.model.Product;
+import com.fashionstore.core.model.User;
+import com.fashionstore.core.service.ProductMapperService;
 import com.fashionstore.core.service.ProductService;
+import com.fashionstore.core.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,33 +22,48 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapperService productMapperService;
+    private final UserService userService;
 
     /**
      * GET /api/products — Lấy tất cả sản phẩm
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Product>>> getAllProducts() {
+    public ResponseEntity<ApiResponse<List<ProductResponseDTO>>> getAllProducts(
+            @RequestParam(required = false) Integer userId) {
+        User user = (userId != null) ? userService.getUserById(userId) : null;
         List<Product> products = productService.getAllProducts();
-        return ResponseEntity.ok(ApiResponse.success(products));
+        List<ProductResponseDTO> dtos = products.stream()
+                .map(p -> productMapperService.toDTO(p, user))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
     /**
      * GET /api/products/{id} — Lấy sản phẩm theo ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Product>> getProductById(@PathVariable("id") Integer id) {
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> getProductById(
+            @PathVariable("id") Integer id,
+            @RequestParam(required = false) Integer userId) {
+        User user = (userId != null) ? userService.getUserById(userId) : null;
         Product product = productService.getProductById(id);
-        return ResponseEntity.ok(ApiResponse.success(product));
+        return ResponseEntity.ok(ApiResponse.success(productMapperService.toDTO(product, user)));
     }
 
     /**
      * GET /api/products/category/{categoryId} — Lấy sản phẩm theo danh mục
      */
     @GetMapping("/category/{categoryId}")
-    public ResponseEntity<ApiResponse<List<Product>>> getProductsByCategory(
-            @PathVariable("categoryId") Integer categoryId) {
+    public ResponseEntity<ApiResponse<List<ProductResponseDTO>>> getProductsByCategory(
+            @PathVariable("categoryId") Integer categoryId,
+            @RequestParam(required = false) Integer userId) {
+        User user = (userId != null) ? userService.getUserById(userId) : null;
         List<Product> products = productService.getProductsByCategory(categoryId);
-        return ResponseEntity.ok(ApiResponse.success(products));
+        List<ProductResponseDTO> dtos = products.stream()
+                .map(p -> productMapperService.toDTO(p, user))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
     /**

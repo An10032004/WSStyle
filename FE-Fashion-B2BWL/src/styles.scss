@@ -1,11 +1,38 @@
-/* Global Styles — Taiga UI styles are loaded via angular.json */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  /* SnapB2B Design Tokens */
+  --primary: #00A67A;
+  --primary-hover: #008f68;
+  --secondary: #121212;
+  --text-main: #121212;
+  --text-muted: #4A4A4A;
+  --bg-light: #F9F9F9;
+  --font-family: 'Montserrat', sans-serif;
+  
+  /* Taiga UI Overrides */
+  --tui-primary: var(--primary);
+  --tui-primary-hover: var(--primary-hover);
+}
 
 html,
 body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: "Manrope", sans-serif;
+  font-family: var(--font-family);
+  color: var(--text-main);
+  background-color: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family);
+  font-weight: 700;
+  color: var(--text-main);
+  margin-top: 0;
 }
 
 /* Fix for Taiga UI legacy select floating label padding pushing text down */
@@ -17,23 +44,41 @@ tui-select .t-input {
   padding-top: 0 !important;
 }
 
-/* Custom Typography settings as requested: Label=16px, Content=14px */
+/* SnapB2B Inspired Typography */
 label[tuiLabel],
 .form-field {
-  font-size: 16px !important;
-  line-height: 24px !important;
-  font-weight:500 !important;
-  color: #333333 !important;
-  letter-spacing: 0.15px !important;
+  font-family: var(--font-family);
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 600 !important;
+  color: var(--text-main) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px !important;
 }
 
 tui-primitive-textfield .t-input,
 tui-select .t-content,
 tui-select .t-value,
 input[tuiTextfield] {
-  font-size: 14px !important;
-  line-height: 20px !important;
-  font-weight:500 !important;
-  color: #333333 !important;
-  letter-spacing: 0.1px !important;
+  font-family: var(--font-family);
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--text-main) !important;
+}
+
+/* Utility Classes */
+.text-primary { color: var(--primary) !important; }
+.bg-primary { background-color: var(--primary) !important; }
+.btn-snap {
+  background-color: var(--primary);
+  color: white;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  &:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+  }
 }

@@ -16,6 +16,9 @@ public class Translation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "shop_id")
+    private Integer shopId;
+
     @Column(name = "resource_id", nullable = false)
     private Integer resourceId;
 

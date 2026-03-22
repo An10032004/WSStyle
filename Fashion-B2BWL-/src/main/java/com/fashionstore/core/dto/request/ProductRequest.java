@@ -29,4 +29,11 @@ public class ProductRequest {
      * JSON string chứa thông số kỹ thuật, ví dụ: {"material":"Cotton","origin":"Vietnam"}
      */
     private String specifications;
+
+    @NotBlank(message = "Thương hiệu không được để trống")
+    private String brand;
+
+    private String imageUrl;
+
+    private String imageUrls;
 }

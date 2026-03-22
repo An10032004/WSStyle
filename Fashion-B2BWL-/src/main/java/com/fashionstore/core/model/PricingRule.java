@@ -17,6 +17,9 @@ public class PricingRule {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "shop_id")
+    private Integer shopId;
+
     @Column(nullable = false)
     private String name;
 
@@ -52,6 +55,12 @@ public class PricingRule {
 
     @Column(name = "exclude_product_value", columnDefinition = "json")
     private String excludeProductValue;
+
+    @Column(name = "discount_value", precision = 15, scale = 2)
+    private java.math.BigDecimal discountValue;
+
+    @Column(name = "discount_type")
+    private String discountType; // PERCENTAGE, FIXED_AMOUNT, OVERRIDE_PRICE
 
     @Column(name = "action_config", columnDefinition = "json")
     private String actionConfig;

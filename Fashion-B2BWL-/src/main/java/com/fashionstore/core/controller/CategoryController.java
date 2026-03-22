@@ -2,6 +2,7 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.dto.request.CategoryRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.CategoryResponse;
 import com.fashionstore.core.model.Category;
 import com.fashionstore.core.service.CategoryService;
 import jakarta.validation.Valid;
@@ -23,8 +24,8 @@ public class CategoryController {
      * GET /api/categories — Lấy tất cả danh mục
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Category>>> getAllCategories() {
-        List<Category> categories = categoryService.getAllCategories();
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategories() {
+        List<CategoryResponse> categories = categoryService.getAllCategories();
         return ResponseEntity.ok(ApiResponse.success(categories));
     }
 
@@ -32,8 +33,8 @@ public class CategoryController {
      * GET /api/categories/root — Lấy danh mục gốc (không có parent)
      */
     @GetMapping("/root")
-    public ResponseEntity<ApiResponse<List<Category>>> getRootCategories() {
-        List<Category> rootCategories = categoryService.getRootCategories();
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getRootCategories() {
+        List<CategoryResponse> rootCategories = categoryService.getRootCategories();
         return ResponseEntity.ok(ApiResponse.success(rootCategories));
     }
 
@@ -41,18 +42,27 @@ public class CategoryController {
      * GET /api/categories/{id} — Lấy 1 danh mục theo ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> getCategoryById(@PathVariable("id") Integer id) {
+    public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable("id") Integer id) {
+        // NOTE: CategoryService.getCategoryById returns Entity. 
+        // We should probably map it here or update Service to return Response.
+        // I updated Service to use mapToResponse in create/update/getAll, 
+        // but let's check getCategoryById in Service.
         Category category = categoryService.getCategoryById(id);
-        return ResponseEntity.ok(ApiResponse.success(category));
+        CategoryResponse response = CategoryResponse.builder()
+                .id(category.getId())
+                .name(category.getName())
+                .parentId(category.getParent() != null ? category.getParent().getId() : null)
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
      * POST /api/categories — Tạo danh mục mới
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<Category>> createCategory(
+    public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
             @Valid @RequestBody CategoryRequest request) {
-        Category created = categoryService.createCategory(request);
+        CategoryResponse created = categoryService.createCategory(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo danh mục thành công", created));
@@ -62,10 +72,10 @@ public class CategoryController {
      * PUT /api/categories/{id} — Cập nhật danh mục
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Category>> updateCategory(
+    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
             @PathVariable("id") Integer id,
             @Valid @RequestBody CategoryRequest request) {
-        Category updated = categoryService.updateCategory(id, request);
+        CategoryResponse updated = categoryService.updateCategory(id, request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật danh mục thành công", updated));
     }
 

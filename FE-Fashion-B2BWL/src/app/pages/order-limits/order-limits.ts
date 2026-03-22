@@ -29,6 +29,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { OrderLimitEditorComponent } from './order-limit-editor';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -38,7 +39,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
+    OrderLimitEditorComponent
   ],
   templateUrl: './order-limits.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -102,8 +104,14 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 70 },
-      { field: 'name', headerValueGetter: () => this.transloco.translate('RULE.NAME'), flex: 1 },
+      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { 
+        field: 'name', 
+        headerValueGetter: () => this.transloco.translate('RULE.NAME'), 
+        width: 300,
+        pinned: 'left',
+        tooltipValueGetter: (params: any) => params.value
+      },
       { field: 'limitLevel', headerValueGetter: () => this.transloco.translate('RULE.LEVEL'), width: 130, valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value) },
       { field: 'limitType', headerValueGetter: () => this.transloco.translate('RULE.TYPE'), width: 150, valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value) },
       { field: 'limitValue', headerValueGetter: () => this.transloco.translate('RULE.VALUE'), width: 100 },

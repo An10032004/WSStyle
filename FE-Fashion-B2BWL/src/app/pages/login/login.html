@@ -1,0 +1,70 @@
+<div class="login-container">
+  <div class="login-box">
+    <div class="logo-wrapper">
+      <a routerLink="/storefront" class="logo">DOSI-IN <span>CLONE</span></a>
+    </div>
+    
+    <h3>LOGIN</h3>
+    <p class="subtitle">Enter your details to access your account</p>
+
+    <div *ngIf="errorMsg" class="error-alert">
+      {{ errorMsg }}
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-field">
+        <label tuiLabel>EMAIL ADDRESS</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+        >
+          <input
+            tuiTextfield
+            type="email"
+            formControlName="email"
+            placeholder="example@mail.com"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="email"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="form-field">
+        <label tuiLabel>PASSWORD</label>
+        <tui-textfield
+          tuiTextfieldSize="m"
+          tuiPassword
+        >
+          <input
+            tuiTextfield
+            type="password"
+            formControlName="password"
+            placeholder="••••••••"
+          />
+        </tui-textfield>
+        <tui-error
+          formControlName="password"
+          [error]="[] | tuiFieldError | async"
+        ></tui-error>
+      </div>
+
+      <div class="actions">
+        <button
+          tuiButton
+          type="submit"
+          appearance="primary"
+          [disabled]="loading"
+          class="submit-btn"
+        >
+          LOGIN
+        </button>
+      </div>
+    </form>
+
+    <div class="footer-links">
+      <span>Don't have an account?</span>
+      <a routerLink="/register">Register now</a>
+    </div>
+  </div>
+</div>

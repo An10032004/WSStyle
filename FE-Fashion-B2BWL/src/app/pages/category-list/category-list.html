@@ -13,7 +13,6 @@
       <h4 style="display: flex; align-items: center; gap: 8px">
         <tui-icon [icon]="editingId ? '@tui.pencil' : '@tui.plus'"></tui-icon>
         {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('CATEGORY.ADD' | transloco) }}
-        {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('CATEGORY.ADD' | transloco) }}
       </h4>
       <div class="form-grid">
         <label tuiLabel class="form-field">
@@ -32,14 +31,17 @@
             <tui-data-list *tuiDataList>
               <tui-opt-group [label]="'CATEGORY.TITLE' | transloco">
                 <button tuiOption [value]="null">{{ 'CATEGORY.ROOT' | transloco }}</button>
-                <button *ngFor="let cat of rowData" tuiOption [value]="cat.id">
-                  {{ cat.name }}
-                </button>
+                <ng-container *ngFor="let cat of rowData">
+                  <!-- Don't allow selecting self as parent -->
+                  <button *ngIf="cat.id !== editingId" tuiOption [value]="cat.id">
+                    {{ cat.name }}
+                  </button>
+                </ng-container>
               </tui-opt-group>
             </tui-data-list>
           </tui-select>
           <ng-template #categoryContent let-id>
-            {{ getCategoryName(id) }}
+            {{ getCategoryName(id) || ('CATEGORY.ROOT' | transloco) }}
           </ng-template>
         </label>
       </div>
@@ -53,10 +55,19 @@
   @if (showDetails && selectedCategory) {
     <div class="form-panel">
       <h4 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'PRODUCT.VIEW' | transloco }} {{ 'CATEGORY.NAME' | transloco }}: {{ getCategoryName(selectedCategory.id) }}</h4>
-      <div class="form-grid" style="margin-bottom: 20px;">
-         <p><strong>ID:</strong> {{ selectedCategory.id }}</p>
-         <p><strong>{{ 'CATEGORY.NAME' | transloco }}:</strong> {{ getCategoryName(selectedCategory.id) }}</p>
-         <p><strong>{{ 'CATEGORY.PARENT_ID' | transloco }}:</strong> {{ getCategoryName(selectedCategory.parent?.id ?? null) || ('CATEGORY.ROOT' | transloco) }}</p>
+      <div class="details-list" style="margin-bottom: 20px;">
+         <div class="detail-row">
+            <span class="detail-label">ID:</span>
+            <span class="detail-value">{{ selectedCategory.id }}</span>
+         </div>
+         <div class="detail-row">
+            <span class="detail-label">{{ 'CATEGORY.NAME' | transloco }}:</span>
+            <span class="detail-value">{{ getCategoryName(selectedCategory.id) }}</span>
+         </div>
+         <div class="detail-row">
+            <span class="detail-label">{{ 'CATEGORY.PARENT_ID' | transloco }}:</span>
+            <span class="detail-value">{{ getCategoryName(selectedCategory.parentId ?? null) || ('CATEGORY.ROOT' | transloco) }}</span>
+         </div>
       </div>
       <div class="form-actions">
         <button tuiButton type="button" appearance="outline" size="m" (click)="onCloseDetails()">{{ 'GLOBAL.CLOSE' | transloco }}</button>
@@ -72,7 +83,6 @@
         [rowData]="rowData"
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
-        [rowSelection]="{ mode: 'singleRow' }"
         [animateRows]="true"
         [pagination]="true"
         [paginationPageSize]="20"

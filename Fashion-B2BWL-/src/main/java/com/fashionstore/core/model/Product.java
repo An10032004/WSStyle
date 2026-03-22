@@ -22,6 +22,9 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "shop_id")
+    private Integer shopId;
+
     // --- Quan hệ N-1 với Category ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
@@ -41,6 +44,15 @@ public class Product {
 
     @Column(name = "base_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal basePrice;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "image_urls", columnDefinition = "json")
+    private String imageUrls;
+
+    @Column(name = "brand")
+    private String brand;
 
     // Lưu JSON string, ví dụ: {"material":"Cotton","origin":"Vietnam"}
     @Column(columnDefinition = "json")

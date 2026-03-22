@@ -25,3 +25,13 @@
   font-family: "Courier New", Courier, monospace;
   background: var(--tui-base-01);
 }
+
+.dim-inputs {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+
+  tui-textfield {
+    flex: 1;
+  }
+}

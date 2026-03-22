@@ -53,6 +53,7 @@ export class CategoryListComponent implements OnInit {
 
   defaultColDef: ColDef = {
     resizable: true,
+    minWidth: 100,
   };
 
   constructor(
@@ -102,7 +103,6 @@ export class CategoryListComponent implements OnInit {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
   }
 
   loadData(): void {
@@ -115,13 +115,19 @@ export class CategoryListComponent implements OnInit {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { headerName: 'ID', field: 'id', width: 80, sortable: true, cellStyle: { fontWeight: '500' } },
+      { headerName: 'ID', field: 'id', width: 100, sortable: true, cellStyle: { fontWeight: '500' }, pinned: 'left' },
       { 
         headerName: this.transloco.translate('CATEGORY.NAME'), 
         field: 'name', 
-        flex: 1, 
+        width: 300,
         sortable: true, 
         filter: true,
+        pinned: 'left',
+        tooltipValueGetter: (params) => {
+           const id = params.data.id;
+           if (this.currentLanguage === 'vi') return params.data.name;
+           return this.categoryTranslations.get(id) || params.data.name;
+        },
         valueGetter: (params) => {
            const id = params.data.id;
            if (this.currentLanguage === 'vi') return params.data.name;
@@ -131,10 +137,16 @@ export class CategoryListComponent implements OnInit {
       { 
          headerName: this.transloco.translate('CATEGORY.PARENT_ID'), 
          field: 'parentId', 
+         width: 140,
+         valueGetter: (params) => params.data.parentId || ''
+      },
+      { 
+         headerName: this.transloco.translate('CATEGORY.PARENT_NAME'), 
+         field: 'parentName', 
          width: 180,
          valueGetter: (params) => {
-            const pid = params.data.parent?.id;
-            if (!pid) return '';
+            const pid = params.data.parentId;
+            if (!pid || pid === params.data.id) return '';
             return this.getCategoryName(pid);
          }
       },
@@ -228,7 +240,7 @@ export class CategoryListComponent implements OnInit {
 
     if (this.currentLanguage !== 'vi') {
       // In translation mode, fetch existing translation or prep empty
-      this.formData = { name: '', parentId: cat.parent?.id ?? null };
+      this.formData = { name: '', parentId: cat.parentId ?? null };
       this.api.getTranslationByLang('CATEGORY', cat.id, this.currentLanguage).subscribe({
         next: (translation) => {
           if (translation && translation.content) {
@@ -247,7 +259,7 @@ export class CategoryListComponent implements OnInit {
       });
     } else {
       // Normal edit
-      this.formData = { name: cat.name, parentId: cat.parent?.id ?? null };
+      this.formData = { name: cat.name, parentId: cat.parentId ?? null };
       this.showForm = true;
     }
   }
@@ -258,17 +270,7 @@ export class CategoryListComponent implements OnInit {
        const trans = this.categoryTranslations.get(id);
        if (trans) return trans;
     }
-    const findInTree = (list: Category[]): Category | undefined => {
-       for (const c of list) {
-          if (c.id === id) return c;
-          if (c.children) {
-             const found = findInTree(c.children);
-             if (found) return found;
-          }
-       }
-       return undefined;
-    };
-    return findInTree(this.rowData)?.name || '';
+    return this.rowData.find(c => c.id === id)?.name || '';
   }
 
   readonly renderCategory = (context: any): string => {
@@ -292,6 +294,11 @@ export class CategoryListComponent implements OnInit {
   }
 
   onSave(): void {
+    if (this.formData.parentId && this.editingId === this.formData.parentId) {
+      this.alerts.open('Không thể chọn danh mục này làm danh mục cha của chính nó', { appearance: 'warning' }).subscribe();
+      return;
+    }
+    
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields (Parent ID)
       const globalUpdate = {

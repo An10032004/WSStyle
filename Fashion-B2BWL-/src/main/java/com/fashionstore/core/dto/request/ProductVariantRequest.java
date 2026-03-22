@@ -32,5 +32,20 @@ public class ProductVariantRequest {
      */
     private BigDecimal priceAdjustment;
 
+    private BigDecimal price;
+    private BigDecimal discountPrice;
+
     private String imageUrl;
+    private String imageUrls;
+
+    private String color;
+    private String size;
+    private String weight;
+
+    private BigDecimal length;
+    private BigDecimal width;
+    private BigDecimal height;
+    private BigDecimal costPrice;
+    private String status;
+    private String barcode;
 }

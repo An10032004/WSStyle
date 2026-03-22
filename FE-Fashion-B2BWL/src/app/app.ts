@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { TuiRoot } from '@taiga-ui/core';
 import { TranslocoService, TranslocoModule } from '@jsverse/transloco';
-import { LayoutComponent } from './layout/layout';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [TuiRoot, LayoutComponent, TranslocoModule],
+  imports: [TuiRoot, RouterOutlet, TranslocoModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

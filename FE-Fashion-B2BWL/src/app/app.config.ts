@@ -1,7 +1,8 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, inject, isDevMode, Injectable } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient, HttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, HttpClient } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { authInterceptor } from './interceptors/auth.interceptor';
 import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins';
 import { tuiIconResolverProvider } from '@taiga-ui/core';
 import { TUI_LANGUAGE } from '@taiga-ui/i18n';
@@ -25,7 +26,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimations(),
     NG_EVENT_PLUGINS,
     tuiIconResolverProvider((icon) => {
