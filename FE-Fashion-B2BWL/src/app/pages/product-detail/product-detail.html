@@ -34,33 +34,31 @@
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
 
-        <div class="pricing-card" [class.b2b-active]="isB2BApplied">
-          <div class="b2b-badge" *ngIf="isB2BApplied">
+        <div class="pricing-card" [class.rule-active]="product.discountLabel">
+          <div class="rule-badge" *ngIf="product.discountLabel">
             <tui-icon icon="@tui.shield-check"></tui-icon>
-            Giá dành riêng cho {{ (user$ | async)?.customerGroup?.name }}
+            {{ product.discountLabel }}
           </div>
-          <div class="main-price">
-            <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
-            <span class="original" *ngIf="(selectedVariant?.price || product.basePrice + (selectedVariant?.priceAdjustment || 0)) > currentPrice">
-              {{ (selectedVariant?.price || product.basePrice + (selectedVariant?.priceAdjustment || 0)) | number:'1.0-0' }} ₫
+          <div class="main-price" *ngIf="!product.hidePrice; else hiddenPrice">
+            <span class="current">{{ (product.calculatedPrice || product.basePrice) | number:'1.0-0' }} ₫</span>
+            <span class="original" *ngIf="product.calculatedPrice && product.calculatedPrice < product.basePrice">
+              {{ product.basePrice | number:'1.0-0' }} ₫
             </span>
-            <ng-container *ngIf="isB2BApplied">
-              <span class="discount-badge">
-                -{{ b2bRule.discountValue ?? b2bRule.parsedConfig?.discountValue }}{{ (b2bRule.discountType ?? b2bRule.parsedConfig?.discountType) === 'PERCENTAGE' ? '%' : '₫' }}
-              </span>
-            </ng-container>
-            <ng-container *ngIf="!isB2BApplied && (selectedVariant?.price || product.basePrice) > currentPrice">
-               <span class="discount-badge">Sale</span>
-            </ng-container>
+            <span class="tax-info" *ngIf="product.taxDisplayLabel">({{ product.taxDisplayLabel }})</span>
           </div>
+          <ng-template #hiddenPrice>
+            <div class="main-price">
+              <span class="replacement-text">{{ product.replacementText || 'Liên hệ để có giá' }}</span>
+            </div>
+          </ng-template>
           <div class="stats">
             <div class="stars">
               <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]"></tui-icon>
-              <span>0.0</span>
+              <span>5.0</span>
             </div>
             <div class="hearts">
               <tui-icon icon="@tui.heart"></tui-icon>
-              <span>0</span>
+              <span>24</span>
             </div>
           </div>
         </div>
@@ -94,10 +92,10 @@
         </div>
 
         <!-- QUANTITY BREAK TABLE -->
-        <div class="qb-section" *ngIf="qbRules.length > 0">
+        <div class="qb-section" *ngIf="quantityBreaks.length > 0">
            <div class="qb-title">
              <tui-icon icon="@tui.tags"></tui-icon>
-             Mua càng nhiều, giá càng rẻ
+             Mua càng nhiều, giá càng rẻ (Ưu đãi mua sỉ)
            </div>
            <div class="qb-table-wrapper">
              <table class="qb-table">
@@ -109,15 +107,13 @@
                  </tr>
                </thead>
                <tbody>
-                 <ng-container *ngFor="let rule of qbRules">
-                   <tr *ngFor="let b of rule.parsedConfig?.brackets">
-                     <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
-                     <td class="price-val">
-                       {{ (currentPrice * (1 - b.discount/100)) | number:'1.0-0' }} ₫
-                     </td>
-                     <td class="discount-val">-{{ b.discount }}%</td>
-                   </tr>
-                 </ng-container>
+                  <tr *ngFor="let b of quantityBreaks">
+                    <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
+                    <td class="price-val">
+                      {{ ((product.calculatedPrice || product.basePrice) * (1 - b.discount/100)) | number:'1.0-0' }} ₫
+                    </td>
+                    <td class="discount-val">-{{ b.discount }}%</td>
+                  </tr>
                </tbody>
              </table>
            </div>
@@ -132,9 +128,9 @@
           <div class="stock-info">{{ selectedVariant?.stockQuantity || 0 }} sản phẩm có sẵn</div>
         </div>
 
-        <div class="main-cta">
+        <div class="main-cta" *ngIf="!product.hideAddToCart">
           <button tuiButton appearance="secondary" class="buy-btn" (click)="addToCart()">
-            Đến trang mua hàng
+            Thêm vào giỏ hàng
           </button>
         </div>
       </div>
@@ -174,19 +170,22 @@
         <img [src]="activeImage" alt="mini">
         <div class="texts">
           <div class="name">{{ product.name }}</div>
-          <div class="price">{{ currentPrice | number:'1.0-0' }} ₫</div>
+          <div class="price" *ngIf="!product.hidePrice">{{ currentPrice | number:'1.0-0' }} ₫</div>
         </div>
       </div>
       <div class="actions">
-        <div class="quantity-selector mini">
+        <div class="quantity-selector mini" *ngIf="!product.hideAddToCart">
           <button (click)="adjQuantity(-1)"><tui-icon icon="@tui.minus"></tui-icon></button>
           <span>{{ quantity }}</span>
           <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
         </div>
-        <div class="total-price">
-          Tạm tính: <span>{{ (currentPrice * quantity) | number:'1.0-0' }} ₫</span>
+        <div class="total-price" *ngIf="!product.hidePrice">
+          Tạm tính: <span>{{ ((product.calculatedPrice || product.basePrice) * quantity) | number:'1.0-0' }} ₫</span>
         </div>
-        <button class="sticky-buy-btn" (click)="addToCart()">Đến trang mua hàng</button>
+        <button class="sticky-buy-btn" *ngIf="!product.hideAddToCart" (click)="addToCart()">Thêm vào giỏ hàng</button>
+        <div class="sticky-replacement" *ngIf="product.hidePrice">
+           {{ product.replacementText || 'Liên hệ để mua hàng' }}
+        </div>
       </div>
     </div>
   </div>

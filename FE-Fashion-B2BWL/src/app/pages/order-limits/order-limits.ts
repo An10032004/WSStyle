@@ -20,7 +20,8 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
-  TuiInputNumber
+  TuiInputNumber,
+  TuiBadge
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -40,7 +41,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    OrderLimitEditorComponent
+    OrderLimitEditorComponent, TuiBadge
   ],
   templateUrl: './order-limits.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -65,9 +66,17 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
     applyCustomerType: 'ALL', applyCustomerValue: '{}', applyProductType: 'ALL', applyProductValue: '{}'
   };
 
+  categories: any[] = [];
+  products: any[] = [];
+  customerGroups: any[] = [];
+
   statusOptions = ['ACTIVE', 'INACTIVE'];
   levelOptions = ['PER_VARIANT', 'PER_PRODUCT', 'PER_ORDER'];
   typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_AMOUNT'];
+
+  stringifyCategory = (item: any) => item?.name || '';
+  stringifyProduct = (item: any) => item?.name || '';
+  stringifyGroup = (item: any) => item?.name || '';
 
   private langSub?: Subscription;
 
@@ -100,6 +109,9 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
       this.rowData = data;
       this.cdr.detectChanges();
     });
+    this.api.getCategories().subscribe(data => { this.categories = data; this.cdr.detectChanges(); });
+    this.api.getProducts().subscribe(data => { this.products = data; this.cdr.detectChanges(); });
+    this.api.getCustomerGroups().subscribe(data => { this.customerGroups = data; this.cdr.detectChanges(); });
   }
 
   updateColumnDefs(): void {
@@ -143,6 +155,34 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
   onCloseDetails(): void {
     this.showDetails = false;
     this.selectedRule = null;
+    this.cdr.detectChanges();
+  }
+
+  getCustomerGroupNames(rule: OrderLimit): string {
+    if (rule.applyCustomerType !== 'GROUP' || !rule.applyCustomerValue) return '';
+    try {
+      const val = JSON.parse(rule.applyCustomerValue);
+      const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+      const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
+      return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+    } catch { return rule.applyCustomerValue || ''; }
+  }
+
+  getProductTargetNames(rule: OrderLimit): string {
+    if (!rule.applyProductValue || rule.applyProductType === 'ALL') return '';
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      if (rule.applyProductType === 'CATEGORY') {
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      } else if (rule.applyProductType === 'SPECIFIC') {
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      }
+    } catch { return rule.applyProductValue || ''; }
+    return '';
   }
 
   onAdd(): void {

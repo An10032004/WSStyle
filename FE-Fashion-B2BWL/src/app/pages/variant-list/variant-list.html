@@ -130,19 +130,6 @@
           </label>
         </div>
 
-        <div class="form-field full-width">
-          <label tuiLabel>
-            {{ 'VARIANT.ATTRIBUTES' | transloco }} (JSON)
-          <tui-textfield>
-            <textarea
-              tuiTextfield
-              [(ngModel)]="formData.attributes"
-              rows="3"
-              class="json-textarea"
-            ></textarea>
-          </tui-textfield>
-          </label>
-        </div>
 
         <label tuiLabel class="form-field full-width">
           {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
@@ -202,10 +189,6 @@
             </div>
          </div>
          <p><strong>{{ 'VARIANT.IMAGE_URL' | transloco }}:&nbsp;</strong> <a [href]="selectedVariant.imageUrl" target="_blank">{{ selectedVariant.imageUrl || ('CATEGORY.ROOT' | transloco) }}</a></p>
-         <div class="form-field full-width">
-            <strong>{{ 'VARIANT.ATTRIBUTES' | transloco }}:</strong>
-            <pre style="background: var(--tui-base-02); padding: 12px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin-top: 8px;">{{ selectedVariant.attributes || ('CATEGORY.ROOT' | transloco) }}</pre>
-         </div>
       </div>
       <div class="form-actions">
         <button tuiButton type="button" appearance="outline" size="m" (click)="onCloseDetails()">{{ 'GLOBAL.CLOSE' | transloco }}</button>

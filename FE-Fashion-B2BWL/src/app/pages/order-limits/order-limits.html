@@ -10,6 +10,12 @@
   <app-order-limit-editor
     *ngIf="showForm"
     [rule]="formData"
+    [categories]="categories"
+    [products]="products"
+    [customerGroups]="customerGroups"
+    [stringifyCategory]="stringifyCategory"
+    [stringifyProduct]="stringifyProduct"
+    [stringifyGroup]="stringifyGroup"
     (save)="onSubmit()"
     (cancel)="cancel()"
   ></app-order-limit-editor>
@@ -19,14 +25,28 @@
     <div class="form-grid">
        <p><strong>ID:</strong> {{ selectedRule.id }}</p>
        <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
-       <p><strong>{{ 'RULE.LEVEL' | transloco }}:</strong> {{ 'ENUMS.' + selectedRule.limitLevel | transloco }}</p>
+       <p><strong>{{ 'RULE.STATUS' | transloco }}:</strong> 
+         <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">
+           {{ 'ENUMS.' + selectedRule.status | transloco }}
+         </tui-badge>
+       </p>
+       <p><strong>Loại giới hạn:</strong> {{ 'ENUMS.' + selectedRule.limitLevel | transloco }}</p>
        <p><strong>{{ 'RULE.TYPE' | transloco }}:</strong> {{ 'ENUMS.' + selectedRule.limitType | transloco }}</p>
        <p><strong>{{ 'RULE.VALUE' | transloco }}:</strong> {{ selectedRule.limitValue | number }}</p>
        <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
        
-       <div class="full-width">
-          <strong>{{ 'RULE.APPLY_CONDITION' | transloco }}:</strong>
-          <pre style="background: #f4f4f4; padding: 12px; border-radius: 4px; overflow: auto;">{{ selectedRule.applyCustomerValue }}</pre>
+       <div class="full-width" style="margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+          <h4 style="margin: 0 0 12px; font-size: 16px;">Đối tượng áp dụng</h4>
+          <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+            <span *ngIf="selectedRule.applyCustomerType === 'GROUP' && getCustomerGroupNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
+              — {{ getCustomerGroupNames(selectedRule) }}
+            </span>
+          </p>
+          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
+            <span *ngIf="selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
+              — {{ getProductTargetNames(selectedRule) }}
+            </span>
+          </p>
        </div>
     </div>
     <div class="form-actions" style="margin-top: 20px;">

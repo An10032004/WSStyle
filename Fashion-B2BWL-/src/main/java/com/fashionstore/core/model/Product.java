@@ -1,7 +1,7 @@
 package com.fashionstore.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,10 +31,9 @@ public class Product {
     @JsonIgnore
     private Category category;
 
-    @JsonProperty("categoryId")
-    public Integer getCategoryId() {
-        return category != null ? category.getId() : null;
-    }
+    // Read-only mapping to prevent N+1 queries when reading category ID
+    @Column(name = "category_id", insertable = false, updatable = false)
+    private Integer categoryId;
 
     @Column(name = "product_code", nullable = false, unique = true)
     private String productCode;
@@ -48,15 +47,17 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "image_urls", columnDefinition = "json")
+    @Column(name = "image_urls", columnDefinition = "TEXT")
     private String imageUrls;
 
     @Column(name = "brand")
     private String brand;
 
-    // Lưu JSON string, ví dụ: {"material":"Cotton","origin":"Vietnam"}
-    @Column(columnDefinition = "json")
-    private String specifications;
+    @Column(name = "material")
+    private String material;
+
+    @Column(name = "origin")
+    private String origin;
 
     // --- Quan hệ 1-N với ProductVariant ---
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)

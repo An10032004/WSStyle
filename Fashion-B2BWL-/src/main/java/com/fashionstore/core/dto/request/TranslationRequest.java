@@ -16,6 +16,7 @@ public class TranslationRequest {
     @NotBlank(message = "Language code is required")
     private String languageCode; // 'en', 'vi', etc.
 
-    @NotBlank(message = "Content JSON string is required")
-    private String content; // The actual translations mapped as a JSON string
+    private String translatedName;
+    private String translatedDescription;
+    private String translatedData;
 }

@@ -1,76 +1,121 @@
-<!-- MINI TOP HEADER -->
-<div class="top-announcement">
-  <span>FREE SHIPPING ON ORDERS OVER 1.000.000 VNĐ</span>
+<!-- TOP BLACK BAR -->
+<div class="top-bar">
+  <div class="top-bar-container">
+    <div class="top-bar-left">
+      <tui-icon icon="@tui.house" class="home-icon"></tui-icon>
+      <a href="javascript:void(0)">Bán hàng cùng Dosiin</a>
+    </div>
+    <div class="top-bar-right">
+      <span>Hotline: 0906.880.960</span>
+      <span class="dot"></span>
+      <tui-icon icon="@tui.message-circle" class="support-icon"></tui-icon>
+      <a href="javascript:void(0)">Hỗ trợ trực tuyến</a>
+    </div>
+  </div>
 </div>
 
-<!-- DOSI-IN STYLE HEADER -->
-<header class="store-header">
-  <div class="header-container">
+<!-- MAIN HEADER (WHITE) -->
+<header class="main-header">
+  <div class="main-header-container">
     <div class="header-left">
       <a routerLink="/storefront" class="logo">
-        <span class="brand">DOSI-IN</span>
-        <span class="clone">CLONE</span>
+        <span class="logo-d">dosii</span><span class="logo-n">n</span>
       </a>
+      <div class="header-tabs">
+        <a href="javascript:void(0)" class="tab active">Shopping</a>
+        <a href="javascript:void(0)" class="tab">Style</a>
+      </div>
     </div>
 
-    <nav class="header-center">
-      <ul class="nav-links">
-        <li *ngFor="let cat of categories"><a href="javascript:void(0)">{{ cat }}</a></li>
-        <li><a routerLink="/become-a-partner" class="highlight-link">TRỞ THÀNH ĐỐI TÁC</a></li>
-      </ul>
-    </nav>
+    <div class="header-center">
+      <div class="search-wrapper">
+        <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
+        <input type="text" placeholder="Nhập từ khoá tìm kiếm">
+      </div>
+    </div>
 
     <div class="header-right">
-      <div class="search-bar">
-        <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
-        <input type="text" placeholder="Search brands, products...">
-      </div>
+      <button class="icon-circle" title="Notifications">
+        <tui-icon icon="@tui.bell"></tui-icon>
+      </button>
+      
+      <button class="icon-circle" title="Cart" routerLink="/cart">
+        <tui-icon icon="@tui.shopping-bag"></tui-icon>
+        <span class="cart-badge" *ngIf="(cartCount$ | async) as count">{{ count }}</span>
+      </button>
 
-      <div class="auth-box" *ngIf="user$ | async as user; else noUser">
+      <div class="user-profile" *ngIf="user$ | async as user; else noUser">
         <button
-          tuiButton
-          type="button"
-          appearance="flat"
-          size="m"
+          class="user-trigger"
           [(tuiDropdownOpen)]="dropdownOpen"
           [tuiDropdown]="userMenu"
         >
-          <tui-icon icon="@tui.user"></tui-icon>
-          <span class="ms-1">{{ user.fullName }}</span>
-          <tui-icon icon="@tui.chevron-down" class="ms-1 dropdown-chevron"></tui-icon>
+          <div class="user-avatar-circle">
+            <tui-icon icon="@tui.user"></tui-icon>
+          </div>
+          <div class="user-info">
+            <span class="user-label">Tài khoản</span>
+            <span class="user-salute">Xin chào!</span>
+          </div>
+          <tui-icon icon="@tui.chevron-down" class="dropdown-arrow"></tui-icon>
         </button>
         <ng-template #userMenu>
           <tui-data-list>
-            <button tuiOption routerLink="/profile">
-              <tui-icon icon="@tui.user" class="me-2"></tui-icon>
-              Profile
-            </button>
-            <button tuiOption routerLink="/become-a-partner">
-              <tui-icon icon="@tui.handshake" class="me-2"></tui-icon>
-              Become a Partner
-            </button>
-            <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">
-              <tui-icon icon="@tui.layout-dashboard" class="me-2"></tui-icon>
-              Admin Dashboard
-            </button>
-            <button tuiOption (click)="logout()">
-              <tui-icon icon="@tui.log-out" class="me-2"></tui-icon>
-              Logout
-            </button>
+            <button tuiOption routerLink="/profile">Profile</button>
+            <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">Admin Dashboard</button>
+            <button tuiOption (click)="logout()">Logout</button>
           </tui-data-list>
         </ng-template>
       </div>
+
       <ng-template #noUser>
         <div class="auth-links">
-          <a routerLink="/login">LOGIN</a>
-          <span class="sep">/</span>
-          <a routerLink="/register">REGISTER</a>
+           <a routerLink="/login">ĐĂNG NHẬP</a>
+           <span class="sep">/</span>
+           <a routerLink="/register">ĐĂNG KÝ</a>
         </div>
       </ng-template>
-
-      <div class="cart-icon">
-        <tui-icon icon="@tui.shopping-bag"></tui-icon>
-      </div>
     </div>
   </div>
 </header>
+
+<!-- CATEGORY NAV BAR -->
+<nav class="nav-bar">
+  <div class="nav-bar-container">
+    <ul class="nav-list">
+      <!-- Sản phẩm Mega Menu Trigger -->
+      <li 
+        class="nav-item mega-trigger" 
+        (mouseenter)="isMegaMenuOpen = true" 
+        (mouseleave)="isMegaMenuOpen = false"
+      >
+        <a routerLink="/shop" class="nav-link-btn">Sản phẩm</a>
+        
+        <!-- MEGA MENU -->
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-grid">
+              <div class="mega-column" *ngFor="let parent of categoryTree">
+                <div class="mega-header">
+                  <tui-icon icon="@tui.layout-grid" class="mega-icon"></tui-icon>
+                  <span class="mega-title" [routerLink]="['/shop/category', parent.id]">{{ parent.name }}</span>
+                </div>
+                <div class="mega-items">
+                  <a *ngFor="let child of parent.children" [routerLink]="['/shop/category', child.id]" class="mega-item">
+                    {{ child.name }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li *ngFor="let cat of mockCategories">
+        <a href="javascript:void(0)">{{ cat }}</a>
+      </li>
+      <li><a href="javascript:void(0)" class="hot">Giá sốc</a></li>
+      <li><a routerLink="/become-a-partner" class="partner-link">Trở thành đối tác</a></li>
+    </ul>
+  </div>
+</nav>

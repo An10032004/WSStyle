@@ -38,25 +38,25 @@ public class OrderLimit {
     @Column(name = "apply_customer_type")
     private String applyCustomerType;
 
-    @Column(name = "apply_customer_value", columnDefinition = "json")
+    @Column(name = "apply_customer_value", columnDefinition = "TEXT")
     private String applyCustomerValue;
 
     @Column(name = "exclude_customer_option")
     private String excludeCustomerOption;
 
-    @Column(name = "exclude_customer_value", columnDefinition = "json")
+    @Column(name = "exclude_customer_value", columnDefinition = "TEXT")
     private String excludeCustomerValue;
 
     @Column(name = "apply_product_type")
     private String applyProductType;
 
-    @Column(name = "apply_product_value", columnDefinition = "json")
+    @Column(name = "apply_product_value", columnDefinition = "TEXT")
     private String applyProductValue;
 
     @Column(name = "exclude_product_option")
     private String excludeProductOption;
 
-    @Column(name = "exclude_product_value", columnDefinition = "json")
+    @Column(name = "exclude_product_value", columnDefinition = "TEXT")
     private String excludeProductValue;
 
     @Column(name = "limit_value", nullable = false, precision = 15, scale = 2)

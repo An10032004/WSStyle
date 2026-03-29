@@ -4,6 +4,7 @@ import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.dto.request.UserRequest;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.service.UserService;
+import com.fashionstore.core.facade.AdminRuleFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final AdminRuleFacade adminRuleFacade;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
@@ -34,12 +36,12 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-        return ResponseEntity.ok(new ApiResponse<>(true, "User created successfully", userService.createUser(request)));
+        return ResponseEntity.ok(new ApiResponse<>(true, "User created successfully", adminRuleFacade.saveUser(request, null)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<User>> updateUser(@PathVariable Integer id, @RequestBody UserRequest request) {
-        return ResponseEntity.ok(new ApiResponse<>(true, "User updated successfully", userService.updateUser(id, request)));
+        return ResponseEntity.ok(new ApiResponse<>(true, "User updated successfully", adminRuleFacade.saveUser(request, id)));
     }
 
     @DeleteMapping("/{id}")

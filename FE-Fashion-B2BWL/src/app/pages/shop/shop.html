@@ -1,0 +1,180 @@
+<div class="shop-page">
+  <app-storefront-header></app-storefront-header>
+
+  <div class="shop-container container">
+    <!-- BREADCRUMBS -->
+    <nav class="breadcrumb-nav">
+      <a routerLink="/storefront">Home</a> / <span>Shop</span>
+    </nav>
+
+    <div class="shop-layout">
+      <!-- SIDEBAR FILTERS -->
+      <aside class="sidebar">
+        <div class="filter-card">
+          <div class="filter-header">
+            <h3>BỘ LỌC</h3>
+            <button class="reset-link" (click)="resetFilters()">Xóa hết</button>
+          </div>
+
+          <!-- Price Filter -->
+          <div class="filter-section">
+            <h4 class="filter-title">Khoảng giá</h4>
+            <div class="range-wrapper">
+              <div class="dual-slider">
+                <input
+                  tuiSlider
+                  type="range"
+                  [max]="5000000"
+                  [min]="0"
+                  [step]="50000"
+                  [ngModel]="priceRange[0]"
+                  (ngModelChange)="onMinPriceChange($event)"
+                  class="slider-input"
+                />
+                <input
+                  tuiSlider
+                  type="range"
+                  [max]="5000000"
+                  [min]="0"
+                  [step]="50000"
+                  [ngModel]="priceRange[1]"
+                  (ngModelChange)="onMaxPriceChange($event)"
+                  class="slider-input"
+                />
+              </div>
+              <div class="range-labels">
+                <span>{{ priceRange[0] | number }} đ</span>
+                <span>{{ priceRange[1] | number }} đ</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="filter-section">
+            <h4 class="filter-title">Danh mục</h4>
+            <div class="search-filter-wrapper">
+              <input 
+                type="text" 
+                class="filter-search-input" 
+                placeholder="Tìm danh mục..."
+                [(ngModel)]="categorySearchQuery"
+              />
+              <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
+            </div>
+            <div class="category-list scrollable">
+              <ul class="meta-list">
+                <li *ngFor="let cat of filteredCategories">
+                  <button 
+                    class="meta-btn" 
+                    [class.active]="selectedCategoryId === cat.id"
+                    (click)="selectedCategoryId = cat.id; applyFilters()"
+                  >
+                    {{ cat.name }}
+                  </button>
+                </li>
+              </ul>
+              <div *ngIf="filteredCategories.length === 0" class="filter-empty">
+                Không thấy kết quả
+              </div>
+            </div>
+          </div>
+
+          <!-- Brand Filter -->
+          <div class="filter-section">
+            <h4 class="filter-title">Thương hiệu</h4>
+            <div class="brand-list scrollable">
+              <div *ngFor="let brand of availableBrands" class="brand-item">
+                <input
+                  tuiCheckbox
+                  type="checkbox"
+                  [ngModel]="selectedBrands.has(brand)"
+                  (ngModelChange)="toggleBrand(brand)"
+                  class="brand-checkbox"
+                />
+                <span (click)="toggleBrand(brand)">{{ brand }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content">
+        <header class="content-header">
+          <div class="count-box">
+             Hiển thị <strong>{{ filteredProducts.length }}</strong> sản phẩm
+          </div>
+          <div class="sort-box">
+            <span class="sort-label">Sắp xếp:</span>
+            <select class="sort-select" [value]="sortBy" (change)="updateSort($any($event.target).value)">
+              <option value="newest">Mới nhất</option>
+              <option value="price-asc">Giá từ thấp tới cao</option>
+              <option value="price-desc">Giá từ cao tới thấp</option>
+            </select>
+          </div>
+        </header>
+
+        <!-- Product Grid -->
+        <div class="product-grid" *ngIf="filteredProducts.length > 0">
+          <a class="product-card" 
+             *ngFor="let p of pagedProducts; let i = index"
+             [routerLink]="['/product', p.id]">
+            <div class="product-img-wrapper">
+              <div class="product-img">
+                <img [src]="p.imageUrl" [alt]="p.name" />
+              </div>
+              <div class="brand-badge">
+                <span class="brand-text">{{ getBrand(p) }}</span>
+              </div>
+              <div class="quick-add">
+                <button tuiButton appearance="white-grayscale" size="s">XEM NHANH</button>
+              </div>
+            </div>
+            <div class="product-info">
+              <div class="product-meta">
+                <span class="brand">{{ getBrand(p) }}</span>
+                <span class="tag-badge">NEW</span>
+              </div>
+              <h4 class="product-name">{{ p.name }}</h4>
+              
+              <!-- Rule Engine Price Display -->
+              <div class="price-box" *ngIf="!p.hidePrice; else hiddenPrice">
+                <span class="original-price" *ngIf="p.calculatedPrice && p.calculatedPrice < p.basePrice">
+                  {{ p.basePrice | number:'1.0-0' }} đ
+                </span>
+                <span class="final-price">{{ (p.calculatedPrice || p.basePrice) | number:'1.0-0' }} ₫</span>
+                <div class="discount-badge" *ngIf="p.discountLabel">
+                   {{ p.discountLabel }}
+                </div>
+              </div>
+              
+              <ng-template #hiddenPrice>
+                <div class="price-box">
+                  <span class="replacement-text">{{ p.replacementText || 'Liên hệ để có giá' }}</span>
+                </div>
+              </ng-template>
+            </div>
+          </a>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="pagination-wrapper" *ngIf="totalPages > 1">
+          <tui-pagination
+            [index]="page"
+            [length]="totalPages"
+            (indexChange)="onPageChange($event)"
+          ></tui-pagination>
+        </div>
+
+        <div *ngIf="filteredProducts.length === 0" class="empty-state">
+          <tui-icon icon="@tui.package-search" class="empty-icon"></tui-icon>
+          <h3>Không tìm thấy sản phẩm nào!</h3>
+          <p>Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
+          <button tuiButton size="m" (click)="resetFilters()">LÀM MỚI BỘ LỌC</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <app-storefront-footer></app-storefront-footer>
+</div>

@@ -1,8 +1,6 @@
 package com.fashionstore.core.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,24 +22,19 @@ public class ProductVariant {
     @Column(name = "shop_id")
     private Integer shopId;
 
-    // --- Quan hệ N-1 với Product ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     @JsonIgnore
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Product product;
 
-    @JsonProperty("productId")
-    public Integer getProductId() {
-        return product != null ? product.getId() : null;
-    }
+    // Read-only mapping to prevent N+1 queries when reading product ID
+    @Column(name = "product_id", insertable = false, updatable = false)
+    private Integer productId;
 
     @Column(nullable = false, unique = true)
     private String sku;
 
-    // Lưu JSON string, ví dụ: {"size":"M","color":"Đỏ"}
-    @Column(columnDefinition = "json")
-    private String attributes;
+    // Removed JSON attributes column as we use specific fields
 
     @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity;
@@ -52,7 +45,7 @@ public class ProductVariant {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "image_urls", columnDefinition = "json")
+    @Column(name = "image_urls", columnDefinition = "TEXT")
     private String imageUrls;
 
     @Column(name = "color")

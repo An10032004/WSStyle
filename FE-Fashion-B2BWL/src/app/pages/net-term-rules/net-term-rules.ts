@@ -20,11 +20,12 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
-  TuiInputNumber
+  TuiInputNumber,
+  TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, NetTermRule } from '../../services/api.service';
+import { ApiService, NetTermRule, CustomerGroup } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
@@ -38,7 +39,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
+    TuiBadge, TuiMultiSelectModule
   ],
   templateUrl: './net-term-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -64,6 +66,11 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
   customerTypeOptions = ['ALL', 'GROUP', 'SPECIFIC'];
+
+  customerGroups: any[] = [];
+  selectedGroupIds: any[] = [];
+
+  stringifyGroup = (item: any) => item?.name || '';
 
   private langSub?: Subscription;
 
@@ -94,6 +101,10 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   loadData(): void {
     this.api.getNetTermRules().subscribe(data => {
       this.rowData = data;
+      this.cdr.detectChanges();
+    });
+    this.api.getCustomerGroups().subscribe(data => {
+      this.customerGroups = data;
       this.cdr.detectChanges();
     });
   }
@@ -132,11 +143,43 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   onCloseDetails(): void {
     this.showDetails = false;
     this.selectedRule = null;
+    this.cdr.detectChanges();
+  }
+
+  getCustomerGroupNames(rule: NetTermRule): string {
+    if (rule.applyCustomerType !== 'GROUP' || !rule.applyCustomerValue) return '';
+    try {
+      const val = JSON.parse(rule.applyCustomerValue);
+      const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+      const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
+      return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+    } catch { return rule.applyCustomerValue || ''; }
+  }
+
+  syncTargeting() {
+    if (this.formData.applyCustomerType === 'GROUP') {
+      this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
+    } else {
+      this.formData.applyCustomerValue = '{}';
+    }
+  }
+
+  parseTargeting() {
+    if (this.formData.applyCustomerType === 'GROUP' && this.formData.applyCustomerValue) {
+      try {
+        const val = JSON.parse(this.formData.applyCustomerValue);
+        const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+        this.selectedGroupIds = this.customerGroups.filter(g => ids.includes(g.id));
+      } catch (e) { this.selectedGroupIds = []; }
+    } else {
+      this.selectedGroupIds = [];
+    }
   }
 
   onAdd(): void {
     this.editingId = null;
     this.formData = { name: '', priority: 0, status: 'ACTIVE', applyCustomerType: 'ALL', applyCustomerValue: '{}', conditionType: 'OVER_MONTHLY_SPEND', netTermDays: 30 };
+    this.selectedGroupIds = [];
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -145,6 +188,7 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   onEdit(data: NetTermRule): void {
     this.editingId = data.id;
     this.formData = { ...data };
+    this.parseTargeting();
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -164,6 +208,7 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    this.syncTargeting();
     const action = this.editingId ? this.api.updateNetTermRule(this.editingId, this.formData) : this.api.createNetTermRule(this.formData);
     action.subscribe(() => { 
       const msg = this.editingId 

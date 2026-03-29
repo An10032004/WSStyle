@@ -16,7 +16,7 @@ import {
   TuiInputNumber,
   TuiRadio
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { OrderLimit } from '../../services/api.service';
 
@@ -37,9 +37,11 @@ import { OrderLimit } from '../../services/api.service';
     TuiSelectModule,
     TuiDataList,
     TuiDataListWrapper,
+    TuiDataListWrapper,
     TranslocoModule, 
     TuiTextfield,
-    TuiDropdown
+    TuiDropdown,
+    TuiMultiSelectModule
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -120,13 +122,77 @@ import { OrderLimit } from '../../services/api.service';
 
               <!-- Applies to Customers -->
               <div class="section-card">
-                <h4 class="section-title-premium">{{ 'ORDER_LIMIT.APPLIES_SECTION' | transloco }}</h4>
+                <h4 class="section-title-premium">Đối tượng khách hàng</h4>
                 <div class="field-item">
                    <label tuiLabel>
-                      {{ 'MEMBER.GROUP' | transloco }}
-                      <tui-select [(ngModel)]="rule.applyCustomerType" tuiTextfieldSize="l">
-                        <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'SPECIFIC']"></tui-data-list-wrapper>
+                      Loại khách hàng áp dụng
+                      <tui-select [(ngModel)]="rule.applyCustomerType" (ngModelChange)="syncTargeting()" tuiTextfieldSize="l">
+                        <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
                       </tui-select>
+                   </label>
+                </div>
+                
+                <div class="field-item" *ngIf="rule.applyCustomerType === 'GROUP'">
+                   <label tuiLabel>
+                      Chọn nhóm khách hàng
+                      <tui-multi-select 
+                        [(ngModel)]="selectedGroupIds" 
+                        (ngModelChange)="syncTargeting()" 
+                        [stringify]="stringifyGroup">
+                        <tui-data-list-wrapper 
+                          *tuiDataList 
+                          [items]="customerGroups" 
+                          [itemContent]="groupContent">
+                        </tui-data-list-wrapper>
+                        <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+                      </tui-multi-select>
+                   </label>
+                </div>
+              </div>
+
+              <!-- Applies to Products -->
+              <div class="section-card">
+                <h4 class="section-title-premium">Sản phẩm áp dụng</h4>
+                <div class="field-item">
+                   <label tuiLabel>
+                      Loại sản phẩm áp dụng
+                      <tui-select [(ngModel)]="rule.applyProductType" (ngModelChange)="syncTargeting()" tuiTextfieldSize="l">
+                        <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
+                      </tui-select>
+                   </label>
+                </div>
+                
+                <div class="field-item" *ngIf="rule.applyProductType === 'CATEGORY'">
+                   <label tuiLabel>
+                      Chọn danh mục
+                      <tui-multi-select 
+                        [(ngModel)]="selectedCategoryIds" 
+                        (ngModelChange)="syncTargeting()" 
+                        [stringify]="stringifyCategory">
+                        <tui-data-list-wrapper 
+                          *tuiDataList 
+                          [items]="categories" 
+                          [itemContent]="catContent">
+                        </tui-data-list-wrapper>
+                        <ng-template #catContent let-item>{{ item.name }}</ng-template>
+                      </tui-multi-select>
+                   </label>
+                </div>
+
+                <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
+                   <label tuiLabel>
+                      Chọn sản phẩm
+                      <tui-multi-select 
+                        [(ngModel)]="selectedProductIds" 
+                        (ngModelChange)="syncTargeting()" 
+                        [stringify]="stringifyProduct">
+                        <tui-data-list-wrapper 
+                          *tuiDataList 
+                          [items]="products" 
+                          [itemContent]="prodContent">
+                        </tui-data-list-wrapper>
+                        <ng-template #prodContent let-item>{{ item.name }}</ng-template>
+                      </tui-multi-select>
                    </label>
                 </div>
               </div>
@@ -260,6 +326,13 @@ import { OrderLimit } from '../../services/api.service';
 })
 export class OrderLimitEditorComponent implements OnInit {
   @Input() rule!: Partial<OrderLimit>;
+  @Input() categories: any[] = [];
+  @Input() products: any[] = [];
+  @Input() customerGroups: any[] = [];
+  @Input() stringifyCategory: any;
+  @Input() stringifyProduct: any;
+  @Input() stringifyGroup: any;
+
   @Output() save = new EventEmitter<Partial<OrderLimit>>();
   @Output() cancel = new EventEmitter<void>();
 
@@ -267,11 +340,64 @@ export class OrderLimitEditorComponent implements OnInit {
   previewMode: 'mobile' | 'desktop' = 'desktop';
   
   typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_AMOUNT'];
+  customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
+  productTypeOptions = ['ALL', 'CATEGORY', 'SPECIFIC'];
+
+  selectedCategoryIds: any[] = [];
+  selectedProductIds: any[] = [];
+  selectedGroupIds: any[] = [];
 
   ngOnInit() {
     // Default values if not set
     if (!this.rule.limitLevel) this.rule.limitLevel = 'PER_PRODUCT';
     if (!this.rule.limitType) this.rule.limitType = 'MIN_ORDER_QUANTITY';
     if (this.rule.limitValue === undefined) this.rule.limitValue = 0;
+    if (!this.rule.applyCustomerType) this.rule.applyCustomerType = 'ALL';
+    if (!this.rule.applyProductType) this.rule.applyProductType = 'ALL';
+
+    // Parse targeting data
+    this.parseTargeting();
+  }
+
+  parseTargeting() {
+    if (this.rule.applyCustomerType === 'GROUP' && this.rule.applyCustomerValue) {
+      try {
+        const val = JSON.parse(this.rule.applyCustomerValue);
+        const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+        this.selectedGroupIds = this.customerGroups.filter(g => ids.includes(g.id));
+      } catch (e) {}
+    }
+
+    if (this.rule.applyProductType === 'CATEGORY' && this.rule.applyProductValue) {
+      try {
+        const val = JSON.parse(this.rule.applyProductValue);
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        this.selectedCategoryIds = this.categories.filter(c => ids.includes(c.id));
+      } catch (e) {}
+    }
+
+    if (this.rule.applyProductType === 'SPECIFIC' && this.rule.applyProductValue) {
+      try {
+        const val = JSON.parse(this.rule.applyProductValue);
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        this.selectedProductIds = this.products.filter(p => ids.includes(p.id));
+      } catch (e) {}
+    }
+  }
+
+  syncTargeting() {
+    if (this.rule.applyCustomerType === 'GROUP') {
+      this.rule.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
+    } else {
+      this.rule.applyCustomerValue = '{}';
+    }
+
+    if (this.rule.applyProductType === 'CATEGORY') {
+      this.rule.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) });
+    } else if (this.rule.applyProductType === 'SPECIFIC') {
+      this.rule.applyProductValue = JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) });
+    } else {
+      this.rule.applyProductValue = '{}';
+    }
   }
 }

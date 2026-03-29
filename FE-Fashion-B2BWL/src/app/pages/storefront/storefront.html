@@ -84,16 +84,16 @@
             *ngFor="let tag of bestSellerTags" 
             class="tag-item" 
             [class.active]="selectedSellerTag === tag"
-            (click)="selectedSellerTag = tag"
+            (click)="selectTag(tag)"
           >
             {{ tag }}
           </button>
         </div>
       </div>
 
-      <div class="product-grid sellers">
+      <div class="product-grid sellers" *ngIf="filteredProducts.length > 0">
         <a class="product-card" 
-           *ngFor="let p of products.slice(0, 5); let i = index"
+           *ngFor="let p of filteredProducts.slice(0, 5); let i = index"
            [routerLink]="['/product', p.id]">
           <div class="product-img-wrapper">
             <div class="product-img">
@@ -118,6 +118,12 @@
           </div>
         </a>
       </div>
+
+      <div *ngIf="filteredProducts.length === 0" class="empty-products-sellers">
+        <tui-icon icon="@tui.package-open" class="empty-icon"></tui-icon>
+        <p>Không tìm thấy sản phẩm nào cho danh mục này.</p>
+        <span>Vui lòng chọn danh mục khác hoặc quay lại sau.</span>
+      </div>
     </div>
   </section>
 
@@ -137,13 +143,13 @@
   <!-- TRENDING CATEGORIES -->
   <section class="trending-cats">
     <div class="container">
-      <h3 class="section-title">TRENDING CATEGORIES</h3>
+      <h3 class="section-title">XU HƯỚNG THEO DANH MỤC</h3>
       <div class="cat-grid">
-        <div class="cat-card" *ngFor="let banner of subBanners; let i = index">
+        <div class="cat-card" *ngFor="let cat of trendingCategories" (click)="selectTag(cat.name)">
           <div class="cat-img">
-            <img [src]="banner" />
+            <img [src]="cat.imageUrl" [alt]="cat.name" />
           </div>
-          <div class="cat-label">OUTERWEAR</div>
+          <div class="cat-label">{{ cat.name }}</div>
         </div>
       </div>
     </div>
@@ -159,7 +165,7 @@
       
       <div class="product-grid">
         <a class="product-card" 
-           *ngFor="let p of products"
+           *ngFor="let p of products.slice(0, 12)"
            [routerLink]="['/product', p.id]">
           <div class="product-img-wrapper">
             <div class="product-img">

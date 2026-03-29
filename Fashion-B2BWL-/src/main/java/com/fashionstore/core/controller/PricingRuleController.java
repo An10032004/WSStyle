@@ -4,6 +4,7 @@ import com.fashionstore.core.dto.request.PricingRuleRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.model.PricingRule;
 import com.fashionstore.core.service.PricingRuleService;
+import com.fashionstore.core.facade.AdminRuleFacade;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import java.util.List;
 public class PricingRuleController {
 
     private final PricingRuleService pricingRuleService;
+    private final AdminRuleFacade adminRuleFacade;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<PricingRule>>> getAllRules() {
@@ -32,14 +34,14 @@ public class PricingRuleController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<PricingRule>> createRule(@Valid @RequestBody PricingRuleRequest request) {
-        PricingRule created = pricingRuleService.createRule(request);
+        PricingRule created = adminRuleFacade.savePricingRule(request, null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Pricing rule created successfully", created));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<PricingRule>> updateRule(@PathVariable Integer id, @Valid @RequestBody PricingRuleRequest request) {
-        PricingRule updated = pricingRuleService.updateRule(id, request);
+        PricingRule updated = adminRuleFacade.savePricingRule(request, id);
         return ResponseEntity.ok(ApiResponse.success("Pricing rule updated successfully", updated));
     }
 

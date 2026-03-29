@@ -35,25 +35,25 @@ public class PricingRule {
     @Column(name = "apply_customer_type")
     private String applyCustomerType;
 
-    @Column(name = "apply_customer_value", columnDefinition = "json")
+    @Column(name = "apply_customer_value", columnDefinition = "TEXT")
     private String applyCustomerValue;
 
     @Column(name = "exclude_customer_option")
     private String excludeCustomerOption;
 
-    @Column(name = "exclude_customer_value", columnDefinition = "json")
+    @Column(name = "exclude_customer_value", columnDefinition = "TEXT")
     private String excludeCustomerValue;
 
     @Column(name = "apply_product_type")
     private String applyProductType;
 
-    @Column(name = "apply_product_value", columnDefinition = "json")
+    @Column(name = "apply_product_value", columnDefinition = "TEXT")
     private String applyProductValue;
 
     @Column(name = "exclude_product_option")
     private String excludeProductOption;
 
-    @Column(name = "exclude_product_value", columnDefinition = "json")
+    @Column(name = "exclude_product_value", columnDefinition = "TEXT")
     private String excludeProductValue;
 
     @Column(name = "discount_value", precision = 15, scale = 2)
@@ -62,7 +62,7 @@ public class PricingRule {
     @Column(name = "discount_type")
     private String discountType; // PERCENTAGE, FIXED_AMOUNT, OVERRIDE_PRICE
 
-    @Column(name = "action_config", columnDefinition = "json")
+    @Column(name = "action_config", columnDefinition = "TEXT")
     private String actionConfig;
 
     @Column(name = "start_date")

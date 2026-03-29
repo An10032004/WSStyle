@@ -2,7 +2,6 @@ package com.fashionstore.core.dto.response;
 
 import lombok.*;
 import java.math.BigDecimal;
-import java.util.List;
 
 @Data
 @Builder
@@ -10,15 +9,17 @@ import java.util.List;
 @AllArgsConstructor
 public class ProductResponseDTO {
     private Integer id;
+    private Integer categoryId;
     private String productCode;
     private String name;
     private BigDecimal basePrice;
     private BigDecimal calculatedPrice;
     private String discountLabel;
     private String imageUrl;
-    private List<String> imageUrls;
+    private String imageUrls;
     private String brand;
-    private String specifications;
+    private String material;
+    private String origin;
     
     // Rule results
     private Boolean hidePrice;
@@ -32,4 +33,7 @@ public class ProductResponseDTO {
     // Campaign Info
     private String campaignBanner;
     private String campaignName;
+
+    // Bulk Info
+    private String quantityBreaksJson;
 }

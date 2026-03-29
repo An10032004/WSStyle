@@ -10,27 +10,57 @@
   <div class="form-panel-premium" *ngIf="showForm">
     <app-tax-display-editor
       [data]="$any(formData)"
+      [customerGroups]="customerGroups"
+      [categories]="categories"
+      [products]="products"
       [isEdit]="!!editingId"
       (save)="onSubmit()"
       (cancel)="cancel()"
     ></app-tax-display-editor>
   </div>
 
-  <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}</h3>
-    <div class="form-grid">
-       <p><strong>ID:</strong> {{ selectedRule.id }}</p>
-       <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
-       <p><strong>{{ 'RULE.TAX_TYPE' | transloco }}:</strong> {{ selectedRule.taxDisplayType }}</p>
-       <p><strong>{{ 'RULE.DISPLAY_TYPE' | transloco }}:</strong> {{ selectedRule.displayType }}</p>
-       <p><strong>{{ 'RULE.STATUS' | transloco }}:</strong> <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">{{ 'ENUMS.' + selectedRule.status | transloco }}</tui-badge></p>
+  <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin: 0 16px 16px; border: 1px solid #e2e8f0;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+       <h3 style="display: flex; align-items: center; gap: 10px; margin: 0; color: #1e293b;">
+         <tui-icon icon="@tui.eye" style="color: #3b82f6;"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}
+       </h3>
+       <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'" size="l">
+         {{ 'ENUMS.' + selectedRule.status | transloco }}
+       </tui-badge>
+    </div>
+
+    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+       <div class="info-group">
+          <p style="margin: 0 0 16px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Thông tin cơ bản</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+             <p><strong>ID:</strong> {{ selectedRule.id }}</p>
+             <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
+             <p><strong>Giảm giá:</strong> <span style="color: #ef4444; font-weight: 700;">{{ selectedRule.discountRate || 0 }}%</span></p>
+             <p><strong>Loại thuế:</strong> <tui-badge appearance="info" size="s">{{ selectedRule.taxDisplayType }}</tui-badge></p>
+             <p><strong>Kiểu hiển thị:</strong> {{ selectedRule.displayType }}</p>
+          </div>
+       </div>
+
+       <div class="info-group">
+          <p style="margin: 0 0 16px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Đối tượng áp dụng</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+             <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+                <span *ngIf="getCustomerGroupNames(selectedRule)" style="color: #3b82f6;"> — {{ getCustomerGroupNames(selectedRule) }}</span>
+             </p>
+             <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
+                <span *ngIf="getCategoryNames(selectedRule)" style="color: #3b82f6;"> — Danh mục: {{ getCategoryNames(selectedRule) }}</span>
+                <span *ngIf="getProductNames(selectedRule)" style="color: #3b82f6;"> — Sản phẩm: {{ getProductNames(selectedRule) }}</span>
+             </p>
+          </div>
+       </div>
        
-       <div class="full-width">
-          <strong>Design Config:</strong>
-          <pre style="background: #f4f4f4; padding: 12px; border-radius: 4px; overflow: auto;">{{ selectedRule.designConfig }}</pre>
+       <div class="full-width" style="grid-column: span 2; margin-top: 12px; border-top: 1px dashed #e2e8f0; padding-top: 16px;">
+          <p style="margin: 0 0 12px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Cấu hình thiết kế (JSON)</p>
+          <pre style="background: #f8fafc; padding: 16px; border-radius: 8px; overflow: auto; border: 1px solid #f1f5f9; font-size: 0.8125rem; color: #475569;">{{ selectedRule.designConfig }}</pre>
        </div>
     </div>
-    <div class="form-actions" style="margin-top: 20px;">
+
+    <div class="form-actions" style="margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
        <button tuiButton type="button" appearance="outline" (click)="showDetails = false">{{ 'COMMON.CLOSE' | transloco }}</button>
     </div>
   </div>

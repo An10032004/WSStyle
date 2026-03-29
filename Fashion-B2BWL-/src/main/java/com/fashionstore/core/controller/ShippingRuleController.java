@@ -4,6 +4,7 @@ import com.fashionstore.core.dto.request.ShippingRuleRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.model.ShippingRule;
 import com.fashionstore.core.service.ShippingRuleService;
+import com.fashionstore.core.facade.AdminRuleFacade;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import java.util.List;
 public class ShippingRuleController {
 
     private final ShippingRuleService shippingRuleService;
+    private final AdminRuleFacade adminRuleFacade;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ShippingRule>>> getAllRules() {
@@ -32,14 +34,14 @@ public class ShippingRuleController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<ShippingRule>> createRule(@Valid @RequestBody ShippingRuleRequest request) {
-        ShippingRule created = shippingRuleService.createRule(request);
+        ShippingRule created = adminRuleFacade.saveShippingRule(request, null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Shipping rule created successfully", created));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ShippingRule>> updateRule(@PathVariable Integer id, @Valid @RequestBody ShippingRuleRequest request) {
-        ShippingRule updated = shippingRuleService.updateRule(id, request);
+        ShippingRule updated = adminRuleFacade.saveShippingRule(request, id);
         return ResponseEntity.ok(ApiResponse.success("Shipping rule updated successfully", updated));
     }
 

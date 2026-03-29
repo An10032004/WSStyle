@@ -48,7 +48,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
   formData: any = {
     sku: '',
     productId: null as number | null,
-    attributes: '',
     stockQuantity: 0,
     priceAdjustment: 0,
     imageUrl: '',
@@ -282,10 +281,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
     this.api.getTranslationsByTypeAndLang('PRODUCT', this.currentLanguage).subscribe((data) => {
       this.productTranslations.clear();
       data.forEach(t => {
-        try {
-          const content = JSON.parse(t.content);
-          if (content.name) this.productTranslations.set(t.resourceId, content.name);
-        } catch(e) {}
+        if (t.translatedName) this.productTranslations.set(t.resourceId, t.translatedName);
       });
       if (this.gridApi) this.gridApi.refreshCells({ columns: ['productId'] });
     });
@@ -294,11 +290,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
     this.api.getTranslationsByTypeAndLang('PRODUCT_VARIANT', this.currentLanguage).subscribe((data) => {
       const translatedData = this.rowData.map(v => {
         const t = data.find(item => item.resourceId === v.id);
-        if (t && t.content) {
-          try {
-            const content = JSON.parse(t.content);
-            return { ...v, attributes: content.attributes || v.attributes };
-          } catch (e) {}
+        if (t && t.translatedName) {
+            return { ...v, color: t.translatedName, size: t.translatedDescription };
         }
         return v;
       });
@@ -312,8 +305,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
     this.originalVariant = null;
     this.formData = { 
       sku: '', 
-      productId: null, 
-      attributes: '', 
+      productId: null,  
       stockQuantity: 0, 
       priceAdjustment: 0, 
       imageUrl: '', 
@@ -339,11 +331,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
       this.api.getTranslationByLang('PRODUCT_VARIANT', v.id, this.currentLanguage).subscribe({
         next: (translation) => {
           this.selectedVariant = { ...v };
-          if (translation && translation.content) {
-            try {
-              const content = JSON.parse(translation.content);
-              this.selectedVariant.attributes = content.attributes || v.attributes;
-            } catch (e) {}
+          if (translation) {
+              this.selectedVariant.color = translation.translatedName || v.color;
+              this.selectedVariant.size = translation.translatedDescription || v.size;
           }
           this.showDetails = true;
           this.showForm = false;
@@ -376,7 +366,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
     const baseData = {
       sku: v.sku,
       productId: v.productId,
-      attributes: v.attributes ?? '',
       stockQuantity: v.stockQuantity,
       priceAdjustment: v.priceAdjustment,
       imageUrl: v.imageUrl ?? '',
@@ -398,11 +387,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
       this.formData = { ...baseData };
       this.api.getTranslationByLang('PRODUCT_VARIANT', v.id, this.currentLanguage).subscribe({
         next: (translation) => {
-          if (translation && translation.content) {
-            try {
-               const content = JSON.parse(translation.content);
-               this.formData.attributes = content.attributes && content.attributes !== 'Seeded translation' ? content.attributes : this.formData.attributes;
-            } catch(e) {}
+          if (translation) {
+               this.formData.color = translation.translatedName || this.formData.color;
+               this.formData.size = translation.translatedDescription || this.formData.size;
           }
           this.showForm = true;
           this.cdr.detectChanges();
@@ -454,23 +441,19 @@ export class VariantListComponent implements OnInit, OnDestroy {
       length: numericLength,
       width: numericWidth,
       height: numericHeight,
-      imageUrls: JSON.stringify(this.formData.imageUrls)
+      imageUrls: this.formData.imageUrls.join(',')
     };
 
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields
-      body.attributes = this.originalVariant?.attributes || this.formData.attributes;
-      
       this.api.updateProductVariant(this.editingId, body).subscribe(() => {
         // 2. Save Translation
         const req: TranslationRequest = {
           resourceId: this.editingId!,
           resourceType: 'PRODUCT_VARIANT',
           languageCode: this.currentLanguage,
-          content: JSON.stringify({ 
-            attributes: this.formData.attributes,
-            sku: this.originalVariant?.sku || this.formData.sku
-          })
+          translatedName: this.formData.color,
+          translatedDescription: this.formData.size
         };
         
         this.api.saveTranslation(req).subscribe(() => {
@@ -503,11 +486,10 @@ export class VariantListComponent implements OnInit, OnDestroy {
   parseImageUrls(json: any): string[] {
     if (!json) return [];
     if (Array.isArray(json)) return json;
-    try {
-      return JSON.parse(json);
-    } catch (e) {
-      return [];
+    if (typeof json === 'string') {
+       return json.split(',').filter(x => !!x.trim());
     }
+    return [];
   }
 
   addImageUrl(): void {

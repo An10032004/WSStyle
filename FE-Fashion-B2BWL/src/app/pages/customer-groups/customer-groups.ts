@@ -99,12 +99,13 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { field: 'id', headerName: 'ID', width: 80, pinned: 'left' },
       { 
         field: 'name', 
         headerValueGetter: () => this.transloco.translate('MEMBER.GROUP_NAME'), 
-        width: 300,
+        width: 250,
         pinned: 'left',
+        flex: 1,
         tooltipValueGetter: (params: any) => params.value
       },
       { 
@@ -115,7 +116,7 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
-        width: 200,
+        width: 180,
         cellRenderer: ActionRendererComponent,
         cellRendererParams: {
           onView: (data: CustomerGroup) => this.onView(data),
@@ -134,7 +135,10 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
+    setTimeout(() => this.gridApi.sizeColumnsToFit(), 200);
+    window.addEventListener('resize', () => {
+      setTimeout(() => this.gridApi?.sizeColumnsToFit(), 100);
+    });
   }
 
   onAdd(): void {

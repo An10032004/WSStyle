@@ -28,6 +28,12 @@ public class Translation {
     @Column(name = "language_code", nullable = false, length = 10)
     private String languageCode; // e.g., 'en', 'vi'
 
-    @Column(name = "content", columnDefinition = "json", nullable = false)
-    private String content; // JSON string with translated fields
+    @Column(name = "translated_name", columnDefinition = "TEXT")
+    private String translatedName;
+
+    @Column(name = "translated_description", columnDefinition = "TEXT")
+    private String translatedDescription;
+
+    @Column(name = "translated_data", columnDefinition = "TEXT")
+    private String translatedData;
 }

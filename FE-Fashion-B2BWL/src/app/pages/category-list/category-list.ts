@@ -177,11 +177,8 @@ export class CategoryListComponent implements OnInit {
     this.api.getTranslationsByTypeAndLang('CATEGORY', this.currentLanguage).subscribe((data) => {
       const translatedData = this.rowData.map(p => {
         const t = data.find(item => item.resourceId === p.id);
-        if (t && t.content) {
-          try {
-            const content = JSON.parse(t.content);
-            return { ...p, name: content.name || p.name };
-          } catch (e) {}
+        if (t) {
+          return { ...p, name: t.translatedName || p.name };
         }
         return p;
       });
@@ -203,11 +200,8 @@ export class CategoryListComponent implements OnInit {
       this.api.getTranslationByLang('CATEGORY', cat.id, this.currentLanguage).subscribe({
         next: (translation) => {
           this.selectedCategory = { ...cat };
-          if (translation && translation.content) {
-            try {
-              const content = JSON.parse(translation.content);
-              this.selectedCategory.name = content.name || cat.name;
-            } catch (e) {}
+          if (translation) {
+            this.selectedCategory.name = translation.translatedName || cat.name;
           }
           this.showDetails = true;
           this.showForm = false;
@@ -243,11 +237,8 @@ export class CategoryListComponent implements OnInit {
       this.formData = { name: '', parentId: cat.parentId ?? null };
       this.api.getTranslationByLang('CATEGORY', cat.id, this.currentLanguage).subscribe({
         next: (translation) => {
-          if (translation && translation.content) {
-            try {
-               const content = JSON.parse(translation.content);
-               this.formData.name = content.name || '';
-            } catch(e) {}
+          if (translation) {
+            this.formData.name = translation.translatedName || '';
           }
           this.showForm = true;
           this.cdr.detectChanges();
@@ -312,7 +303,7 @@ export class CategoryListComponent implements OnInit {
            resourceId: this.editingId!,
            resourceType: 'CATEGORY',
            languageCode: this.currentLanguage,
-           content: JSON.stringify({ name: this.formData.name })
+           translatedName: this.formData.name
         };
         
         this.api.saveTranslation(req).subscribe(() => {

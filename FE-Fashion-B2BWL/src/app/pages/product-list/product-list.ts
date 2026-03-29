@@ -50,7 +50,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     basePrice: 0,
     categoryId: null as number | null,
     brand: '',
-    specifications: '',
+    material: '',
+    origin: '',
     imageUrl: '',
     imageUrls: [] as string[],
   };
@@ -231,11 +232,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.api.getTranslationsByTypeAndLang('PRODUCT', this.currentLanguage).subscribe((data) => {
       const translatedData = this.rowData.map(p => {
         const t = data.find(item => item.resourceId === p.id);
-        if (t && t.content) {
-          try {
-            const content = JSON.parse(t.content);
-            return { ...p, name: content.name || p.name };
-          } catch (e) {}
+        if (t) {
+          return { ...p, name: t.translatedName || p.name };
         }
         return p;
       });
@@ -247,10 +245,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.api.getTranslationsByTypeAndLang('CATEGORY', this.currentLanguage).subscribe((data) => {
       this.categoryTranslations.clear();
       data.forEach(t => {
-        try {
-          const content = JSON.parse(t.content);
-          if (content.name) this.categoryTranslations.set(t.resourceId, content.name);
-        } catch(e) {}
+        if (t.translatedName) this.categoryTranslations.set(t.resourceId, t.translatedName);
       });
       if (this.gridApi) this.gridApi.refreshCells({ columns: ['categoryId'] });
     });
@@ -296,9 +291,10 @@ export class ProductListComponent implements OnInit, OnDestroy {
       name: '', 
       productCode: '', 
       brand: '', 
+      material: '',
+      origin: '',
       basePrice: 0, 
       categoryId: null, 
-      specifications: '',
       imageUrl: '',
       imageUrls: []
     };
@@ -311,12 +307,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       this.api.getTranslationByLang('PRODUCT', p.id, this.currentLanguage).subscribe({
         next: (translation) => {
           this.selectedProduct = { ...p };
-          if (translation && translation.content) {
-            try {
-              const content = JSON.parse(translation.content);
-              this.selectedProduct.name = content.name || p.name;
-              this.selectedProduct.specifications = content.specifications || p.specifications;
-            } catch (e) {}
+          if (translation) {
+            this.selectedProduct.name = translation.translatedName || p.name;
           }
           this.showDetails = true;
           this.showForm = false;
@@ -351,21 +343,18 @@ export class ProductListComponent implements OnInit, OnDestroy {
         name: p.name,
         productCode: p.productCode,
         brand: p.brand ?? '',
+        material: p.material ?? '',
+        origin: p.origin ?? '',
         basePrice: p.basePrice,
         categoryId: p.categoryId ?? null,
-        specifications: p.specifications && p.specifications !== 'Seeded translation' ? p.specifications : '',
         imageUrl: p.imageUrl ?? '',
         imageUrls: this.parseImageUrls(p.imageUrls),
       };
       
       this.api.getTranslationByLang('PRODUCT', p.id, this.currentLanguage).subscribe({
         next: (translation) => {
-          if (translation && translation.content) {
-            try {
-               const content = JSON.parse(translation.content);
-               this.formData.name = content.name && content.name !== 'Seeded translation' ? content.name : this.formData.name;
-               this.formData.specifications = content.specifications && content.specifications !== 'Seeded translation' ? content.specifications : this.formData.specifications;
-            } catch(e) {}
+          if (translation) {
+            this.formData.name = translation.translatedName || this.formData.name;
           }
           this.showForm = true;
           this.cdr.detectChanges();
@@ -380,9 +369,10 @@ export class ProductListComponent implements OnInit, OnDestroy {
         name: p.name,
         productCode: p.productCode,
         brand: p.brand ?? '',
+        material: p.material ?? '',
+        origin: p.origin ?? '',
         basePrice: p.basePrice,
         categoryId: p.categoryId ?? null,
-        specifications: p.specifications ?? '',
         imageUrl: p.imageUrl ?? '',
         imageUrls: this.parseImageUrls(p.imageUrls),
       };
@@ -417,9 +407,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       const globalUpdate: any = {
         ...restData,
         name: this.originalProduct?.name || this.formData.name,
-        specifications: this.originalProduct?.specifications || this.formData.specifications,
         basePrice: numericPrice,
-        imageUrls: JSON.stringify(this.formData.imageUrls)
+        imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
       };
       
       this.api.updateProduct(this.editingId, globalUpdate).subscribe(() => {
@@ -428,10 +417,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
            resourceId: this.editingId!,
            resourceType: 'PRODUCT',
            languageCode: this.currentLanguage,
-           content: JSON.stringify({ 
-             name: this.formData.name,
-             specifications: this.formData.specifications
-           })
+           translatedName: this.formData.name,
         };
         
         this.api.saveTranslation(req).subscribe(() => {
@@ -446,7 +432,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const body: any = { 
       ...rest,
       basePrice: numericPrice,
-      imageUrls: JSON.stringify(this.formData.imageUrls)
+      imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
     };
       
       if (this.editingId) {
@@ -469,14 +455,13 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.showForm = false;
   }
 
-  parseImageUrls(json: any): string[] {
-    if (!json) return [];
-    if (Array.isArray(json)) return json;
-    try {
-      return JSON.parse(json);
-    } catch (e) {
-      return [];
+  parseImageUrls(val: any): string[] {
+    if (!val) return [];
+    if (typeof val === 'string') {
+      return val.split(',').filter(u => !!u.trim());
     }
+    if (Array.isArray(val)) return val;
+    return [];
   }
 
   addImageUrl(): void {

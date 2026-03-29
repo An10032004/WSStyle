@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -32,17 +32,27 @@ export interface Product {
   productCode: string;
   name: string;
   basePrice: number;
-  specifications?: string;
   imageUrl?: string;
   imageUrls?: string;
   brand?: string;
+  material?: string;
+  origin?: string;
+  calculatedPrice?: number;
+  discountLabel?: string;
+  hidePrice?: boolean;
+  hideAddToCart?: boolean;
+  replacementText?: string;
+  taxDisplayType?: string;
+  taxDisplayLabel?: string;
+  campaignBanner?: string;
+  campaignName?: string;
+  quantityBreaksJson?: string;
 }
 
 export interface ProductVariant {
   id: number;
   productId?: number | null;
   sku: string;
-  attributes?: string;
   stockQuantity: number;
   priceAdjustment?: number;
   imageUrl?: string;
@@ -65,14 +75,18 @@ export interface Translation {
   resourceId: number;
   resourceType: string;
   languageCode: string;
-  content: string; // JSON string
+  translatedName?: string;
+  translatedDescription?: string;
+  translatedData?: string;
 }
 
 export interface TranslationRequest {
   resourceId: number;
   resourceType: string;
   languageCode: string;
-  content: string; // JSON string
+  translatedName?: string;
+  translatedDescription?: string;
+  translatedData?: string;
 }
 
 export interface PricingRule {
@@ -151,6 +165,7 @@ export interface TaxDisplayRule {
   applyCustomerValue?: string;
   applyProductType?: string;
   applyProductValue?: string;
+  discountRate?: number;
 }
 
 export interface HidePriceRule {
@@ -362,6 +377,7 @@ export interface ChatMessage {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private base = '/api';
+  private apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
 
@@ -380,11 +396,15 @@ export class ApiService {
   }
 
   // ─── Products ──────────────────────────────────────────
-  getProducts(): Observable<Product[]> {
-    return this.http.get<ApiResponse<Product[]>>(`${this.base}/products`).pipe(map(r => r.data));
+  getProducts(userId?: number): Observable<Product[]> {
+    const url = userId ? `${this.apiUrl}/products?userId=${userId}` : `${this.apiUrl}/products`;
+    return this.http.get<ApiResponse<Product[]>>(url).pipe(
+      map(res => res.data)
+    );
   }
-  getProductById(id: number): Observable<Product> {
-    return this.http.get<ApiResponse<Product>>(`${this.base}/products/${id}`).pipe(map(r => r.data));
+  getProductById(id: number, userId?: number): Observable<Product> {
+    const url = userId ? `${this.base}/products/${id}?userId=${userId}` : `${this.base}/products/${id}`;
+    return this.http.get<ApiResponse<Product>>(url).pipe(map(r => r.data));
   }
   createProduct(body: Partial<Product>): Observable<Product> {
     return this.http.post<ApiResponse<Product>>(`${this.base}/products`, body).pipe(map(r => r.data));
@@ -459,7 +479,11 @@ export class ApiService {
     return this.http.put<ApiResponse<OrderLimit>>(`${this.base}/order-limits/${id}`, body).pipe(map(r => r.data));
   }
   deleteOrderLimit(id: number): Observable<void> {
-    return this.http.delete<ApiResponse<void>>(`${this.base}/order-limits/${id}`).pipe(map(r => r.data));
+    return this.http.delete<ApiResponse<void>>(`${this.base}/order-limits/${id}`).pipe(map(() => void 0));
+  }
+
+  validateCart(userId: number | undefined, items: any[]): Observable<any[]> {
+    return this.http.post<ApiResponse<any[]>>(`${this.base}/order-limits/validate`, { userId, items }).pipe(map(r => r.data));
   }
 
   // ─── Shipping Rules ────────────────────────────────────

@@ -64,7 +64,6 @@ public class ProductVariantService {
         ProductVariant variant = ProductVariant.builder()
                 .product(product)
                 .sku(request.getSku())
-                .attributes(request.getAttributes())
                 .stockQuantity(request.getStockQuantity())
                 .priceAdjustment(request.getPriceAdjustment())
                 .imageUrl(request.getImageUrl())
@@ -97,7 +96,6 @@ public class ProductVariantService {
 
         variant.setProduct(product);
         variant.setSku(request.getSku());
-        variant.setAttributes(request.getAttributes());
         variant.setStockQuantity(request.getStockQuantity());
         variant.setPriceAdjustment(request.getPriceAdjustment());
         variant.setImageUrl(request.getImageUrl());

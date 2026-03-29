@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ApiService, Product, ProductVariant } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown } from '@taiga-ui/core';
@@ -35,6 +36,11 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class ProductDetailComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(ApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly cart = inject(CartService);
+  
   user$ = this.auth.user$;
 
   product?: Product;
@@ -60,6 +66,7 @@ export class ProductDetailComponent implements OnInit {
   // Pricing Rules
   qbRules: any[] = [];
   b2bRule: any | null = null;
+  quantityBreaks: any[] = [];
 
   get currentPrice(): number {
     if (!this.product) return 0;
@@ -96,11 +103,7 @@ export class ProductDetailComponent implements OnInit {
     return !!this.b2bRule;
   }
 
-  constructor(
-    private route: ActivatedRoute,
-    private api: ApiService,
-    private cdr: ChangeDetectorRef
-  ) {}
+  constructor() {}
 
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -109,14 +112,17 @@ export class ProductDetailComponent implements OnInit {
     }
   }
   loadProduct(id: number) {
-    this.api.getProductById(id).subscribe(p => {
+    const userId = this.auth.currentUserValue?.id;
+    this.api.getProductById(id, userId).subscribe(p => {
       this.product = p;
-      if (p.specifications) {
+      if (p.quantityBreaksJson) {
         try {
-          const specs = JSON.parse(p.specifications);
-          this.brandName = specs.brand || 'NO BRAND';
-        } catch (e) {}
+          this.quantityBreaks = JSON.parse(p.quantityBreaksJson);
+        } catch (e) {
+          console.error('Error parsing quantity breaks', e);
+        }
       }
+      this.brandName = p.brand || 'NO BRAND';
       this.cdr.detectChanges();
       this.loadVariants(id);
       this.loadPricingRules(id);
@@ -194,18 +200,10 @@ export class ProductDetailComponent implements OnInit {
     this.api.getProductVariantsByProduct(productId).subscribe(vs => {
       this.variants = vs;
       
-      // Parse attributes and extract colors
+      // Extract colors from structured fields
       const colors = new Set<string>();
       this.variants.forEach(v => {
-        if (v.attributes) {
-          try {
-            const attr = typeof v.attributes === 'string' ? JSON.parse(v.attributes) : v.attributes;
-            if (attr.color) colors.add(attr.color);
-            (v as any).parsedAttributes = attr;
-          } catch (e) {
-            console.error('Failed to parse attributes', e);
-          }
-        }
+        if (v.color) colors.add(v.color);
       });
       this.availableColors = Array.from(colors);
 
@@ -220,14 +218,22 @@ export class ProductDetailComponent implements OnInit {
       vs.forEach(v => {
         if (v.imageUrl) allVariantImages.push(v.imageUrl);
         if (v.imageUrls) {
-          try {
-            const urls = JSON.parse(v.imageUrls);
-            if (Array.isArray(urls)) allVariantImages.push(...urls);
-          } catch (e) {}
+          const urls = typeof v.imageUrls === 'string' ? v.imageUrls.split(',').filter(u => !!u.trim()) : (v.imageUrls as any);
+          if (Array.isArray(urls)) allVariantImages.push(...urls);
         }
       });
 
-      this.allImages = [...new Set([this.product?.imageUrl, ...allVariantImages])].filter((img): img is string => !!img);
+      const prodImageUrls: string[] = [];
+      if (this.product?.imageUrls) {
+        const urls = typeof this.product.imageUrls === 'string' ? this.product.imageUrls.split(',').filter(u => !!u.trim()) : (this.product.imageUrls as any);
+        if (Array.isArray(urls)) prodImageUrls.push(...urls);
+      }
+
+      this.allImages = [...new Set([
+        this.product?.imageUrl, 
+        ...prodImageUrls, 
+        ...allVariantImages
+      ])].filter((img): img is string => !!img);
       this.displayImages = [...this.allImages];
       
       if (!this.activeImage && this.displayImages.length > 0) {
@@ -240,11 +246,11 @@ export class ProductDetailComponent implements OnInit {
   selectColor(color: string) {
     this.selectedColor = color;
     const sizes = this.variants
-      .filter(v => (v as any).parsedAttributes?.color === color)
-      .map(v => (v as any).parsedAttributes?.size)
+      .filter(v => v.color === color)
+      .map(v => v.size)
       .filter(s => !!s);
     
-    this.availableSizes = Array.from(new Set(sizes));
+    this.availableSizes = Array.from(new Set(sizes as string[]));
     
     if (this.availableSizes.length > 0) {
       // Preserve size if available in new color, otherwise select first
@@ -254,7 +260,7 @@ export class ProductDetailComponent implements OnInit {
         this.selectSize(this.selectedSize);
       }
     } else {
-      const v = this.variants.find(v => (v as any).parsedAttributes?.color === color);
+      const v = this.variants.find(v => v.color === color);
       if (v) this.selectVariant(v);
     }
   }
@@ -262,14 +268,14 @@ export class ProductDetailComponent implements OnInit {
   selectSize(size: string) {
     this.selectedSize = size;
     const v = this.variants.find(v => 
-      (v as any).parsedAttributes?.color === this.selectedColor && 
-      (v as any).parsedAttributes?.size === size
+      v.color === this.selectedColor && 
+      v.size === size
     );
     if (v) {
       this.selectVariant(v);
     } else {
       // Fallback if size not found for color (shouldn't happen with filtered list)
-      const v2 = this.variants.find(v => (v as any).parsedAttributes?.size === size);
+      const v2 = this.variants.find(v => v.size === size);
       if (v2) this.selectVariant(v2);
     }
   }
@@ -281,10 +287,8 @@ export class ProductDetailComponent implements OnInit {
     const variantImages: string[] = [];
     if (v.imageUrl) variantImages.push(v.imageUrl);
     if (v.imageUrls) {
-      try {
-        const urls = JSON.parse(v.imageUrls);
-        if (Array.isArray(urls)) variantImages.push(...urls);
-      } catch (e) {}
+      const urls = v.imageUrls.split(',').filter(u => !!u.trim());
+      variantImages.push(...urls);
     }
 
     // 2. Update displayImages: Variant images first, then others from allImages pool
@@ -353,7 +357,8 @@ export class ProductDetailComponent implements OnInit {
   }
 
   addToCart() {
-    alert(`Added ${this.quantity} x ${this.product?.name} (${this.selectedColor}/${this.selectedSize}) to cart!`);
+    if (!this.product) return;
+    this.cart.addToCart(this.product, this.selectedVariant, this.quantity);
   }
 
   logout(): void {

@@ -20,10 +20,9 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
-  TuiInputNumber, 
-  TuiMultiSelect
+  TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, ShippingRule, Category, Product, CustomerGroup } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -38,10 +37,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   selector: 'app-shipping-rules',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelect,
+    CommonModule, FormsModule, AgGridAngular, TuiButton, 
+    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelectModule,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    RuleConflictWarningComponent
+    RuleConflictWarningComponent, TuiBadge
   ],
   templateUrl: './shipping-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -75,6 +74,7 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   selectedCategoryIds: Category[] = [];
   selectedProductIds: Product[] = [];
   selectedGroupIds: CustomerGroup[] = [];
+  rateRangesList: any[] = [];
 
   selectedCustomerGroupId: number | null = null; // Deprecated, keep for now to avoid break
 
@@ -110,6 +110,10 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
       this.cdr.detectChanges();
     });
   }
+
+  stringifyGroup = (item: CustomerGroup) => item.name || '';
+  stringifyCategory = (item: Category) => item.name || '';
+  stringifyProduct = (item: Product) => item.name || '';
 
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
 
@@ -178,17 +182,61 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   onCloseDetails(): void {
     this.showDetails = false;
     this.selectedRule = null;
+    this.cdr.detectChanges();
+  }
+
+  getCustomerGroupNames(rule: ShippingRule): string {
+    if (rule.applyCustomerType !== 'GROUP' || !rule.applyCustomerValue) return '';
+    try {
+      const val = JSON.parse(rule.applyCustomerValue);
+      const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+      const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
+      return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+    } catch { return rule.applyCustomerValue; }
+  }
+
+  getProductTargetNames(rule: ShippingRule): string {
+    if (!rule.applyProductValue || rule.applyProductType === 'ALL') return '';
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      if (rule.applyProductType === 'CATEGORY') {
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      } else if (rule.applyProductType === 'SPECIFIC') {
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      }
+    } catch { return rule.applyProductValue; }
+    return '';
+  }
+
+  parseRateRanges(json: string | undefined): any[] {
+    if (!json) return [];
+    try {
+      return JSON.parse(json);
+    } catch {
+      return [];
+    }
   }
 
   onAdd(): void {
     this.editingId = null;
     this.formData = { 
-      name: '', priority: 0, status: 'ACTIVE', baseOn: 'AMOUNT_RANGE', 
-      rateRanges: '[{"min":0, "max":1000000, "rate":50000}]',
-      applyCustomerType: 'ALL', applyCustomerValue: '{}',
-      applyProductType: 'ALL', applyProductValue: '{}',
-      discountType: 'FIXED', discountValue: 0
+      name: '', 
+      priority: 0, 
+      status: 'ACTIVE', 
+      baseOn: 'AMOUNT_RANGE', 
+      rateRanges: '[]',
+      applyCustomerType: 'ALL', 
+      applyCustomerValue: '{}',
+      applyProductType: 'ALL', 
+      applyProductValue: '{}',
+      discountType: 'FIXED', 
+      discountValue: 0
     };
+    this.rateRangesList = [{ min: 0, max: 1000000, rate: 30000 }];
     this.selectedCategoryIds = [];
     this.selectedProductIds = [];
     this.selectedGroupIds = [];
@@ -198,29 +246,41 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  onEdit(data: ShippingRule): void {
-    this.editingId = data.id;
-    this.formData = { ...data };
+  onEdit(rule: ShippingRule): void {
+    this.editingId = rule.id;
+    this.formData = { ...rule };
     
-    if (data.applyCustomerType === 'GROUP' && data.applyCustomerValue) {
+    // Parse Rate Ranges
+    try {
+      const ranges = JSON.parse(rule.rateRanges || '[]');
+      this.rateRangesList = ranges.map((r: any) => ({
+        min: r.min ?? r.from ?? 0,
+        max: r.max ?? r.to ?? 0,
+        rate: r.rate ?? 0
+      }));
+    } catch {
+      this.rateRangesList = [];
+    }
+
+    if (rule.applyCustomerType === 'GROUP' && rule.applyCustomerValue) {
       try {
-        const val = JSON.parse(data.applyCustomerValue);
+        const val = JSON.parse(rule.applyCustomerValue);
         const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
         this.selectedGroupIds = this.customerGroups.filter(g => ids.includes(g.id));
       } catch (e) {}
     }
 
-    if (data.applyProductType === 'CATEGORY' && data.applyProductValue) {
+    if (rule.applyProductType === 'CATEGORY' && rule.applyProductValue) {
       try {
-        const val = JSON.parse(data.applyProductValue);
+        const val = JSON.parse(rule.applyProductValue);
         const ids = val.categoryIds || [];
         this.selectedCategoryIds = this.categories.filter(c => ids.includes(c.id));
       } catch (e) {}
     }
 
-    if (data.applyProductType === 'SPECIFIC' && data.applyProductValue) {
+    if (rule.applyProductType === 'SPECIFIC' && rule.applyProductValue) {
       try {
-        const val = JSON.parse(data.applyProductValue);
+        const val = JSON.parse(rule.applyProductValue);
         const ids = val.productIds || [];
         this.selectedProductIds = this.products.filter(p => ids.includes(p.id));
       } catch (e) {}
@@ -233,7 +293,27 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  addRateRange(): void {
+    const lastMax = this.rateRangesList.length > 0 ? this.rateRangesList[this.rateRangesList.length - 1].max : 0;
+    this.rateRangesList.push({ min: lastMax + 1, max: lastMax + 1000000, rate: 0 });
+    this.cdr.detectChanges();
+  }
+
+  removeRateRange(index: number): void {
+    this.rateRangesList.splice(index, 1);
+    this.cdr.detectChanges();
+  }
+
+  syncRateRanges(): void {
+    this.formData.rateRanges = JSON.stringify(this.rateRangesList.map(r => ({
+      from: Number(r.min),
+      to: Number(r.max),
+      rate: Number(r.rate)
+    })));
+  }
+
   checkConflicts(): void {
+    this.syncRateRanges();
     const target = {
       name: this.formData.name || 'New Rule',
       applyProductType: this.formData.applyProductType || 'ALL',
@@ -263,12 +343,15 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
           this.api.deleteShippingRule(rule.id).subscribe(() => {
             this.alerts.open(this.transloco.translate('GLOBAL.RECORD_DELETED'), { appearance: 'success' }).subscribe();
             this.loadData();
+            this.cdr.detectChanges();
           });
         }
       });
   }
 
   onSubmit(): void {
+    this.syncRateRanges();
+
     // Process Targeting values
     if (this.formData.applyCustomerType === 'GROUP') {
       this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
@@ -292,8 +375,12 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
       this.alerts.open(msg, { appearance: 'success' }).subscribe();
       this.showForm = false; 
       this.loadData(); 
+      this.cdr.detectChanges();
     });
   }
 
-  cancel(): void { this.showForm = false; }
+  cancel(): void { 
+    this.showForm = false; 
+    this.cdr.detectChanges();
+  }
 }

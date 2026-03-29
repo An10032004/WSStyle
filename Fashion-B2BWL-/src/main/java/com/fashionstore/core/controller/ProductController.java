@@ -33,9 +33,7 @@ public class ProductController {
             @RequestParam(required = false) Integer userId) {
         User user = (userId != null) ? userService.getUserById(userId) : null;
         List<Product> products = productService.getAllProducts();
-        List<ProductResponseDTO> dtos = products.stream()
-                .map(p -> productMapperService.toDTO(p, user))
-                .toList();
+        List<ProductResponseDTO> dtos = productMapperService.toDTOs(products, user);
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
@@ -60,9 +58,7 @@ public class ProductController {
             @RequestParam(required = false) Integer userId) {
         User user = (userId != null) ? userService.getUserById(userId) : null;
         List<Product> products = productService.getProductsByCategory(categoryId);
-        List<ProductResponseDTO> dtos = products.stream()
-                .map(p -> productMapperService.toDTO(p, user))
-                .toList();
+        List<ProductResponseDTO> dtos = productMapperService.toDTOs(products, user);
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 

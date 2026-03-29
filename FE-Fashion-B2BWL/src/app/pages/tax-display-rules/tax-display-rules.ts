@@ -20,12 +20,11 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
-  TuiBadge,
-  TuiInputNumber
+  TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, TaxDisplayRule } from '../../services/api.service';
+import { ApiService, TaxDisplayRule, Category, Product, CustomerGroup } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
@@ -38,10 +37,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   selector: 'app-tax-display-rules',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
+    CommonModule, FormsModule, AgGridAngular, TuiButton, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    TaxDisplayEditorComponent
+    TaxDisplayEditorComponent, TuiMultiSelectModule
   ],
   templateUrl: './tax-display-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -71,6 +70,10 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
   displayTypeOptions = ['BOTH_PRICES', 'EXCLUDE_TAX_ONLY', 'INCLUDE_TAX_ONLY'];
   customerTypeOptions = ['ALL', 'GROUP', 'SPECIFIC'];
   productTypeOptions = ['ALL', 'CATEGORY', 'SPECIFIC'];
+
+  categories: Category[] = [];
+  products: Product[] = [];
+  customerGroups: CustomerGroup[] = [];
 
   private langSub?: Subscription;
 
@@ -103,6 +106,18 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
       this.rowData = data;
       this.cdr.detectChanges();
     });
+    this.api.getCategories().subscribe(data => {
+      this.categories = data;
+      this.cdr.detectChanges();
+    });
+    this.api.getProducts().subscribe(data => {
+      this.products = data;
+      this.cdr.detectChanges();
+    });
+    this.api.getCustomerGroups().subscribe(data => {
+      this.customerGroups = data;
+      this.cdr.detectChanges();
+    });
   }
 
   updateColumnDefs(): void {
@@ -124,6 +139,12 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
         field: 'displayType', 
         headerValueGetter: () => this.transloco.translate('RULE.DISPLAY_TYPE'), 
         width: 150 
+      },
+      { 
+        field: 'discountRate', 
+        headerName: 'Giảm giá %', 
+        width: 120,
+        valueFormatter: (params: any) => params.value ? `${params.value}%` : '-'
       },
       { 
         field: 'status', 
@@ -156,11 +177,42 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  getCustomerGroupNames(rule: TaxDisplayRule): string {
+    if (rule.applyCustomerType !== 'GROUP' || !rule.applyCustomerValue) return '';
+    try {
+      const val = JSON.parse(rule.applyCustomerValue);
+      const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+      const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
+      return names.length ? names.join(', ') : '';
+    } catch { return ''; }
+  }
+
+  getCategoryNames(rule: TaxDisplayRule): string {
+    if (rule.applyProductType !== 'CATEGORY' || !rule.applyProductValue) return '';
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+      const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
+      return names.length ? names.join(', ') : '';
+    } catch { return ''; }
+  }
+
+  getProductNames(rule: TaxDisplayRule): string {
+    if (rule.applyProductType !== 'SPECIFIC' || !rule.applyProductValue) return '';
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      const ids = val.productIds || (val.productId ? [val.productId] : []);
+      const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+      return names.length ? names.join(', ') : '';
+    } catch { return ''; }
+  }
+
   onAdd(): void {
     this.editingId = null;
     this.formData = {
       name: '', status: 'ACTIVE', taxDisplayType: 'VAT', displayType: 'BOTH_PRICES', designConfig: '{}',
-      applyCustomerType: 'ALL', applyCustomerValue: '{}', applyProductType: 'ALL', applyProductValue: '{}'
+      applyCustomerType: 'ALL', applyCustomerValue: '{}', applyProductType: 'ALL', applyProductValue: '{}',
+      discountRate: 0
     };
     this.showForm = true;
     this.showDetails = false;

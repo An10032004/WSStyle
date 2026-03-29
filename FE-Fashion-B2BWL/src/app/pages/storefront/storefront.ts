@@ -48,22 +48,30 @@ export class StorefrontComponent implements OnInit {
   
   categories = ['NEW ARRIVALS', 'BRANDS', 'MEN', 'WOMEN', 'ACCESSORIES', 'SALE'];
   
-  bestSellerTags = [
-    'Tất cả', 'Áo Khoác / Jacket', 'Áo Khoác', 'Giày / Dép', 'Quần', 'Váy', 
-    'Áo Hoodie', 'Ba lô, Túi Xách', 'Nón', 'Áo Có Trụ', 'Áo Sơ Mi', 'Áo Sweater'
-  ];
-  selectedSellerTag = 'Áo Khoác / Jacket';
+  bestSellerTags: string[] = ['Tất cả'];
+  selectedSellerTag = 'Tất cả';
+  filteredProducts: Product[] = [];
+  categoriesData: any[] = [];
 
+  trendingCategories: any[] = [];
   activeBannerIndex = 0;
 
   constructor(
     private api: ApiService,
     private cdr: ChangeDetectorRef
   ) {}
-
   ngOnInit() {
     this.api.getProducts().subscribe(products => {
       this.products = products;
+      this.filterByTag();
+      this.updateTrendingCategories();
+      this.cdr.detectChanges();
+    });
+
+    this.api.getCategories().subscribe(cats => {
+      this.categoriesData = cats;
+      this.bestSellerTags = ['Tất cả', ...cats.map(c => c.name)];
+      this.updateTrendingCategories();
       this.cdr.detectChanges();
     });
 
@@ -83,19 +91,60 @@ export class StorefrontComponent implements OnInit {
     });
   }
 
+  updateTrendingCategories() {
+    if (this.categoriesData.length === 0 || this.products.length === 0) {
+      // Fallback mocks if truly empty
+      this.trendingCategories = [
+        { name: 'OUTERWEAR', imageUrl: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop' },
+        { name: 'ACCESSORIES', imageUrl: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=400&fit=crop' }
+      ];
+      return;
+    }
+    
+    // Diverse placeholder set to avoid identical images
+    const placeholders = [
+      'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop', // Jacket
+      'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=400&fit=crop', // Bag/Acc
+      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop', // T-shirt
+      'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=400&h=400&fit=crop'  // Sneakers
+    ];
+    
+    // Pick top 4 categories and try to find a product image for each
+    this.trendingCategories = this.categoriesData.slice(0, 4).map((cat, idx) => {
+      const productImage = this.products.find(p => p.categoryId === cat.id)?.imageUrl;
+      return {
+        name: cat.name,
+        imageUrl: productImage || placeholders[idx % placeholders.length]
+      };
+    });
+  }
+
+  selectTag(tag: string) {
+    this.selectedSellerTag = tag;
+    this.filterByTag();
+    this.cdr.detectChanges();
+  }
+
+  filterByTag() {
+    if (this.selectedSellerTag === 'Tất cả') {
+      this.filteredProducts = this.products;
+    } else {
+      const selectedCat = this.categoriesData.find(c => c.name === this.selectedSellerTag);
+      if (selectedCat) {
+        this.filteredProducts = this.products.filter(p => p.categoryId === selectedCat.id);
+      } else {
+        this.filteredProducts = [];
+      }
+    }
+  }
+
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
   }
 
   getBrand(product: Product): string {
-    if (!product.specifications) return 'LOCAL BRAND';
-    try {
-      const specs = JSON.parse(product.specifications);
-      return specs.brand || 'LOCAL BRAND';
-    } catch (e) {
-      return 'LOCAL BRAND';
-    }
+    return product.brand || 'LOCAL BRAND';
   }
 
   formatIndex(i: number): string {

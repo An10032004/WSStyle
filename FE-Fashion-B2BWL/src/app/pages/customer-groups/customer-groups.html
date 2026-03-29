@@ -33,18 +33,20 @@
   </div>
 
   <div *ngIf="!showForm" class="grid-wrapper">
-    <ag-grid-angular
-      class="ag-theme-alpine"
-      [rowData]="rowData"
-      [columnDefs]="columnDefs"
-      [pagination]="true"
-      [paginationPageSize]="10"
-      [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
-      domLayout="autoHeight"
-      [localeText]="localeText"
-      (gridReady)="onGridReady($event)"
-      [animateRows]="true"
-    ></ag-grid-angular>
+    <div class="premium-grid-wrapper">
+      <ag-grid-angular
+        class="ag-theme-quartz"
+        style="height: 600px; width: 100%;"
+        [rowData]="rowData"
+        [columnDefs]="columnDefs"
+        [pagination]="true"
+        [paginationPageSize]="10"
+        [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+        [localeText]="localeText"
+        (gridReady)="onGridReady($event)"
+        [animateRows]="true"
+      ></ag-grid-angular>
+    </div>
   </div>
 </div>
 

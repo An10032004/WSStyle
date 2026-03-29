@@ -18,10 +18,7 @@ public class ProductVariantRequest {
     @NotBlank(message = "SKU không được để trống")
     private String sku;
 
-    /**
-     * JSON string chứa thuộc tính biến thể, ví dụ: {"size":"M","color":"Đỏ"}
-     */
-    private String attributes;
+
 
     @NotNull(message = "Số lượng tồn kho không được để trống")
     @Min(value = 0, message = "Số lượng tồn kho phải >= 0")

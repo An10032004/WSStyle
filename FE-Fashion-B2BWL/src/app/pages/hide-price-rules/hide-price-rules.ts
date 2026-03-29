@@ -24,9 +24,9 @@ import {
   TuiInputNumber,
   TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, HidePriceRule } from '../../services/api.service';
+import { ApiService, HidePriceRule, CustomerGroup, Category, Product } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
@@ -40,7 +40,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge, TuiCheckbox,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, 
+    TuiTextfield, TuiMultiSelectModule
   ],
   templateUrl: './hide-price-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -66,8 +67,21 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   };
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
-  customerTypeOptions = ['ALL', 'GROUP', 'SPECIFIC'];
+  customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
   productTypeOptions = ['ALL', 'CATEGORY', 'SPECIFIC'];
+
+  // Targeting helpers
+  customerGroups: CustomerGroup[] = [];
+  categories: Category[] = [];
+  products: Product[] = [];
+  
+  selectedCustomerGroups: CustomerGroup[] = [];
+  selectedCategories: Category[] = [];
+  selectedProducts: Product[] = [];
+
+  readonly stringifyGroup = (item: CustomerGroup): string => item.name || '';
+  readonly stringifyCategory = (item: Category): string => item.name || '';
+  readonly stringifyProduct = (item: Product): string => item.name ? `${item.name} (${item.productCode})` : '';
 
   private langSub?: Subscription;
 
@@ -83,6 +97,9 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
+    this.loadCustomerGroups();
+    this.loadCategories();
+    this.loadProducts();
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
       if (this.gridApi) {
@@ -98,6 +115,27 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   loadData(): void {
     this.api.getHidePriceRules().subscribe(data => {
       this.rowData = data;
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadCustomerGroups(): void {
+    this.api.getCustomerGroups().subscribe(groups => {
+      this.customerGroups = groups;
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadCategories(): void {
+    this.api.getCategories().subscribe(cats => {
+      this.categories = cats;
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadProducts(): void {
+    this.api.getProducts().subscribe(prods => {
+      this.products = prods;
       this.cdr.detectChanges();
     });
   }
@@ -156,6 +194,9 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
       name: '', priority: 0, status: 'ACTIVE', hidePrice: true, hideAddToCart: true, replacementText: '',
       applyCustomerType: 'ALL', applyCustomerValue: '{}', applyProductType: 'ALL', applyProductValue: '{}'
     };
+    this.selectedCustomerGroups = [];
+    this.selectedCategories = [];
+    this.selectedProducts = [];
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -164,6 +205,34 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   onEdit(rule: HidePriceRule): void {
     this.editingId = rule.id;
     this.formData = { ...rule };
+    
+    // Parse Customer selection
+    this.selectedCustomerGroups = [];
+    if (this.formData.applyCustomerType === 'GROUP' && this.formData.applyCustomerValue) {
+      try {
+        const val = JSON.parse(this.formData.applyCustomerValue);
+        const ids = val.groupIds || [];
+        this.selectedCustomerGroups = this.customerGroups.filter(g => ids.includes(g.id));
+      } catch (e) {}
+    }
+
+    // Parse Product selection
+    this.selectedCategories = [];
+    this.selectedProducts = [];
+    if (this.formData.applyProductType === 'CATEGORY' && this.formData.applyProductValue) {
+      try {
+        const val = JSON.parse(this.formData.applyProductValue);
+        const ids = val.categoryIds || [];
+        this.selectedCategories = this.categories.filter(c => ids.includes(c.id));
+      } catch (e) {}
+    } else if (this.formData.applyProductType === 'SPECIFIC' && this.formData.applyProductValue) {
+      try {
+        const val = JSON.parse(this.formData.applyProductValue);
+        const ids = val.productIds || [];
+        this.selectedProducts = this.products.filter(p => ids.includes(p.id));
+      } catch (e) {}
+    }
+
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -183,6 +252,22 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    // Serialize Customer selection
+    if (this.formData.applyCustomerType === 'GROUP') {
+      this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedCustomerGroups.map(g => g.id) });
+    } else {
+      this.formData.applyCustomerValue = '{}';
+    }
+
+    // Serialize Product selection
+    if (this.formData.applyProductType === 'CATEGORY') {
+      this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
+    } else if (this.formData.applyProductType === 'SPECIFIC') {
+      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+    } else {
+      this.formData.applyProductValue = '{}';
+    }
+
     const action = this.editingId 
       ? this.api.updateHidePriceRule(this.editingId, this.formData)
       : this.api.createHidePriceRule(this.formData);

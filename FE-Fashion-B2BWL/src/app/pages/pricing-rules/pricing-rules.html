@@ -31,22 +31,29 @@
 
           <label tuiLabel class="form-field">
             {{ 'RULE.STATUS' | transloco }}
-            <tui-select [(ngModel)]="formData.status" tuiTextfieldSize="l">
+            <tui-select [(ngModel)]="formData.status">
               <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
             </tui-select>
           </label>
 
           <label tuiLabel class="form-field">
             {{ 'RULE.TYPE' | transloco }}
-            <tui-select [(ngModel)]="formData.ruleType" tuiTextfieldSize="l">
+            <tui-select [(ngModel)]="formData.ruleType">
               <tui-data-list-wrapper *tuiDataList [items]="ruleTypeOptions"></tui-data-list-wrapper>
             </tui-select>
           </label>
 
           <label tuiLabel class="form-field">
-            {{ 'RULE.APPLY_TYPE' | transloco }}
-            <tui-select [(ngModel)]="formData.applyCustomerType" tuiTextfieldSize="l" (ngModelChange)="checkConflicts()">
+            Đối tượng khách hàng áp dụng
+            <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()">
               <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
+            </tui-select>
+          </label>
+          
+          <label tuiLabel class="form-field">
+            Loại sản phẩm áp dụng
+            <tui-select [(ngModel)]="formData.applyProductType" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
             </tui-select>
           </label>
 
@@ -57,77 +64,54 @@
               <div style="display: flex; gap: 16px;">
                 <label tuiLabel class="form-field" style="flex: 1">
                   Loại chiết khấu
-                  <tui-select [(ngModel)]="b2bDiscountType" tuiTextfieldSize="l">
+                  <tui-select [(ngModel)]="b2bDiscountType">
                     <tui-data-list-wrapper *tuiDataList [items]="['PERCENTAGE', 'FIXED']"></tui-data-list-wrapper>
                   </tui-select>
                 </label>
                 <label tuiLabel class="form-field" style="flex: 1">
-                  Giá trị chiết khấu
-                  <tui-input-number [(ngModel)]="b2bDiscountValue" tuiTextfieldSize="l">
-                    {{ b2bDiscountType === 'PERCENTAGE' ? '%' : 'VNĐ' }}
-                  </tui-input-number>
+                  Giá trị chiết khấu {{ b2bDiscountType === 'PERCENTAGE' ? '%' : 'VNĐ' }}
+                  <tui-textfield>
+                    <input tuiTextfield type="number" [(ngModel)]="b2bDiscountValue" />
+                  </tui-textfield>
                 </label>
               </div>
             </div>
           </ng-container>
 
           <!-- Customer Group Selection -->
-          <ng-container *ngIf="formData.applyCustomerType === 'GROUP'">
-             <div class="full-width">
-                <label tuiLabel class="form-field">
-                  Nhóm khách hàng áp dụng
-                  <tui-select [(ngModel)]="selectedCustomerGroupId" tuiTextfieldSize="l">
-                    <tui-data-list *tuiDataList>
-                      <button *ngFor="let group of customerGroups" tuiOption [value]="group.id">
-                        {{ group.name }}
-                      </button>
-                    </tui-data-list>
-                  </tui-select>
-                </label>
-             </div>
-          </ng-container>
+          <label tuiLabel class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
+            Chọn nhóm khách hàng áp dụng
+            <tui-multi-select [(ngModel)]="selectedCustomerGroups" [stringify]="stringifyGroup" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+              <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
 
           <div class="json-section full-width" *ngIf="formData.applyCustomerType === 'SPECIFIC'">
             <h4>Điều kiện áp dụng (JSON)</h4>
-            <div style="display: flex; gap: 16px;">
-              <label tuiLabel class="form-field" style="flex: 1">
-                Apply Values (JSON)
-                <tui-textfield>
-                  <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
-                </tui-textfield>
-              </label>
-            </div>
+            <label tuiLabel class="form-field full-width">
+              Apply Values (JSON)
+              <tui-textfield>
+                <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
+              </tui-textfield>
+            </label>
           </div>
 
-          <div class="json-section full-width">
-             <h4>Sản phẩm áp dụng</h4>
-             <label tuiLabel class="form-field">
-                {{ 'RULE.APPLY_PRODUCT_TYPE' | transloco }}
-                <tui-select [(ngModel)]="formData.applyProductType" tuiTextfieldSize="l">
-                  <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
-                </tui-select>
-             </label>
-             <label tuiLabel class="form-field full-width" style="margin-top: 12px" *ngIf="formData.applyProductType === 'CATEGORY'">
-                Danh mục áp dụng
-                <tui-select [(ngModel)]="selectedCategoryId" tuiTextfieldSize="l">
-                  <tui-data-list *tuiDataList>
-                    <button *ngFor="let cat of categories" tuiOption [value]="cat.id">
-                      {{ cat.name }}
-                    </button>
-                  </tui-data-list>
-                </tui-select>
-             </label>
-             <label tuiLabel class="form-field full-width" style="margin-top: 12px" *ngIf="formData.applyProductType === 'SPECIFIC'">
-                Sản phẩm áp dụng
-                <tui-select [(ngModel)]="selectedProductId" tuiTextfieldSize="l">
-                  <tui-data-list *tuiDataList>
-                    <button *ngFor="let p of products" tuiOption [value]="p.id">
-                      {{ p.name }} ({{ p.productCode }})
-                    </button>
-                  </tui-data-list>
-                </tui-select>
-             </label>
-          </div>
+          <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'GROUP' || formData.applyProductType === 'CATEGORY'">
+            Chọn danh mục áp dụng (Nhóm)
+            <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
+              <ng-template #catContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
+
+          <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
+            Chọn sản phẩm áp dụng cụ thể
+            <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="checkConflicts()">
+              <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
+              <ng-template #prodContent let-item>{{ item.name }}</ng-template>
+            </tui-multi-select>
+          </label>
         </div>
 
         <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -158,6 +142,12 @@
             <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">
               {{ 'ENUMS.' + selectedRule.status | transloco }}
             </tui-badge>
+          </p>
+          <p><strong>Loại người dùng:</strong> 
+            <tui-badge appearance="info">{{ selectedRule.applyCustomerType }}</tui-badge>
+          </p>
+          <p><strong>Loại sản phẩm áp dụng:</strong> 
+            <tui-badge appearance="info">{{ selectedRule.applyProductType }}</tui-badge>
           </p>
        </div>
 
@@ -201,8 +191,16 @@
 
        <div class="full-width" style="margin-top: 24px;">
           <h4 style="border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">Đối tượng áp dụng</h4>
-          <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}</p>
-          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}</p>
+          <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+            <span *ngIf="selectedRule.applyCustomerType === 'GROUP' && getCustomerGroupNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
+              — {{ getCustomerGroupNames(selectedRule) }}
+            </span>
+          </p>
+          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
+            <span *ngIf="selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
+              — {{ getProductTargetNames(selectedRule) }}
+            </span>
+          </p>
        </div>
     </div>
 

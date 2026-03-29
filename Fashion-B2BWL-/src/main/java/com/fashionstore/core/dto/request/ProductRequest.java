@@ -25,10 +25,8 @@ public class ProductRequest {
     @DecimalMin(value = "0.0", inclusive = false, message = "Giá gốc phải lớn hơn 0")
     private BigDecimal basePrice;
 
-    /**
-     * JSON string chứa thông số kỹ thuật, ví dụ: {"material":"Cotton","origin":"Vietnam"}
-     */
-    private String specifications;
+    private String material;
+    private String origin;
 
     @NotBlank(message = "Thương hiệu không được để trống")
     private String brand;

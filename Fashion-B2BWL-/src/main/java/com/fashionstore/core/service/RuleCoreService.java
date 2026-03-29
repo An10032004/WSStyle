@@ -98,11 +98,11 @@ public class RuleCoreService {
             
             if (productOverlap && customerOverlap) {
                 if (existing.priority < newRule.priority) {
-                    conflicts.add("BLOCKED: This rule will be ignored for overlapping targets because '" + existing.name + "' has higher priority (" + existing.priority + ")");
+                    conflicts.add("BỊ CHẶN: Quy tắc này sẽ BỊ BỎ QUA do trùng điều kiện áp dụng với '" + existing.name + "' (quy tắc kia có mức ưu tiên cao hơn: " + existing.priority + ")");
                 } else if (existing.priority > newRule.priority) {
-                    conflicts.add("WARNING: This rule will OVERRIDE '" + existing.name + "' for overlapping targets because it has higher priority (" + newRule.priority + ")");
+                    conflicts.add("CẢNH BÁO: Quy tắc này sẽ GHI ĐÈ lên '" + existing.name + "' ở những phần trùng điều kiện, do nó có mức ưu tiên cao hơn (" + newRule.priority + ")");
                 } else if (existing.priority.equals(newRule.priority)) {
-                    conflicts.add("CRITICAL: Same priority (" + newRule.priority + ") as '" + existing.name + "'. Application order is undefined!");
+                    conflicts.add("LỖI ƯU TIÊN: Quy tắc này có cùng mức ưu tiên (" + newRule.priority + ") với '" + existing.name + "'. Hệ thống sẽ không biết áp dụng cái nào trước, vui lòng đổi mức ưu tiên!");
                 }
             }
         }
@@ -152,37 +152,63 @@ public class RuleCoreService {
         return r1.applyCustomerType.equals(r2.applyCustomerType);
     }
 
-    public Optional<PricingRule> findBestPricingRule(Integer productId, Integer categoryId, User user) {
-        return pricingRuleRepository.findAll().stream()
-                .filter(r -> "ACTIVE".equals(r.getStatus()))
+    public List<PricingRule> getAllActivePricingRules() {
+        return pricingRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
+    }
+
+    public List<HidePriceRule> getAllActiveHidePriceRules() {
+        return hidePriceRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
+    }
+
+    public List<SaleCampaign> getAllActiveSaleCampaigns() {
+        return saleCampaignRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
+    }
+
+    public List<TaxDisplayRule> getAllActiveTaxRules() {
+        return taxDisplayRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
+    }
+
+    public Optional<PricingRule> findBestPricingRule(Integer productId, Integer categoryId, User user, List<PricingRule> rules) {
+        return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
                 .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
                 .min(Comparator.comparing(PricingRule::getPriority));
     }
 
-    public Optional<HidePriceRule> findBestHidePriceRule(Integer productId, Integer categoryId, User user) {
-        return hidePriceRuleRepository.findAll().stream()
-                .filter(r -> "ACTIVE".equals(r.getStatus()))
+    public Optional<PricingRule> findBestPricingRule(Integer productId, Integer categoryId, User user) {
+        return findBestPricingRule(productId, categoryId, user, getAllActivePricingRules());
+    }
+
+    public Optional<HidePriceRule> findBestHidePriceRule(Integer productId, Integer categoryId, User user, List<HidePriceRule> rules) {
+        return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
                 .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
                 .min(Comparator.comparing(HidePriceRule::getPriority));
     }
 
-    public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, User user) {
-        return saleCampaignRepository.findAll().stream()
-                .filter(r -> "ACTIVE".equals(r.getStatus()))
-                // For campaigns, if customer targeting is added later, check here. 
-                // Currently campaigns have applyCustomerType as well.
+    public Optional<HidePriceRule> findBestHidePriceRule(Integer productId, Integer categoryId, User user) {
+        return findBestHidePriceRule(productId, categoryId, user, getAllActiveHidePriceRules());
+    }
+
+    public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, User user, List<SaleCampaign> rules) {
+        return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
                 .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
                 .min(Comparator.comparing(SaleCampaign::getPriority));
     }
 
-    public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, User user) {
-        return taxDisplayRuleRepository.findAll().stream()
-                .filter(r -> "ACTIVE".equals(r.getStatus()))
+    public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, User user) {
+        return findBestSaleCampaign(productId, categoryId, user, getAllActiveSaleCampaigns());
+    }
+
+    public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, User user, List<TaxDisplayRule> rules) {
+        return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
                 .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
                 .min(Comparator.comparing(TaxDisplayRule::getPriority));
+    }
+
+    public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, User user) {
+        return findBestTaxRule(productId, categoryId, user, getAllActiveTaxRules());
     }
 }

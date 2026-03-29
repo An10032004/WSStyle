@@ -50,23 +50,45 @@
         </tui-textfield>
       </label>
 
-      <div class="json-section full-width">
-        <h4>{{ 'RULE.APPLY_CONDITION' | transloco }}</h4>
-        <div style="display: flex; gap: 16px;">
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Customer (JSON)
-            <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
-            </tui-textfield>
-          </label>
-          <label tuiLabel class="form-field" style="flex: 1">
-            Apply Product (JSON)
-            <tui-textfield>
-              <textarea tuiTextfield [(ngModel)]="formData.applyProductValue" class="json-textarea"></textarea>
-            </tui-textfield>
-          </label>
-        </div>
-      </div>
+      <!-- CUSTOMER TARGETING -->
+      <label tuiLabel class="form-field">
+        Đối tượng khách hàng áp dụng
+        <tui-select [(ngModel)]="formData.applyCustomerType">
+          <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
+        </tui-select>
+      </label>
+
+      <label tuiLabel class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
+        Chọn nhóm khách hàng áp dụng
+        <tui-multi-select [(ngModel)]="selectedCustomerGroups" [stringify]="stringifyGroup">
+          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+          <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+        </tui-multi-select>
+      </label>
+
+      <!-- PRODUCT TARGETING -->
+      <label tuiLabel class="form-field full-width">
+        Loại sản phẩm áp dụng
+        <tui-select [(ngModel)]="formData.applyProductType">
+          <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
+        </tui-select>
+      </label>
+
+      <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'CATEGORY'">
+        Chọn danh mục áp dụng
+        <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory">
+          <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
+          <ng-template #catContent let-item>{{ item.name }}</ng-template>
+        </tui-multi-select>
+      </label>
+
+      <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
+        Chọn sản phẩm áp dụng cụ thể
+        <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct">
+          <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
+          <ng-template #prodContent let-item>{{ item.name }} ({{ item.productCode }})</ng-template>
+        </tui-multi-select>
+      </label>
     </div>
 
     <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -76,21 +98,41 @@
   </div>
 
   <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}</h3>
-    <div class="form-grid">
-       <p><strong>ID:</strong> {{ selectedRule.id }}</p>
-       <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
-       <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
-       <p><strong>{{ 'RULE.HIDE_PRICE' | transloco }}:</strong> {{ selectedRule.hidePrice ? 'YES' : 'NO' }}</p>
-       <p><strong>{{ 'RULE.HIDE_ADD_TO_CART' | transloco }}:</strong> {{ selectedRule.hideAddToCart ? 'YES' : 'NO' }}</p>
-       <p><strong>{{ 'RULE.STATUS' | transloco }}:</strong> <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">{{ 'ENUMS.' + selectedRule.status | transloco }}</tui-badge></p>
+    <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+      <tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}
+    </h3>
+    <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
+       <div class="info-block">
+          <p><strong>ID:</strong> {{ selectedRule.id }}</p>
+          <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
+          <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
+          <p><strong>{{ 'RULE.HIDE_PRICE' | transloco }}:</strong> {{ selectedRule.hidePrice ? 'ĐANG BẬT' : 'KHÔNG' }}</p>
+          <p><strong>{{ 'RULE.HIDE_ADD_TO_CART' | transloco }}:</strong> {{ selectedRule.hideAddToCart ? 'ĐANG BẬT' : 'KHÔNG' }}</p>
+          <p><strong>{{ 'RULE.STATUS' | transloco }}:</strong> 
+            <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">
+              {{ 'ENUMS.' + selectedRule.status | transloco }}
+            </tui-badge>
+          </p>
+       </div>
        
-       <div class="full-width">
-          <strong>Replacement Text:</strong>
-          <p style="background: #f4f4f4; padding: 12px; border-radius: 4px;">{{ selectedRule.replacementText || '(Empty)' }}</p>
+       <div class="info-block">
+          <p><strong>Loại khách hàng:</strong> <tui-badge appearance="info">{{ selectedRule.applyCustomerType }}</tui-badge></p>
+          <p><strong>Loại sản phẩm:</strong> <tui-badge appearance="info">{{ selectedRule.applyProductType }}</tui-badge></p>
+          <p><strong>Văn bản thay thế:</strong></p>
+          <p style="background: #f8fafc; padding: 8px 12px; border-radius: 4px; border: 1px solid #e2e8f0; font-style: italic;">
+            {{ selectedRule.replacementText || '(Không có)' }}
+          </p>
+       </div>
+
+       <div class="full-width" style="grid-column: 1 / -1; background: #fffbeb; padding: 16px; border-radius: 8px; border: 1px solid #fef3c7;">
+          <h4 style="margin: 0 0 12px 0; color: #92400e; display: flex; align-items: center; gap: 8px;">
+            <tui-icon icon="@tui.info"></tui-icon> Chi tiết điều kiện áp dụng
+          </h4>
+          <p><strong>Dữ liệu Khách hàng:</strong> <code>{{ selectedRule.applyCustomerValue }}</code></p>
+          <p><strong>Dữ liệu Sản phẩm:</strong> <code>{{ selectedRule.applyProductValue }}</code></p>
        </div>
     </div>
-    <div class="form-actions" style="margin-top: 20px;">
+    <div class="form-actions" style="margin-top: 24px;">
        <button tuiButton type="button" appearance="outline" (click)="showDetails = false">{{ 'COMMON.CLOSE' | transloco }}</button>
     </div>
   </div>

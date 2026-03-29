@@ -66,7 +66,8 @@ public class ProductService {
                 .productCode(request.getProductCode())
                 .name(request.getName())
                 .basePrice(request.getBasePrice())
-                .specifications(request.getSpecifications())
+                .material(request.getMaterial())
+                .origin(request.getOrigin())
                 .brand(request.getBrand())
                 .imageUrl(request.getImageUrl())
                 .imageUrls(request.getImageUrls())
@@ -89,7 +90,8 @@ public class ProductService {
         product.setProductCode(request.getProductCode());
         product.setName(request.getName());
         product.setBasePrice(request.getBasePrice());
-        product.setSpecifications(request.getSpecifications());
+        product.setMaterial(request.getMaterial());
+        product.setOrigin(request.getOrigin());
         product.setBrand(request.getBrand());
         product.setImageUrl(request.getImageUrl());
         product.setImageUrls(request.getImageUrls());

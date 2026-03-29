@@ -136,6 +136,14 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/profile/profile').then(m => m.ProfileComponent)
   },
   {
+    path: 'shop',
+    loadComponent: () => import('./pages/shop/shop').then(m => m.ShopComponent)
+  },
+  {
+    path: 'shop/category/:id',
+    loadComponent: () => import('./pages/shop/shop').then(m => m.ShopComponent)
+  },
+  {
     path: 'become-a-partner',
     loadComponent: () => import('./pages/register/b2b-register').then(m => m.B2BRegisterComponent)
   },

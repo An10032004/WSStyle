@@ -22,6 +22,6 @@ public class B2BRegistrationForm {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "form_data", columnDefinition = "JSON")
+    @Column(name = "form_data", columnDefinition = "TEXT")
     private String formData;
 }

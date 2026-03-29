@@ -20,10 +20,9 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
-  TuiBadge,
-  TuiInputNumber
+  TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, PricingRule } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -43,7 +42,6 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     FormsModule,
     AgGridAngular,
     TuiButton,
-    TuiInputNumber,
     TuiSelectModule,
     TuiDataList,
     TuiDataListWrapper,
@@ -52,6 +50,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     TuiIcon,
     TuiBadge,
     TuiTextfield,
+    TuiMultiSelectModule,
     TranslocoModule,
     ActionRendererComponent,
     QuantityBreakEditorComponent,
@@ -103,16 +102,21 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
 
   // Smart Picker helpers
   categories: any[] = [];
-  selectedCategoryId: number | null = null;
+  selectedCategories: any[] = [];
   products: any[] = [];
-  selectedProductId: number | null = null;
+  selectedProducts: any[] = [];
+  selectedCustomerGroups: any[] = [];
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
   ruleTypeOptions = ['B2B_PRICE', 'QUANTITY_BREAK'];
   customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
-  productTypeOptions = ['ALL', 'CATEGORY', 'SPECIFIC'];
+  productTypeOptions = ['ALL', 'SPECIFIC', 'GROUP'];
   
   conflicts: string[] = [];
+
+  readonly stringifyGroup = (item: any): string => item.name || '';
+  readonly stringifyCategory = (item: any): string => item.name || '';
+  readonly stringifyProduct = (item: any): string => item.name ? `${item.name} (${item.productCode})` : '';
 
   private langSub?: Subscription;
 
@@ -177,13 +181,39 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { field: 'id', headerName: 'ID', width: 100, pinned: 'left' },
+      { field: 'id', headerName: 'ID', width: 80, pinned: 'left' },
       { 
         field: 'name', 
         headerValueGetter: () => this.transloco.translate('RULE.NAME'), 
-        width: 300,
+        width: 250,
         pinned: 'left',
         tooltipValueGetter: (params: any) => params.value
+      },
+      {
+        headerValueGetter: () => "Chiết khấu",
+        width: 150,
+        valueGetter: (params) => {
+          if (params.data.ruleType === 'B2B_PRICE') {
+            return `${params.data.discountValue}${params.data.discountType === 'PERCENTAGE' ? '%' : ' VNĐ'}`;
+          }
+          return params.data.ruleType === 'QUANTITY_BREAK' ? 'Theo số lượng' : '-';
+        },
+        cellStyle: { color: '#10b981', fontWeight: 'bold' }
+      },
+      {
+        field: 'applyProductType',
+        headerValueGetter: () => "Loại sản phẩm áp dụng",
+        width: 180,
+        valueFormatter: (params) => {
+          const val = params.value === 'CATEGORY' ? 'GROUP' : params.value;
+          return val;
+        }
+      },
+      {
+        field: 'applyCustomerType',
+        headerValueGetter: () => "Loại người dùng",
+        width: 150,
+        valueFormatter: (params) => params.value
       },
       { 
         field: 'priority', 
@@ -193,8 +223,12 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
       { 
         field: 'status', 
         headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
-        width: 120,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value)
+        width: 130,
+        cellRenderer: (params: any) => {
+          const color = params.value === 'ACTIVE' ? 'success' : 'neutral';
+          const text = params.value === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động';
+          return `<span style="padding: 4px 12px; border-radius: 16px; background: ${params.value === 'ACTIVE' ? '#ecfdf5' : '#f3f4f6'}; color: ${params.value === 'ACTIVE' ? '#10b981' : '#6b7280'}; font-size: 12px; font-weight: 600;">${text}</span>`;
+        }
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
@@ -239,6 +273,33 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     return config.brackets || [];
   }
 
+  getCustomerGroupNames(rule: PricingRule): string {
+    if (rule.applyCustomerType !== 'GROUP' || !rule.applyCustomerValue) return '';
+    try {
+      const val = JSON.parse(rule.applyCustomerValue);
+      const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+      const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
+      return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+    } catch { return rule.applyCustomerValue; }
+  }
+
+  getProductTargetNames(rule: PricingRule): string {
+    if (!rule.applyProductValue || rule.applyProductType === 'ALL') return '';
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      if (rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP') {
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      } else if (rule.applyProductType === 'SPECIFIC') {
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
+      }
+    } catch { return rule.applyProductValue; }
+    return '';
+  }
+
   onAdd(): void {
     this.editingId = null;
     this.formData = {
@@ -260,9 +321,9 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     };
     this.b2bDiscountType = 'PERCENTAGE';
     this.b2bDiscountValue = 0;
-    this.selectedCustomerGroupId = null;
-    this.selectedCategoryId = null;
-    this.selectedProductId = null;
+    this.selectedCustomerGroups = [];
+    this.selectedCategories = [];
+    this.selectedProducts = [];
     this.conflicts = [];
 
     this.showForm = true;
@@ -284,20 +345,23 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     if (rule.applyCustomerType === 'GROUP' && rule.applyCustomerValue) {
       try {
         const val = JSON.parse(rule.applyCustomerValue);
-        this.selectedCustomerGroupId = val.groupId || null;
+        const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+        this.selectedCustomerGroups = this.customerGroups.filter(g => ids.includes(g.id));
       } catch (e) {}
     }
 
     // Extract Product selection
-    if (rule.applyProductType === 'CATEGORY' && rule.applyProductValue) {
+    if ((rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP') && rule.applyProductValue) {
       try {
         const val = JSON.parse(rule.applyProductValue);
-        this.selectedCategoryId = val.categoryId || null;
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        this.selectedCategories = this.categories.filter(c => ids.includes(c.id));
       } catch (e) {}
     } else if (rule.applyProductType === 'SPECIFIC' && rule.applyProductValue) {
       try {
         const val = JSON.parse(rule.applyProductValue);
-        this.selectedProductId = val.productId || null;
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        this.selectedProducts = this.products.filter(p => ids.includes(p.id));
       } catch (e) {}
     }
     
@@ -312,15 +376,16 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
   checkConflicts(): void {
     // Construct RuleTarget for conflict checking
     let customerVal = '{}';
-    if (this.formData.applyCustomerType === 'GROUP' && this.selectedCustomerGroupId) {
-      customerVal = JSON.stringify({ groupIds: [this.selectedCustomerGroupId] });
+    if (this.formData.applyCustomerType === 'GROUP') {
+      customerVal = JSON.stringify({ groupIds: this.selectedCustomerGroups.map(g => g.id) });
     }
 
     let productVal = '{}';
-    if (this.formData.applyProductType === 'CATEGORY' && this.selectedCategoryId) {
-      productVal = JSON.stringify({ categoryIds: [this.selectedCategoryId] });
-    } else if (this.formData.applyProductType === 'SPECIFIC' && this.selectedProductId) {
-      productVal = JSON.stringify({ productIds: [this.selectedProductId] });
+    const type = this.formData.applyProductType;
+    if (type === 'GROUP' || type === 'CATEGORY') {
+      productVal = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
+    } else if (type === 'SPECIFIC') {
+      productVal = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
     }
 
     const target = {
@@ -353,15 +418,16 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     // 1. Handle Group selection to JSON
-    if (this.formData.applyCustomerType === 'GROUP' && this.selectedCustomerGroupId) {
-      this.formData.applyCustomerValue = JSON.stringify({ groupId: this.selectedCustomerGroupId });
+    if (this.formData.applyCustomerType === 'GROUP') {
+      this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedCustomerGroups.map(g => g.id) });
     }
 
     // Handle Product selection
-    if (this.formData.applyProductType === 'CATEGORY' && this.selectedCategoryId) {
-      this.formData.applyProductValue = JSON.stringify({ categoryId: this.selectedCategoryId });
-    } else if (this.formData.applyProductType === 'SPECIFIC' && this.selectedProductId) {
-      this.formData.applyProductValue = JSON.stringify({ productId: this.selectedProductId });
+    if (this.formData.applyProductType === 'GROUP' || this.formData.applyProductType === 'CATEGORY') {
+      this.formData.applyProductType = 'CATEGORY'; // Maintain consistency for backend
+      this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
+    } else if (this.formData.applyProductType === 'SPECIFIC') {
+      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
     }
 
     // 2. Handle B2B Price config to JSON

@@ -33,45 +33,53 @@
       </label>
 
       <label tuiLabel class="form-field">
-        {{ 'RULE.APPLY_TYPE' | transloco }}
-        <tui-select [(ngModel)]="formData.applyCustomerType">
+        Loại khách hàng áp dụng
+        <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="syncTargeting()">
           <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
         </tui-select>
       </label>
 
-      <div class="json-section full-width">
-        <h4>{{ 'RULE.APPLY_CONDITION' | transloco }}</h4>
-        <label tuiLabel class="form-field full-width">
-          Customer Values (JSON)
-          <tui-textfield>
-            <textarea tuiTextfield [(ngModel)]="formData.applyCustomerValue" class="json-textarea"></textarea>
-          </tui-textfield>
-        </label>
-      </div>
+      <label tuiLabel class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
+        Chọn nhóm khách hàng
+        <tui-multi-select [(ngModel)]="selectedGroupIds" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
+          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+          <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+        </tui-multi-select>
+      </label>
     </div>
 
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
+    <div class="form-actions" style="margin-top: 24px; display: flex; gap: 12px;">
       <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
       <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
     </div>
   </div>
 
   <div *ngIf="showDetails && selectedRule" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3 style="display: flex; align-items: center; gap: 8px"><tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}</h3>
+    <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+      <tui-icon icon="@tui.eye"></tui-icon> {{ 'COMMON.VIEW' | transloco }}: {{ selectedRule.name }}
+    </h3>
     <div class="form-grid">
        <p><strong>ID:</strong> {{ selectedRule.id }}</p>
        <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
-       <p><strong>{{ 'RULE.NET_TERM_DAYS' | transloco }}:</strong> {{ selectedRule.netTermDays }} {{ 'GLOBAL.DAYS' | transloco }}</p>
+       <p><strong>Trạng thái:</strong> 
+         <tui-badge [appearance]="selectedRule.status === 'ACTIVE' ? 'success' : 'neutral'">
+           {{ 'ENUMS.' + selectedRule.status | transloco }}
+         </tui-badge>
+       </p>
+       <p><strong>{{ 'RULE.NET_TERM_DAYS' | transloco }}:</strong> {{ selectedRule.netTermDays }} {{ 'COMMON.DAYS' | transloco }}</p>
        <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
-       <p><strong>{{ 'RULE.APPLY_TYPE' | transloco }}:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}</p>
        
-       <div class="full-width">
-          <strong>{{ 'RULE.APPLY_CONDITION' | transloco }}:</strong>
-          <pre style="background: #f4f4f4; padding: 12px; border-radius: 4px; overflow: auto;">{{ selectedRule.applyCustomerValue }}</pre>
+       <div class="full-width" style="margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+          <h4 style="margin: 0 0 12px; font-size: 16px;">Đối tượng áp dụng</h4>
+          <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+            <span *ngIf="selectedRule.applyCustomerType === 'GROUP' && getCustomerGroupNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
+              — {{ getCustomerGroupNames(selectedRule) }}
+            </span>
+          </p>
        </div>
     </div>
     <div class="form-actions" style="margin-top: 20px;">
-       <button tuiButton type="button" appearance="outline" (click)="onCloseDetails()">{{ 'COMMON.CLOSE' | transloco }}</button>
+       <button tuiButton type="button" appearance="outline" (click)='onCloseDetails()'>{{ 'COMMON.CLOSE' | transloco }}</button>
     </div>
   </div>
 

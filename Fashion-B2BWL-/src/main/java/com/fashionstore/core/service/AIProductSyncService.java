@@ -32,10 +32,10 @@ public class AIProductSyncService {
                         .build());
 
         // Prepare content for RAG
-        String content = String.format("Product: %s. Description: %s. Specs: %s.",
+        String content = String.format("Product: %s. Specs: Material - %s, Origin - %s.",
                 product.getName(),
-                product.getName(), // Assuming description is name for now if not available, or use a real field if exists
-                product.getSpecifications() != null ? product.getSpecifications() : "N/A");
+                product.getMaterial() != null ? product.getMaterial() : "N/A",
+                product.getOrigin() != null ? product.getOrigin() : "N/A");
 
         sync.setContent(content);
         sync.setVectorId("vec_" + UUID.randomUUID().toString().substring(0, 8)); // Mock vector database ID

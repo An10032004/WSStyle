@@ -11,13 +11,12 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiRadio,
-  TuiInputNumber,
   TuiDataListWrapper,
   TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TaxDisplayRule } from '../../services/api.service';
+import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services/api.service';
 
 @Component({
   selector: 'app-tax-display-editor',
@@ -29,7 +28,6 @@ import { TaxDisplayRule } from '../../services/api.service';
     TuiIcon, 
     TuiLabel, 
     TuiRadio, 
-    TuiInputNumber, 
     TuiSelectModule, 
     TuiDataList, 
     TuiDataListWrapper, 
@@ -37,6 +35,7 @@ import { TaxDisplayRule } from '../../services/api.service';
     TuiBadge,
     TuiTextfield,
     TuiAppearance,
+    TuiMultiSelectModule,
     TranslocoModule
   ],
   template: `
@@ -53,13 +52,20 @@ import { TaxDisplayRule } from '../../services/api.service';
         <div class="config-sections">
           <!-- GENERAL -->
           <div class="section-card">
-            <h4 class="section-title">{{ 'ORDER_LIMIT.GENERAL_SETTINGS' | transloco }}</h4>
-            <div class="field-group">
-              <label tuiLabel>{{ 'RULE.NAME' | transloco }}
+            <h4 class="section-title">Cấu hình chung</h4>
+            <div class="field-grid-3">
+              <label tuiLabel>Tên quy tắc
                 <tui-textfield>
-                  <input tuiTextfield [(ngModel)]="data.name" placeholder="e.g. VAT for VIPs" />
+                  <input tuiTextfield [(ngModel)]="data.name" placeholder="Ví dụ: Hiển thị VAT cho khách sỉ" />
                 </tui-textfield>
               </label>
+
+              <label tuiLabel>Phần trăm giảm giá (%)
+                <tui-textfield>
+                  <input tuiTextfield type="number" [(ngModel)]="data.discountRate" min="0" max="100" />
+                </tui-textfield>
+              </label>
+
               <div class="status-toggle">
                 <span class="label">{{ 'RULE.STATUS' | transloco }}</span>
                 <tui-badge [appearance]="data.status === 'ACTIVE' ? 'success' : 'neutral'" size="m">
@@ -71,46 +77,53 @@ import { TaxDisplayRule } from '../../services/api.service';
 
           <!-- TARGETING: CUSTOMERS -->
           <div class="section-card">
-            <h4 class="section-title">{{ 'ORDER_LIMIT.APPLIES_SECTION' | transloco }}</h4>
-            <div class="radio-list">
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="custType" value="ALL" [(ngModel)]="data.applyCustomerType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.ALL_CUSTOMERS' | transloco }}</span>
-              </label>
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="custType" value="LOGGED_IN" [(ngModel)]="data.applyCustomerType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.LOGGED_IN' | transloco }}</span>
-              </label>
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="custType" value="GUEST" [(ngModel)]="data.applyCustomerType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.GUEST' | transloco }}</span>
-              </label>
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="custType" value="GROUP" [(ngModel)]="data.applyCustomerType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.SPECIFIC_GROUPS' | transloco }}</span>
-              </label>
+            <h4 class="section-title">Đối tượng khách hàng áp dụng</h4>
+            <div class="field-grid">
+               <label tuiLabel>Loại khách hàng áp dụng
+                  <tui-select [(ngModel)]="data.applyCustomerType" (ngModelChange)="syncTargeting()">
+                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'GUEST', 'LOGGED_IN', 'GROUP']"></tui-data-list-wrapper>
+                  </tui-select>
+               </label>
+
+               <label tuiLabel *ngIf="data.applyCustomerType === 'GROUP'">Chọn nhóm khách hàng
+                  <tui-multi-select [(ngModel)]="selectedGroups" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
+                    <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+                    <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+                  </tui-multi-select>
+               </label>
             </div>
           </div>
 
           <!-- TARGETING: PRODUCTS -->
           <div class="section-card">
-            <h4 class="section-title">{{ 'TAX_DISPLAY.APPLY_TO_PRODUCTS' | transloco }}</h4>
-            <div class="radio-list">
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="prodType" value="ALL" [(ngModel)]="data.applyProductType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.ALL_PRODUCTS' | transloco }}</span>
-              </label>
-              <label class="radio-item">
-                <input tuiRadio type="radio" name="prodType" value="CATEGORY" [(ngModel)]="data.applyProductType" />
-                <span>{{ 'TAX_DISPLAY.TARGETING.SPECIFIC_CATEGORIES' | transloco }}</span>
-              </label>
+            <h4 class="section-title">Loại sản phẩm áp dụng</h4>
+            <div class="field-grid">
+               <label tuiLabel>Loại áp dụng
+                  <tui-select [(ngModel)]="data.applyProductType" (ngModelChange)="syncTargeting()">
+                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
+                  </tui-select>
+               </label>
+
+               <label tuiLabel *ngIf="data.applyProductType === 'CATEGORY'">Chọn danh mục
+                  <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="syncTargeting()">
+                    <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
+                    <ng-template #catContent let-item>{{ item.name }}</ng-template>
+                  </tui-multi-select>
+               </label>
+
+               <label tuiLabel *ngIf="data.applyProductType === 'SPECIFIC'">Chọn sản phẩm cụ thể
+                  <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="syncTargeting()">
+                    <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
+                    <ng-template #prodContent let-item>{{ item.name }}</ng-template>
+                  </tui-multi-select>
+               </label>
             </div>
           </div>
 
           <!-- DESIGN CONFIG -->
           <div class="section-card">
-            <h4 class="section-title">{{ 'TAX_DISPLAY.DESIGN_SECTION' | transloco }}</h4>
-            <div class="field-grid">
+            <h4 class="section-title">Cấu hình hiển thị (Thiết kế)</h4>
+            <div class="field-grid-2">
                <label tuiLabel>{{ 'TAX_DISPLAY.TAX_TYPE' | transloco }}
                  <tui-select [(ngModel)]="data.taxDisplayType" [tuiTextfieldCleaner]="false">
                     <tui-data-list-wrapper *tuiDataList [items]="['VAT', 'GST']"></tui-data-list-wrapper>
@@ -122,39 +135,43 @@ import { TaxDisplayRule } from '../../services/api.service';
                     <tui-data-list-wrapper *tuiDataList [items]="['BOTH_PRICES', 'EXCLUDE_TAX_ONLY', 'INCLUDE_TAX_ONLY']"></tui-data-list-wrapper>
                  </tui-select>
                </label>
+            </div>
+            
+            <div class="style-container">
+               <div class="style-row">
+                  <div class="style-item">
+                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_COLOR' | transloco }}</label>
+                     <div class="color-picker-row">
+                       <input type="color" [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
+                       <tui-textfield size="s">
+                         <input tuiTextfield [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
+                       </tui-textfield>
+                     </div>
+                  </div>
+                  <div class="style-item">
+                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_SIZE' | transloco }}</label>
+                     <tui-textfield size="s">
+                        <input tuiTextfield type="number" [(ngModel)]="design.exclSize" (ngModelChange)="updateDesign()" />
+                     </tui-textfield>
+                  </div>
+               </div>
 
-               <div class="style-container">
-                 <div class="style-row">
-                    <div class="color-part">
-                       <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_COLOR' | transloco }}</label>
-                       <div class="color-picker-wrapper">
-                         <input type="color" [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                         <tui-textfield size="s">
-                           <input tuiTextfield [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                         </tui-textfield>
-                       </div>
-                    </div>
-                    <div class="size-part">
-                       <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_SIZE' | transloco }}</label>
-                       <tui-input-number size="s" [(ngModel)]="design.exclSize" (ngModelChange)="updateDesign()">14</tui-input-number>
-                    </div>
-                 </div>
-
-                 <div class="style-row">
-                    <div class="color-part">
-                       <label tuiLabel>{{ 'TAX_DISPLAY.INC_COLOR' | transloco }}</label>
-                       <div class="color-picker-wrapper">
-                         <input type="color" [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                         <tui-textfield size="s">
-                           <input tuiTextfield [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                         </tui-textfield>
-                       </div>
-                    </div>
-                    <div class="size-part">
-                       <label tuiLabel>{{ 'TAX_DISPLAY.INC_SIZE' | transloco }}</label>
-                       <tui-input-number size="s" [(ngModel)]="design.incSize" (ngModelChange)="updateDesign()">14</tui-input-number>
-                    </div>
-                 </div>
+               <div class="style-row">
+                  <div class="style-item">
+                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_COLOR' | transloco }}</label>
+                     <div class="color-picker-row">
+                       <input type="color" [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
+                       <tui-textfield size="s">
+                         <input tuiTextfield [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
+                       </tui-textfield>
+                     </div>
+                  </div>
+                  <div class="style-item">
+                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_SIZE' | transloco }}</label>
+                     <tui-textfield size="s">
+                        <input tuiTextfield type="number" [(ngModel)]="design.incSize" (ngModelChange)="updateDesign()" />
+                     </tui-textfield>
+                  </div>
                </div>
             </div>
           </div>
@@ -171,26 +188,25 @@ import { TaxDisplayRule } from '../../services/api.service';
                     <tui-icon icon="@tui.gift"></tui-icon>
                  </div>
                  <div class="product-info">
-                    <span class="product-name">Gift Card</span>
-                    <span class="base-price">$10.00</span>
+                    <span class="product-name">Sản phẩm mẫu</span>
+                    <span class="base-price">100.000 đ</span>
                     
                     <div class="tax-labels" [ngSwitch]="data.displayType">
                        <ng-container *ngSwitchCase="'BOTH_PRICES'">
-                          <span class="tax-line">
-                             <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">$10.00 exc. {{ data.taxDisplayType }}</span>
-                             <span class="separator">|</span>
-                             <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">$11.00 inc. {{ data.taxDisplayType }}</span>
-                          </span>
+                          <div class="tax-line">
+                             <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
+                             <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
+                          </div>
                        </ng-container>
                        <ng-container *ngSwitchCase="'EXCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">$10.00 exc. {{ data.taxDisplayType }}</span>
+                          <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
                        </ng-container>
                        <ng-container *ngSwitchCase="'INCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">$11.00 inc. {{ data.taxDisplayType }}</span>
+                          <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
                        </ng-container>
                     </div>
                     
-                    <button tuiButton appearance="secondary" size="s" class="add-to-cart">Add to cart</button>
+                    <button tuiButton appearance="secondary" size="s" class="add-to-cart">Thêm vào giỏ hàng</button>
                  </div>
               </div>
            </div>
@@ -199,55 +215,48 @@ import { TaxDisplayRule } from '../../services/api.service';
     </div>
   `,
   styles: [`
-    .editor-container { display: flex; height: 100%; gap: 1px; background: #e2e8f0; }
+    .editor-container { display: flex; height: 100%; gap: 1px; background: #e2e8f0; border-radius: 12px; overflow: hidden; }
     .config-panel { flex: 1; background: #f8fafc; padding: 24px; overflow-y: auto; }
-    .preview-panel { width: 420px; background: #fff; padding: 24px; display: flex; flex-direction: column; gap: 24px; border-left: 1px solid #e2e8f0; }
+    .preview-panel { width: 380px; background: #fff; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-left: 1px solid #e2e8f0; }
     
     .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     .editor-title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #1e293b; }
     .header-actions { display: flex; gap: 12px; }
 
-    .section-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
-    .section-title { margin: 0 0 16px 0; font-size: 0.875rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; }
-
-    .field-group { display: flex; flex-direction: column; gap: 16px; }
-    .status-toggle { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f1f5f9; border-radius: 8px; }
-    
-    .radio-list { display: flex; flex-direction: column; gap: 12px; }
-    .radio-item { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s; }
-    .radio-item:hover { background: #f1f5f9; }
-    .radio-item span { font-size: 0.9375rem; color: #334155; }
+    .section-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+    .section-title { margin: 0 0 16px 0; font-size: 0.875rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
 
     .field-grid { display: grid; gap: 20px; }
-    .style-container { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; border-top: 1px dashed #e2e8f0; padding-top: 16px; }
-    .style-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-    .color-part, .size-part { display: flex; flex-direction: column; gap: 6px; }
+    .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .field-grid-3 { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 20px; align-items: end; }
     
-    .color-picker-wrapper { display: flex; align-items: center; gap: 12px; height: 36px; }
-    input[type="color"] { width: 38px; height: 38px; padding: 0; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; border-radius: 8px; flex-shrink: 0; }
-    .color-picker-wrapper tui-textfield { flex: 1; min-width: 100px; }
+    .status-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; height: 44px; }
+    
+    .style-container { margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 20px; display: flex; flex-direction: column; gap: 20px; }
+    .style-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .style-item { display: flex; flex-direction: column; gap: 8px; }
+    .color-picker-row { display: flex; align-items: center; gap: 12px; }
+    input[type="color"] { width: 44px; height: 44px; padding: 0; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; border-radius: 8px; overflow: hidden; }
     
     .preview-title { margin: 0; font-size: 0.875rem; font-weight: 600; color: #64748b; }
-    .preview-card { flex: 1; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border-radius: 16px; padding: 40px 20px; display: flex; align-items: center; justify-content: center; position: relative; }
-    
-    .device-mockup { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-radius: 20px; width: 100%; max-width: 320px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); border: 1px solid rgba(255, 255, 255, 0.4); overflow: hidden; transform: translateY(0); transition: transform 0.3s ease; }
-    .device-mockup:hover { transform: translateY(-5px); }
-    .product-preview { padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
-    .product-image { width: 120px; height: 120px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    
-    .product-info { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-    .product-name { font-size: 1.125rem; font-weight: 700; color: #1e293b; }
+    .preview-card { flex: 1; background: #f1f5f9; border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: center; }
+    .device-mockup { background: #fff; border-radius: 20px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+    .product-preview { padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .product-image { width: 100px; height: 100px; background: #f8fafc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #94a3b8; }
+    .product-info { width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: center; }
+    .product-name { font-weight: 700; color: #1e293b; }
     .base-price { font-size: 0.875rem; color: #94a3b8; text-decoration: line-through; }
-    
-    .tax-labels { margin: 12px 0; min-height: 44px; display: flex; align-items: center; justify-content: center; }
-    .tax-line { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .separator { display: none; }
-    
-    .add-to-cart { width: 100%; height: 40px; border-radius: 8px; pointer-events: none; }
+    .tax-labels { margin: 8px 0; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+    .tax-line { display: flex; flex-direction: column; gap: 4px; }
+    .add-to-cart { width: 100%; margin-top: 12px; pointer-events: none; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaxDisplayEditorComponent {
+  @Input() categories: Category[] = [];
+  @Input() products: Product[] = [];
+  @Input() customerGroups: CustomerGroup[] = [];
+  
   @Input() data: Partial<TaxDisplayRule> = {
     name: '',
     status: 'ACTIVE',
@@ -257,11 +266,16 @@ export class TaxDisplayEditorComponent {
     applyCustomerType: 'ALL',
     applyCustomerValue: '{}',
     applyProductType: 'ALL',
-    applyProductValue: '{}'
+    applyProductValue: '{}',
+    discountRate: 0
   };
   @Input() isEdit = false;
   @Output() save = new EventEmitter<Partial<TaxDisplayRule>>();
   @Output() cancel = new EventEmitter<void>();
+
+  selectedGroups: CustomerGroup[] = [];
+  selectedCategories: Category[] = [];
+  selectedProducts: Product[] = [];
 
   design = {
     exclColor: '#303030',
@@ -269,6 +283,10 @@ export class TaxDisplayEditorComponent {
     incColor: '#EA916E',
     incSize: 14
   };
+
+  stringifyGroup = (item: any) => item?.name || '';
+  stringifyCategory = (item: any) => item?.name || '';
+  stringifyProduct = (item: any) => item?.name || '';
 
   ngOnChanges() {
     if (this.data.designConfig) {
@@ -279,6 +297,53 @@ export class TaxDisplayEditorComponent {
         console.error('Failed to parse design config', e);
       }
     }
+    this.parseTargeting();
+  }
+
+  syncTargeting() {
+    // Sync Customers
+    if (this.data.applyCustomerType === 'GROUP') {
+      this.data.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroups.map(g => g.id) });
+    } else {
+      this.data.applyCustomerValue = '{}';
+    }
+
+    // Sync Products
+    if (this.data.applyProductType === 'CATEGORY') {
+      this.data.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
+    } else if (this.data.applyProductType === 'SPECIFIC') {
+      this.data.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+    } else {
+      this.data.applyProductValue = '{}';
+    }
+  }
+
+  parseTargeting() {
+    // Parse Customers
+    if (this.data.applyCustomerType === 'GROUP' && this.data.applyCustomerValue) {
+      try {
+        const val = JSON.parse(this.data.applyCustomerValue);
+        const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
+        this.selectedGroups = this.customerGroups.filter(g => ids.includes(g.id));
+      } catch { this.selectedGroups = []; }
+    } else { this.selectedGroups = []; }
+
+    // Parse Products
+    if (this.data.applyProductType === 'CATEGORY' && this.data.applyProductValue) {
+      try {
+        const val = JSON.parse(this.data.applyProductValue);
+        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
+        this.selectedCategories = this.categories.filter(c => ids.includes(c.id));
+      } catch { this.selectedCategories = []; }
+    } else { this.selectedCategories = []; }
+
+    if (this.data.applyProductType === 'SPECIFIC' && this.data.applyProductValue) {
+      try {
+        const val = JSON.parse(this.data.applyProductValue);
+        const ids = val.productIds || (val.productId ? [val.productId] : []);
+        this.selectedProducts = this.products.filter(p => ids.includes(p.id));
+      } catch { this.selectedProducts = []; }
+    } else { this.selectedProducts = []; }
   }
 
   updateDesign() {
@@ -286,6 +351,7 @@ export class TaxDisplayEditorComponent {
   }
 
   onSave() {
+    this.syncTargeting();
     this.save.emit(this.data);
   }
 

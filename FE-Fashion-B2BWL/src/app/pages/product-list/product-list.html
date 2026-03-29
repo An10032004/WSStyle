@@ -59,6 +59,18 @@
             <input tuiTextfield [(ngModel)]="formData.brand" [placeholder]="'PRODUCT.BRAND' | transloco" />
           </tui-textfield>
         </label>
+        <label tuiLabel class="form-field">
+          Material
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.material" placeholder="VD: Cotton" />
+          </tui-textfield>
+        </label>
+        <label tuiLabel class="form-field">
+          Origin
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="formData.origin" placeholder="VD: Việt Nam" />
+          </tui-textfield>
+        </label>
 
         <label tuiLabel class="form-field full-width">
           {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
@@ -84,19 +96,6 @@
           </button>
         </div>
 
-        <div class="form-field full-width">
-          <label tuiLabel>
-            {{ 'PRODUCT.SPECIFICATIONS' | transloco }} (JSON)
-          <tui-textfield>
-            <textarea
-              tuiTextfield
-              [(ngModel)]="formData.specifications"
-              rows="3"
-              class="json-textarea"
-            ></textarea>
-          </tui-textfield>
-          </label>
-        </div>
       </div>
       <div class="form-actions">
         <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSave()">{{ 'GLOBAL.SAVE' | transloco }}</button>
@@ -115,10 +114,8 @@
          <p><strong>{{ 'PRODUCT.PRICE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedProduct.basePrice | number }} VND</span></p>
          <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
          <p><strong>{{ 'PRODUCT.BRAND' | transloco }}:&nbsp;</strong> {{ selectedProduct.brand }}</p>
-         <div class="form-field full-width">
-            <strong>{{ 'PRODUCT.SPECIFICATIONS' | transloco }} JSON:</strong>
-            <pre style="background: var(--tui-base-02); padding: 12px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin-top: 8px;">{{ selectedProduct.specifications || ('CATEGORY.ROOT' | transloco) }}</pre>
-         </div>
+         <p><strong>Material:&nbsp;</strong> {{ selectedProduct.material }}</p>
+         <p><strong>Origin:&nbsp;</strong> {{ selectedProduct.origin }}</p>
 
          <div class="form-field full-width" *ngIf="selectedProduct.imageUrl || (parseImageUrls(selectedProduct.imageUrls).length > 0)">
             <strong>{{ 'PRODUCT.GALLERY' | transloco }}:</strong>

@@ -32,7 +32,9 @@ public class TranslationService {
         });
 
         // Apply new content
-        translation.setContent(request.getContent());
+        translation.setTranslatedName(request.getTranslatedName());
+        translation.setTranslatedDescription(request.getTranslatedDescription());
+        translation.setTranslatedData(request.getTranslatedData());
 
         return translationRepository.save(translation);
     }
