@@ -1,0 +1,141 @@
+<app-storefront-header></app-storefront-header>
+
+<div class="cart-page">
+  <div class="container">
+    <div class="breadcrumb">
+      <a routerLink="/storefront">Home</a> / <span>Your Shopping Cart</span>
+    </div>
+
+    <h1 class="page-title">Shopping Cart</h1>
+
+    <ng-container *ngIf="(cart$ | async) as items; else loading">
+      <div class="cart-layout" *ngIf="items.length > 0; else emptyCart">
+        
+        <!-- Cart Items Table -->
+        <div class="cart-main">
+          <div class="cart-table">
+            <div class="table-header">
+              <span class="col-prod">Product</span>
+              <span class="col-price">Price</span>
+              <span class="col-qty">Quantity</span>
+              <span class="col-total">Subtotal</span>
+              <span class="col-actions"></span>
+            </div>
+
+            <div class="table-row" *ngFor="let item of items">
+              <div class="col-prod">
+                <div class="prod-info">
+                  <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
+                  <div class="texts">
+                    <a [routerLink]="['/product', item.productId]" class="prod-name">{{ item.name }}</a>
+                    <div class="prod-variant" *ngIf="item.color || item.size">
+                      {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-price">
+                <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
+              </div>
+              <div class="col-qty">
+                <div class="qty-picker">
+                  <button (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
+                    <tui-icon icon="@tui.minus"></tui-icon>
+                  </button>
+                  <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
+                  <button (click)="updateQuantity(item, item.quantity + 1)">
+                    <tui-icon icon="@tui.plus"></tui-icon>
+                  </button>
+                </div>
+              </div>
+              <div class="col-total">
+                <span class="total-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
+              </div>
+              <div class="col-actions">
+                <button class="remove-btn" (click)="removeItem(item)" title="Xóa">
+                  <tui-icon icon="@tui.trash"></tui-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cart-footer">
+            <button tuiButton appearance="flat" size="m" routerLink="/shop">
+              <tui-icon icon="@tui.chevron-left"></tui-icon> Continue Shopping
+            </button>
+            <button tuiButton appearance="secondary-grayscale" size="m" (click)="clear()">Clear Cart</button>
+          </div>
+        </div>
+
+        <!-- Order Summary Side Panel -->
+        <div class="cart-summary">
+          <div class="summary-card">
+            <h3 class="summary-title">Summary</h3>
+            
+            <div class="summary-row">
+              <span>Total Items</span>
+              <strong>{{ totalItems$ | async }}</strong>
+            </div>
+            
+            <div class="summary-row total">
+              <span>Grand Total</span>
+              <span class="total-price-val">{{ totalPrice$ | async | number:'1.0-0' }} ₫</span>
+            </div>
+
+            <!-- RULE VALIDATION MESSAGES -->
+            <div class="validation-section" *ngIf="(validationResults$ | async) as results">
+               <div class="valid-msg" *ngIf="results.length === 0 || results.every(r => r.success)">
+                 <tui-icon icon="@tui.check-circle" class="success-icon"></tui-icon>
+                 Your order is eligible for checkout.
+               </div>
+               <div class="invalid-msg" *ngFor="let res of results" [hidden]="res.success">
+                 <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
+                 {{ res.message }}
+               </div>
+            </div>
+
+            <button 
+              tuiButton 
+              size="l" 
+              class="checkout-btn" 
+              [disabled]="!(isValid$ | async)"
+              (click)="goToCheckout()"
+            >
+              CHECKOUT NOW
+            </button>
+
+            <div class="payment-methods">
+              <p>We accept:</p>
+              <div class="method-icons">
+                 <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo">
+                 <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay">
+                 <img src="https://vcdn.dosi-in.com/media/icons/payment/cod.png" alt="cod">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>
+
+<ng-template #emptyCart>
+  <div class="empty-state">
+    <div class="empty-icon">
+       <tui-icon icon="@tui.shopping-bag"></tui-icon>
+    </div>
+    <h2>Your cart is empty</h2>
+    <p>Looks like you haven't added anything to your cart yet.<br>Explore our latest arrivals and find something you love!</p>
+    <button tuiButton size="l" appearance="primary" routerLink="/shop">EXPLORE SHOP</button>
+  </div>
+</ng-template>
+
+<ng-template #loading>
+  <div class="loading-state">
+    <div class="container py-120 text-center">
+       <p class="text-xl font-bold">Synchronizing your cart...</p>
+    </div>
+  </div>
+</ng-template>
+
+<app-storefront-footer></app-storefront-footer>

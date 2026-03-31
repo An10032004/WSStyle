@@ -59,6 +59,18 @@ public class Order {
     @Column(name = "due_date")
     private LocalDateTime dueDate;
 
+    @Column(name = "full_name", length = 255)
+    private String fullName;
+
+    @Column(length = 20)
+    private String phone;
+
+    @Column(name = "shipping_address", columnDefinition = "TEXT")
+    private String shippingAddress;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

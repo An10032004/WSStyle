@@ -86,12 +86,35 @@ ModuleRegistry.registerModules([AllCommunityModule]);
             <span class="label">{{ 'ORDER.TOTAL' | transloco }}:</span>
             <span class="value" style="font-weight: bold; color: #d32f2f;">{{ selectedOrder.totalAmount | number }}đ</span>
           </div>
+
+          <!-- Section: Recipient Information -->
+          <div class="detail-item full-width" style="grid-column: span 2; margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 12px;">
+            <span class="label" style="color: #00BA88;">{{ 'RECIPIENT INFO' }}</span>
+          </div>
+          
+          <div class="detail-item">
+            <span class="label">NGƯỜI NHẬN:</span>
+            <span class="value">{{ selectedOrder.fullName || 'N/A' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">SỐ ĐIỆN THOẠI:</span>
+            <span class="value">{{ selectedOrder.phone || 'N/A' }}</span>
+          </div>
+          <div class="detail-item" style="grid-column: span 2;">
+            <span class="label">ĐỊA CHỈ GIAO HÀNG:</span>
+            <span class="value">{{ selectedOrder.shippingAddress || 'N/A' }}</span>
+          </div>
+          <div class="detail-item" style="grid-column: span 2;" *ngIf="selectedOrder.note">
+            <span class="label">GHI CHÚ:</span>
+            <span class="value" style="font-style: italic; color: #666;">{{ selectedOrder.note }}</span>
+          </div>
         </div>
 
         <h3 style="margin-top: 24px; border-bottom: 2px solid #eee; padding-bottom: 8px;">{{ 'ORDER.ITEMS' | transloco }}</h3>
         <table class="items-table">
           <thead>
             <tr>
+              <th>{{ 'PRODUCT' }}</th>
               <th>SKU</th>
               <th>{{ 'PRODUCT.QUANTITY' | transloco }}</th>
               <th>{{ 'PRODUCT.PRICE' | transloco }}</th>
@@ -100,7 +123,16 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           </thead>
           <tbody>
             <tr *ngFor="let item of selectedOrder.items">
-              <td>{{ item.productVariant?.sku || 'N/A' }}</td>
+              <td>
+                <div class="product-cell">
+                  <img [src]="item.productVariant?.imageUrl || item.productVariant?.product?.imageUrl || 'assets/placeholder-product.png'" class="item-thumbnail">
+                  <div class="prod-info">
+                    <span class="prod-name">{{ item.productVariant?.product?.name || 'N/A' }}</span>
+                    <span class="prod-attr" *ngIf="item.productVariant">{{ item.productVariant.color }} / {{ item.productVariant.size }}</span>
+                  </div>
+                </div>
+              </td>
+              <td><code>{{ item.productVariant?.sku || 'N/A' }}</code></td>
               <td>{{ item.quantity }}</td>
               <td>{{ item.unitPrice | number }}đ</td>
               <td>{{ (item.unitPrice * item.quantity) | number }}đ</td>
@@ -125,6 +157,13 @@ ModuleRegistry.registerModules([AllCommunityModule]);
       .items-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
       .items-table th { text-align: left; padding: 12px; background: #f5f5f5; color: #555; font-size: 13px; }
       .items-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+      
+      .product-cell { display: flex; align-items: center; gap: 12px; }
+      .item-thumbnail { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
+      .prod-info { display: flex; flex-direction: column; gap: 2px; }
+      .prod-name { font-weight: 600; color: #111; font-size: 13px; }
+      .prod-attr { font-size: 11px; color: #777; }
+      code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 12px; }
     </style>
   `,
   styleUrls: ['../pricing-rules/pricing-rules.scss'],

@@ -12,8 +12,8 @@
 	<groupId>com.fashionstore</groupId>
 	<artifactId>fashion-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Fashion B2BWL Backend</name>
-	<description>Core REST API for Fashion B2BWL platform integrated with AI</description>
+	<name>WSSTYLE Backend</name>
+	<description>Core REST API for WSSTYLE platform integrated with AI</description>
 	<url />
 	<licenses>
 		<license />
@@ -92,6 +92,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 		<!-- JWT dependencies -->
 		<dependency>

@@ -1,0 +1,206 @@
+<app-storefront-header></app-storefront-header>
+
+<div class="checkout-page">
+  <div class="container py-60">
+    <div class="checkout-grid">
+      
+      <!-- Checkout Form Section -->
+      <div class="checkout-main">
+        <h1 class="checkout-title">Checkout Details</h1>
+        
+        <form [formGroup]="checkoutForm" (ngSubmit)="onSubmit()">
+          
+          <!-- Shipping Section -->
+          <div class="checkout-card">
+            <h3 class="card-title">
+              <tui-icon icon="@tui.truck"></tui-icon> 1. Shipping Information
+            </h3>
+            
+            <div class="form-grid">
+              <div class="form-field full">
+                <label tuiLabel>FULL NAME</label>
+                <tui-textfield tuiTextfieldSize="m">
+                  <input tuiTextfield formControlName="fullName" placeholder="Enter your full name">
+                </tui-textfield>
+              </div>
+              
+              <div class="form-field">
+                <label tuiLabel>PHONE NUMBER</label>
+                <tui-textfield tuiTextfieldSize="m">
+                  <input tuiTextfield formControlName="phone" placeholder="0123456789">
+                </tui-textfield>
+              </div>
+
+              <div class="form-field full">
+                <label tuiLabel>SHIPPING ADDRESS</label>
+                <tui-textfield tuiTextfieldSize="m">
+                  <input tuiTextfield formControlName="shippingAddress" placeholder="123 Street, District, City">
+                </tui-textfield>
+              </div>
+
+              <div class="form-field full">
+                <label tuiLabel>ORDER NOTE (OPTIONAL)</label>
+                <tui-textfield tuiTextfieldSize="m">
+                  <input tuiTextfield formControlName="note" placeholder="Note for the seller or carrier">
+                </tui-textfield>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Section -->
+          <div class="checkout-card">
+            <h3 class="card-title">
+              <tui-icon icon="@tui.credit-card"></tui-icon> 2. Payment Method
+            </h3>
+            
+            <div class="payment-options">
+               <div 
+                  class="payment-option" 
+                  [class.active]="checkoutForm.get('paymentMethod')?.value === 'COD'"
+                  (click)="setPaymentMethod('COD')"
+               >
+                 <tui-icon icon="@tui.hand-coins" class="payment-icon"></tui-icon>
+                 <div class="payment-text">
+                   <strong>Cash On Delivery (COD)</strong>
+                   <span>Pay when you receive the order</span>
+                 </div>
+               </div>
+
+               <div 
+                  class="payment-option" 
+                  [class.active]="checkoutForm.get('paymentMethod')?.value === 'VNPAY'"
+                  (click)="setPaymentMethod('VNPAY')"
+               >
+                 <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay" class="payment-img">
+                 <div class="payment-text">
+                   <strong>VNPAY</strong>
+                   <span>Pay via VNPAY QR or Bank Transfer</span>
+                 </div>
+               </div>
+
+               <div 
+                  class="payment-option" 
+                  [class.active]="checkoutForm.get('paymentMethod')?.value === 'MOMO'"
+                  (click)="setPaymentMethod('MOMO')"
+               >
+                 <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo" class="payment-img">
+                 <div class="payment-text">
+                   <strong>MoMo</strong>
+                   <span>Pay with MoMo e-wallet</span>
+                 </div>
+               </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Order Summary Section -->
+      <div class="checkout-sidebar">
+        <div class="summary-card-sticky">
+          <h3 class="summary-title">Order Summary</h3>
+          
+          <div class="summary-items" *ngIf="(cart$ | async) as items">
+            <div class="summary-item" *ngFor="let item of items">
+               <div class="item-img">
+                 <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
+                 <tui-badge size="s" appearance="dark" class="item-qty-badge">
+                   {{ item.quantity }}
+                 </tui-badge>
+               </div>
+               <div class="item-info">
+                 <span class="item-name">{{ item.name }}</span>
+                 <span class="item-variant">{{ item.color }} / {{ item.size }}</span>
+               </div>
+               <div class="item-price">
+                 {{ (item.price * item.quantity) | number:'1.0-0' }} ₫
+               </div>
+            </div>
+          </div>
+
+          <div class="summary-divider"></div>
+
+          <div class="summary-calc">
+             <div class="calc-row">
+               <span>Subtotal</span>
+               <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
+             </div>
+             <div class="calc-row">
+               <span>Shipping</span>
+               <span class="free">FREE</span>
+             </div>
+             <div class="summary-divider"></div>
+             <div class="calc-row total">
+               <span>Grant Total</span>
+               <span class="total-val">{{ totalPrice$ | async | number:'1.0-0' }} ₫</span>
+             </div>
+          </div>
+
+          <button 
+            tuiButton 
+            size="l" 
+            class="place-order-btn" 
+            [disabled]="checkoutForm.invalid || isPlacingOrder"
+            (click)="onSubmit()"
+          >
+            <tui-loader [showLoader]="isPlacingOrder" [inheritColor]="true" [overlay]="true">
+              PLACE ORDER NOW
+            </tui-loader>
+          </button>
+
+          <p class="final-agreement">
+            By placing your order, you agree to our Terms of Use and Privacy Policy.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<ng-template #paymentDialog let-observer>
+  <div class="payment-qr-container">
+    <div class="qr-header">
+      <div class="header-badge">SECURE CHECKOUT</div>
+      <h4>Complete Your Payment</h4>
+      <p>Scan the VietQR below using any banking app to finish your purchase.</p>
+    </div>
+
+    <div class="qr-wrapper">
+      <img [src]="paymentQrUrl" alt="VietQR" class="qr-image">
+    </div>
+
+    <div class="payment-details">
+      <div class="detail-row">
+        <span>Amount to Pay</span>
+        <div class="val-group">
+          <strong class="amount">{{ currentOrder?.totalAmount | number:'1.0-0' }} ₫</strong>
+          <button tuiIconButton type="button" size="xs" appearance="flat" icon="@tui.copy" (click)="copyToClipboard(currentOrder?.totalAmount?.toString(), 'Amount')"></button>
+        </div>
+      </div>
+      <div class="detail-row">
+        <span>Transfer Content</span>
+        <div class="val-group">
+          <code>Thanh toan don hang #{{ currentOrder?.id }}</code>
+          <button tuiIconButton type="button" size="xs" appearance="flat" icon="@tui.copy" (click)="copyToClipboard('Thanh toan don hang #' + currentOrder?.id, 'Content')"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="qr-footer">
+      <button 
+        tuiButton 
+        size="l" 
+        class="done-btn" 
+        (click)="observer.complete()"
+      >
+        I HAVE PAID
+      </button>
+      <div class="security-note">
+        <tui-icon icon="@tui.shield-check"></tui-icon>
+        <span>Your transaction is secured and encrypted</span>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<app-storefront-footer></app-storefront-footer>

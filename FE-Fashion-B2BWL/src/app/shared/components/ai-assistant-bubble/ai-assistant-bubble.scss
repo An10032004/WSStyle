@@ -1,0 +1,363 @@
+// LUXE AI ASSISTANT — Premium Compact Design
+.ai-assistant-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+
+  * { pointer-events: auto; }
+}
+
+// ===== CHAT WINDOW =====
+.chat-window {
+  width: 400px;
+  height: 620px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow:
+    0 25px 60px rgba(0,0,0,0.12),
+    0 0 0 1px rgba(0,0,0,0.04);
+  overflow: hidden;
+
+  // ===== HEADER =====
+  .chat-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .ai-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #6366f1, #a855f7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 13px;
+        letter-spacing: 1px;
+      }
+
+      .header-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        .ai-name {
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+
+        .ai-status {
+          font-size: 0.72rem;
+          opacity: 0.7;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          &::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background: #22c55e;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #22c55e;
+          }
+        }
+      }
+    }
+
+    .close-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      &:hover { background: rgba(255,255,255,0.2); transform: rotate(90deg); }
+    }
+  }
+
+  // ===== MESSAGES AREA =====
+  .chat-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8f9fb;
+
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.08);
+      border-radius: 10px;
+    }
+
+    .message-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      max-width: 90%;
+
+      &.user-msg {
+        align-self: flex-end;
+        align-items: flex-end;
+
+        .message-bubble {
+          background: linear-gradient(135deg, #1a1a2e, #16213e);
+          color: #fff;
+          border-radius: 16px 16px 4px 16px;
+        }
+      }
+
+      .message-bubble {
+        padding: 10px 14px;
+        background: #fff;
+        color: #1e293b;
+        border-radius: 16px 16px 16px 4px;
+        font-size: 0.88rem;
+        line-height: 1.55;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        max-width: 100%;
+        border: 1px solid rgba(0,0,0,0.04);
+
+        .msg-text {
+          white-space: pre-line;
+        }
+
+        // ===== PRODUCT GRID — Compact 2-column =====
+        .ai-product-grid {
+          margin-top: 10px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+
+          .ai-product-card {
+            background: #f8f9fb;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: 1px solid rgba(0,0,0,0.05);
+
+            &:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+              border-color: rgba(99, 102, 241, 0.3);
+            }
+
+            .card-img {
+              width: 100%;
+              height: 100px;
+              overflow: hidden;
+              background: #eef0f4;
+
+              img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                transition: transform 0.3s;
+              }
+
+              &:hover img {
+                transform: scale(1.05);
+              }
+            }
+
+            .card-body {
+              padding: 8px 10px 10px;
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
+
+              .card-name {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #1e293b;
+                line-height: 1.3;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+              }
+
+              .card-price {
+                font-size: 0.78rem;
+                color: #6366f1;
+                font-weight: 700;
+                margin-top: 2px;
+              }
+            }
+          }
+        }
+      }
+
+      .message-time {
+        font-size: 0.65rem;
+        color: #94a3b8;
+        margin-top: 4px;
+        padding-left: 2px;
+      }
+    }
+  }
+
+  // ===== QUICK ACTIONS =====
+  .quick-actions {
+    padding: 0 16px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #f8f9fb;
+
+    button {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+      &:hover {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: #fff;
+        border-color: transparent;
+      }
+    }
+  }
+
+  // ===== INPUT AREA =====
+  .chat-input-area {
+    padding: 14px 16px;
+    background: #fff;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    input {
+      flex: 1;
+      border: none;
+      background: #f1f5f9;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      outline: none;
+      transition: all 0.2s;
+      &::placeholder { color: #94a3b8; }
+      &:focus { background: #eef0f4; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15); }
+    }
+
+    .send-btn {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+
+      &:disabled { opacity: 0.3; cursor: not-allowed; }
+      &:not(:disabled):hover { transform: scale(1.06); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+    }
+  }
+}
+
+// ===== TYPING INDICATOR =====
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px;
+  background: #fff;
+  border-radius: 16px;
+  width: fit-content;
+  border: 1px solid rgba(0,0,0,0.04);
+
+  span {
+    width: 6px;
+    height: 6px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+  }
+}
+
+// ===== FLOATING BUBBLE =====
+.floating-bubble {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  tui-icon { font-size: 26px; }
+
+  &:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    transform: rotate(180deg);
+  }
+
+  .bubble-ripple {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: inherit;
+    z-index: -1;
+    animation: ripple 2s infinite;
+    opacity: 0.3;
+  }
+}
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(1.5); opacity: 0; }
+}

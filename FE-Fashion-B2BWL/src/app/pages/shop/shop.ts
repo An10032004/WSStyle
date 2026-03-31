@@ -37,10 +37,10 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShopComponent implements OnInit {
-  private readonly api = inject(ApiService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly cdr = inject(ChangeDetectorRef);
-  private readonly auth = inject(AuthService);
+  readonly api = inject(ApiService);
+  readonly route = inject(ActivatedRoute);
+  readonly cdr = inject(ChangeDetectorRef);
+  readonly auth = inject(AuthService);
 
   products: Product[] = [];
   filteredProducts: Product[] = [];
@@ -99,7 +99,14 @@ export class ShopComponent implements OnInit {
             this.applyFilters();
         }
     });
+
+    this.route.queryParams.subscribe(params => {
+        this.urlSearchQuery = params['search'] || '';
+        this.applyFilters();
+    });
   }
+
+  urlSearchQuery = '';
 
   loadCategories() {
     this.api.getCategories().subscribe(cats => {
@@ -137,7 +144,16 @@ export class ShopComponent implements OnInit {
   applyFilters() {
     let result = [...this.products];
 
-    // 1. Filter by Category (include children)
+    // 1. Filter by Search Query (from Header)
+    if (this.urlSearchQuery) {
+      const query = this.urlSearchQuery.toLowerCase();
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        this.getBrand(p).toLowerCase().includes(query)
+      );
+    }
+
+    // 2. Filter by Category (include children)
     if (this.selectedCategoryId) {
       const validIds = this.getValidCategoryIds(this.selectedCategoryId);
       result = result.filter(p => p.categoryId != null && validIds.includes(p.categoryId));

@@ -28,6 +28,10 @@ export class CartService {
   private cartSubject = new BehaviorSubject<CartItem[]>(this.loadCart());
   cart$ = this.cartSubject.asObservable();
 
+  get currentItems(): CartItem[] {
+    return [...this.cartSubject.value];
+  }
+
   constructor() {}
 
   private loadCart(): CartItem[] {
@@ -40,9 +44,9 @@ export class CartService {
     this.cartSubject.next(items);
   }
 
-  addToCart(product: Product, variant: ProductVariant | undefined, quantity: number) {
+  addToCart(product: Product, variant: ProductVariant | undefined, quantity: number, priceOverride?: number) {
     const items = [...this.cartSubject.value];
-    const price = variant?.price || product.calculatedPrice || product.basePrice;
+    const price = priceOverride || variant?.price || product.calculatedPrice || product.basePrice;
     
     const existingIndex = items.findIndex(i => 
       i.productId === product.id && 
@@ -93,6 +97,26 @@ export class CartService {
     );
   }
 
+  updateQuantity(productId: number, variantId: number | undefined, quantity: number) {
+    if (quantity < 1) {
+      this.removeItem(productId, variantId);
+      return;
+    }
+    const items = this.currentItems;
+    const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
+    if (idx > -1) {
+      items[idx].quantity = quantity;
+      this.saveCart(items);
+    }
+  }
+
+  removeItem(productId: number, variantId: number | undefined) {
+    const items = this.currentItems.filter(i => 
+      !(i.productId === productId && i.variantId === variantId)
+    );
+    this.saveCart(items);
+  }
+
   clear() {
     this.saveCart([]);
   }
@@ -103,5 +127,9 @@ export class CartService {
 
   get totalPrice(): number {
     return this.cartSubject.value.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+  }
+
+  get cartItems(): CartItem[] {
+    return this.cartSubject.value;
   }
 }

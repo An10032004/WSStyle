@@ -1,0 +1,80 @@
+<div class="ai-assistant-container">
+  <!-- CHAT WINDOW -->
+  <div 
+    class="chat-window luxe-glass" 
+    *ngIf="isOpen" 
+    [@slideInOut]
+  >
+    <div class="chat-header">
+      <div class="header-info">
+        <div class="ai-avatar">AI</div>
+        <div class="header-text">
+          <span class="ai-name">Luxe Assistant</span>
+          <span class="ai-status">Đang trực tuyến</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="toggleChat()">
+        <tui-icon icon="@tui.x"></tui-icon>
+      </button>
+    </div>
+
+    <div class="chat-messages" #scrollContainer>
+      <div 
+        *ngFor="let m of messages" 
+        class="message-wrapper" 
+        [class.user-msg]="m.sender === 'user'"
+      >
+        <div class="message-bubble">
+          <div class="msg-text" [innerHTML]="m.text"></div>
+          
+          <!-- PRODUCT GRID - Compact 2 columns -->
+          <div class="ai-product-grid" *ngIf="m.products && m.products.length > 0">
+            <div *ngFor="let p of m.products" class="ai-product-card" (click)="viewProduct(p)">
+              <div class="card-img">
+                <img [src]="p.imageUrl || 'assets/images/placeholder.png'" [alt]="p.name">
+              </div>
+              <div class="card-body">
+                <span class="card-name">{{ p.name }}</span>
+                <span class="card-price">{{ p.basePrice | number }} ₫</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="message-time">{{ m.time | date:'HH:mm' }}</span>
+      </div>
+      
+      <div class="typing-indicator" *ngIf="isLoading">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="quick-actions" *ngIf="messages.length < 5">
+      <button (click)="quickAsk('Sản phẩm nào đắt nhất?')">💎 Đắt nhất?</button>
+      <button (click)="quickAsk('Sản phẩm rẻ nhất?')">🏷️ Rẻ nhất?</button>
+      <button (click)="quickAsk('Có gì mới?')">🆕 Mới nhất?</button>
+    </div>
+
+    <div class="chat-input-area">
+      <input 
+        type="text" 
+        placeholder="Hỏi tôi bất cứ điều gì..." 
+        [(ngModel)]="userInput"
+        (keyup.enter)="sendMessage()"
+      >
+      <button class="send-btn" (click)="sendMessage()" [disabled]="!userInput.trim() || isLoading">
+        <tui-icon icon="@tui.send-horizontal"></tui-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- FLOATING BUBBLE -->
+  <button 
+    class="floating-bubble luxe-gradient" 
+    (click)="toggleChat()"
+    [class.active]="isOpen"
+  >
+    <tui-icon [icon]="isOpen ? '@tui.chevron-down' : '@tui.message-circle'"></tui-icon>
+    <span class="bubble-ripple"></span>
+  </button>
+</div>

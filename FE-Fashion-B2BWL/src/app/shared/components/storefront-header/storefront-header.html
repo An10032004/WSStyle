@@ -3,7 +3,7 @@
   <div class="top-bar-container">
     <div class="top-bar-left">
       <tui-icon icon="@tui.house" class="home-icon"></tui-icon>
-      <a href="javascript:void(0)">Bán hàng cùng Dosiin</a>
+      <a href="javascript:void(0)">Bán hàng cùng WSSTYLE</a>
     </div>
     <div class="top-bar-right">
       <span>Hotline: 0906.880.960</span>
@@ -19,7 +19,7 @@
   <div class="main-header-container">
     <div class="header-left">
       <a routerLink="/storefront" class="logo">
-        <span class="logo-d">dosii</span><span class="logo-n">n</span>
+        <span class="logo-d">WSSTYL</span><span class="logo-n">E</span>
       </a>
       <div class="header-tabs">
         <a href="javascript:void(0)" class="tab active">Shopping</a>
@@ -28,10 +28,49 @@
     </div>
 
     <div class="header-center">
-      <div class="search-wrapper">
-        <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
-        <input type="text" placeholder="Nhập từ khoá tìm kiếm">
+      <div 
+        class="search-wrapper"
+        [(tuiDropdownOpen)]="showSuggestions"
+        [tuiDropdown]="suggestionsTemplate"
+        tuiDropdownAlign="center"
+        [tuiDropdownMinHeight]="0"
+      >
+        <tui-icon icon="@tui.search" class="search-icon" (click)="onSearch()"></tui-icon>
+        <input 
+          type="text" 
+          placeholder="Nhập từ khoá tìm kiếm"
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="updateSuggestions()"
+          (keyup.enter)="onSearch()"
+        >
+        <tui-icon 
+          *ngIf="searchQuery" 
+          icon="@tui.circle-x" 
+          class="clear-icon" 
+          (click)="clearSearch()"
+        ></tui-icon>
       </div>
+
+      <ng-template #suggestionsTemplate>
+        <div class="search-suggestions-panel luxe-glass">
+          <div 
+            *ngFor="let s of suggestions" 
+            class="suggestion-item"
+            (click)="selectSuggestion(s.id)"
+          >
+            <div class="suggestion-img">
+              <img [src]="s.imageUrl" [alt]="s.name">
+            </div>
+            <div class="suggestion-info">
+              <span class="suggestion-name">{{ s.name }}</span>
+              <span class="suggestion-price">{{ (s.calculatedPrice || s.basePrice) | number:'1.0-0' }} ₫</span>
+            </div>
+          </div>
+          <div class="suggestion-footer" (click)="onSearch()">
+            Xem tất cả kết quả cho "{{ searchQuery }}"
+          </div>
+        </div>
+      </ng-template>
     </div>
 
     <div class="header-right">
@@ -39,10 +78,16 @@
         <tui-icon icon="@tui.bell"></tui-icon>
       </button>
       
-      <button class="icon-circle" title="Cart" routerLink="/cart">
-        <tui-icon icon="@tui.shopping-bag"></tui-icon>
-        <span class="cart-badge" *ngIf="(cartCount$ | async) as count">{{ count }}</span>
-      </button>
+      <div class="cart-wrapper">
+        <button 
+          class="icon-circle" 
+          title="Cart" 
+          routerLink="/cart"
+        >
+          <tui-icon icon="@tui.shopping-bag"></tui-icon>
+          <span class="cart-badge">{{ (cartCount$ | async) || 0 }}</span>
+        </button>
+      </div>
 
       <div class="user-profile" *ngIf="user$ | async as user; else noUser">
         <button

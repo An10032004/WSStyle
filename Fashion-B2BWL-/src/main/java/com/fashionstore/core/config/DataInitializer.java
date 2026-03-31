@@ -27,7 +27,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void ensureAdminUser(String email, String fullName) {
         Optional<User> adminOpt = userRepository.findByEmail(email);
-        
+
         if (adminOpt.isEmpty()) {
             log.info("Creating default admin user: {}", email);
             User admin = User.builder()
@@ -36,7 +36,7 @@ public class DataInitializer implements CommandLineRunner {
                     .fullName(fullName)
                     .role("ADMIN")
                     .registrationStatus("APPROVED")
-                    .companyName("Fashion B2BWL HQ")
+                    .companyName("WSSTYLE HQ")
                     .build();
             userRepository.save(admin);
             log.info("Default admin user created successfully.");

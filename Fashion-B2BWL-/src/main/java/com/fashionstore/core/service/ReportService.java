@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -29,11 +30,13 @@ public class ReportService {
 
         BigDecimal totalRevenue = orders.stream()
                 .map(Order::getTotalAmount)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<com.fashionstore.core.model.Expense> expenses = expenseService.getExpensesByDateRange(1L, start, end);
         BigDecimal totalExpenses = expenses.stream()
                 .map(com.fashionstore.core.model.Expense::getAmount)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal netProfit = totalRevenue.subtract(totalExpenses);
@@ -44,6 +47,7 @@ public class ReportService {
         Map<String, SalesReportResponse.BestSeller> bestSellerMap = new HashMap<>();
         for (Order order : orders) {
             for (OrderItem item : order.getItems()) {
+                if (item.getProductVariant() == null || item.getProductVariant().getProduct() == null) continue;
                 String name = item.getProductVariant().getProduct().getName();
                 SalesReportResponse.BestSeller bs = bestSellerMap.getOrDefault(name, 
                     SalesReportResponse.BestSeller.builder()
@@ -52,8 +56,11 @@ public class ReportService {
                         .revenue(BigDecimal.ZERO)
                         .build());
                 
-                bs.setQuantity(bs.getQuantity() + item.getQuantity());
-                bs.setRevenue(bs.getRevenue().add(item.getUnitPrice().multiply(new BigDecimal(item.getQuantity()))));
+                int qty = item.getQuantity() != null ? item.getQuantity() : 0;
+                BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+
+                bs.setQuantity(bs.getQuantity() + qty);
+                bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
                 bestSellerMap.put(name, bs);
             }
         }
@@ -97,6 +104,7 @@ public class ReportService {
         // Sum up collected VAT from all orders
         BigDecimal collectedVat = orders.stream()
                 .map(Order::getTaxAmount)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // For simple B2B/Fashion simulation, we might assume 70% of collected VAT is payable

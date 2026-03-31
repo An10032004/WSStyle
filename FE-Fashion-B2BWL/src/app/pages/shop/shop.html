@@ -16,85 +16,104 @@
             <button class="reset-link" (click)="resetFilters()">Xóa hết</button>
           </div>
 
-          <!-- Price Filter -->
-          <div class="filter-section">
-            <h4 class="filter-title">Khoảng giá</h4>
-            <div class="range-wrapper">
-              <div class="dual-slider">
-                <input
-                  tuiSlider
-                  type="range"
-                  [max]="5000000"
-                  [min]="0"
-                  [step]="50000"
-                  [ngModel]="priceRange[0]"
-                  (ngModelChange)="onMinPriceChange($event)"
-                  class="slider-input"
-                />
-                <input
-                  tuiSlider
-                  type="range"
-                  [max]="5000000"
-                  [min]="0"
-                  [step]="50000"
-                  [ngModel]="priceRange[1]"
-                  (ngModelChange)="onMaxPriceChange($event)"
-                  class="slider-input"
-                />
-              </div>
-              <div class="range-labels">
-                <span>{{ priceRange[0] | number }} đ</span>
-                <span>{{ priceRange[1] | number }} đ</span>
-              </div>
-            </div>
-          </div>
+          <tui-accordion [rounded]="false" class="luxe-accordion">
+            <!-- Price Filter -->
+            <tui-accordion-item [open]="true">
+              <strong>Khoảng giá</strong>
+              <ng-template tuiAccordionItemContent>
+                <div class="range-wrapper">
+                  <div class="dual-slider">
+                    <input
+                      tuiSlider
+                      type="range"
+                      [max]="5000000"
+                      [min]="0"
+                      [step]="50000"
+                      [(ngModel)]="priceRange[0]"
+                      (ngModelChange)="onMinPriceChange($event)"
+                      class="slider-input"
+                    />
+                    <input
+                      tuiSlider
+                      type="range"
+                      [max]="5000000"
+                      [min]="0"
+                      [step]="50000"
+                      [(ngModel)]="priceRange[1]"
+                      (ngModelChange)="onMaxPriceChange($event)"
+                      class="slider-input"
+                    />
+                  </div>
+                  <div class="range-labels">
+                    <span>{{ priceRange[0] | number }} đ</span>
+                    <span>{{ priceRange[1] | number }} đ</span>
+                  </div>
+                </div>
+              </ng-template>
+            </tui-accordion-item>
 
-          <!-- Category Filter -->
-          <div class="filter-section">
-            <h4 class="filter-title">Danh mục</h4>
-            <div class="search-filter-wrapper">
-              <input 
-                type="text" 
-                class="filter-search-input" 
-                placeholder="Tìm danh mục..."
-                [(ngModel)]="categorySearchQuery"
-              />
-              <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
-            </div>
-            <div class="category-list scrollable">
-              <ul class="meta-list">
-                <li *ngFor="let cat of filteredCategories">
-                  <button 
-                    class="meta-btn" 
-                    [class.active]="selectedCategoryId === cat.id"
-                    (click)="selectedCategoryId = cat.id; applyFilters()"
-                  >
-                    {{ cat.name }}
-                  </button>
-                </li>
-              </ul>
-              <div *ngIf="filteredCategories.length === 0" class="filter-empty">
-                Không thấy kết quả
-              </div>
-            </div>
-          </div>
+            <!-- Category Filter -->
+            <tui-accordion-item>
+              <strong>Danh mục</strong>
+              <ng-template tuiAccordionItemContent>
+                <div class="compact-search">
+                  <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
+                  <input 
+                    type="text" 
+                    [(ngModel)]="categorySearchQuery"
+                    placeholder="Tìm danh mục..."
+                  />
+                </div>
+                <div class="category-list scrollable luxe-scroll">
+                  <ul class="meta-list">
+                    <li *ngFor="let cat of filteredCategories">
+                      <button 
+                        class="meta-btn" 
+                        [class.active]="selectedCategoryId === cat.id"
+                        (click)="selectedCategoryId = cat.id; applyFilters()"
+                      >
+                        {{ cat.name }}
+                      </button>
+                    </li>
+                  </ul>
+                  <div *ngIf="filteredCategories.length === 0" class="filter-empty">
+                    Không thấy kết quả
+                  </div>
+                </div>
+              </ng-template>
+            </tui-accordion-item>
 
-          <!-- Brand Filter -->
-          <div class="filter-section">
-            <h4 class="filter-title">Thương hiệu</h4>
-            <div class="brand-list scrollable">
-              <div *ngFor="let brand of availableBrands" class="brand-item">
-                <input
-                  tuiCheckbox
-                  type="checkbox"
-                  [ngModel]="selectedBrands.has(brand)"
-                  (ngModelChange)="toggleBrand(brand)"
-                  class="brand-checkbox"
-                />
-                <span (click)="toggleBrand(brand)">{{ brand }}</span>
-              </div>
-            </div>
-          </div>
+            <!-- Brand Filter -->
+            <tui-accordion-item>
+              <strong>Thương hiệu</strong>
+              <ng-template tuiAccordionItemContent>
+                <div class="compact-search">
+                  <tui-icon icon="@tui.search" class="search-icon"></tui-icon>
+                  <input
+                    type="text"
+                    [(ngModel)]="brandSearchQuery"
+                    (ngModelChange)="cdr.detectChanges()"
+                    placeholder="Tìm thương hiệu..."
+                  />
+                </div>
+                <div class="brand-list scrollable luxe-scroll">
+                  <div *ngFor="let brand of filteredBrands" class="brand-item">
+                    <input
+                      tuiCheckbox
+                      type="checkbox"
+                      size="s"
+                      [ngModel]="selectedBrands.has(brand)"
+                      (ngModelChange)="toggleBrand(brand)"
+                    />
+                    <span (click)="toggleBrand(brand)" class="brand-name">{{ brand }}</span>
+                  </div>
+                  <div *ngIf="filteredBrands.length === 0" class="no-results">
+                    Không tìm thấy kết quả
+                  </div>
+                </div>
+              </ng-template>
+            </tui-accordion-item>
+          </tui-accordion>
         </div>
       </aside>
 

@@ -9,6 +9,25 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface OrderItemRequest {
+  variantId?: number;
+  productId: number;
+  quantity: number;
+  unitPrice: number;
+  appliedRuleId?: number;
+}
+
+export interface OrderRequest {
+  userId?: number;
+  orderType: 'RETAIL' | 'WHOLESALE';
+  paymentMethod: 'COD' | 'VNPAY' | 'NET_TERMS';
+  fullName: string;
+  phone: string;
+  shippingAddress: string;
+  note?: string;
+  items: OrderItemRequest[];
+}
+
 export interface RuleTarget {
   applyProductType: string;
   applyProductValue: string;
@@ -87,6 +106,11 @@ export interface TranslationRequest {
   translatedName?: string;
   translatedDescription?: string;
   translatedData?: string;
+}
+
+export interface AIResponse {
+  message: string;
+  products: Product[];
 }
 
 export interface PricingRule {
@@ -234,6 +258,10 @@ export interface Order {
   paidAmount: number;
   debtAmount: number;
   dueDate: string;
+  fullName?: string;
+  phone?: string;
+  shippingAddress?: string;
+  note?: string;
   createdAt: string;
   items?: OrderItem[];
 }
@@ -380,6 +408,12 @@ export class ApiService {
   private apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
+
+  // ─── Orders ────────────────────────────────────────────
+  createOrder(request: OrderRequest): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/orders`, request).pipe(map(r => r.data));
+  }
+
 
   // ─── Categories ────────────────────────────────────────
   getCategories(): Observable<Category[]> {
@@ -608,6 +642,10 @@ export class ApiService {
     return this.http.post<ApiResponse<AIProductSync>>(`${this.base}/ai-sync/sync/${productId}`, {}).pipe(map(r => r.data));
   }
 
+  generateAiDescriptions(): Observable<string> {
+    return this.http.post<ApiResponse<string>>(`${this.base}/ai-sync/generate-descriptions`, {}).pipe(map(r => r.data));
+  }
+
   // ─── Reports & Analytics ──────────────────────────────
   getSalesReport(startDate?: string, endDate?: string): Observable<SalesReport> {
     return this.http.get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
@@ -715,5 +753,11 @@ export class ApiService {
   }
   checkRuleConflicts(ruleType: string, newRule: RuleTarget): Observable<string[]> {
     return this.http.post<string[]>(`${this.base}/rules/conflicts/check`, { ruleType, newRule });
+  }
+
+  // ─── AI Assistant ────────────────────────────
+  chatWithAI(message: string): Observable<AIResponse> {
+    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, { message })
+      .pipe(map(res => res.data));
   }
 }

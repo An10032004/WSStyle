@@ -61,7 +61,7 @@ public class Product {
 
     // --- Quan hệ 1-N với ProductVariant ---
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("product")
     @Builder.Default
     private List<ProductVariant> variants = new ArrayList<>();
 }

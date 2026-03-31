@@ -24,7 +24,7 @@ public class ProductVariant {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("variants")
     private Product product;
 
     // Read-only mapping to prevent N+1 queries when reading product ID

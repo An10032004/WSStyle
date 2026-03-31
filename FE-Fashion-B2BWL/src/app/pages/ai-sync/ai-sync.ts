@@ -30,8 +30,11 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   template: `
     <div class="page-container" *transloco="let t">
       <div class="header-section" style="padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 class="title">Đồng bộ Trợ lý AI (RAG)</h2>
+        <h2 class="title">🦾 Trợ lý AI & Đồng bộ Dữ liệu</h2>
         <div style="display: flex; gap: 12px;">
+           <button tuiButton size="m" appearance="primary" (click)="generateAllDescriptions()">
+             ⚡ Viết mô tả hàng loạt
+           </button>
            <button tuiButton size="m" appearance="secondary" (click)="loadData()">
              {{ 'COMMON.REFRESH' | transloco }}
            </button>
@@ -56,6 +59,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   styles: [`
     .page-container { padding: 0; }
     .grid-wrapper { padding: 0 16px; }
+    .ag-theme-alpine {
+      --ag-header-background-color: #f8fafc;
+      --ag-border-color: #e2e8f0;
+    }
   `],
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -66,38 +73,53 @@ export class AiSyncComponent implements OnInit {
   gridApi!: GridApi;
   
   columnDefs: ColDef[] = [
-    { field: 'productId', headerName: 'ID', width: 100, pinned: 'left' },
+    { field: 'productId', headerName: 'ID', width: 80, pinned: 'left' },
     { 
       field: 'productName', 
       headerName: 'Tên sản phẩm', 
-      width: 300, 
+      width: 250, 
       pinned: 'left',
       tooltipValueGetter: (params: any) => params.value
     },
     { 
+      field: 'content', 
+      headerName: 'Mô tả AI', 
+      width: 400,
+      wrapText: true,
+      autoHeight: true,
+      cellStyle: { 'line-height': '1.5', 'padding': '8px' },
+      valueFormatter: params => params.value || '(Chưa có mô tả)'
+    },
+    { 
       field: 'status', 
-      headerName: 'Trạng thái đồng bộ', 
-      width: 180,
+      headerName: 'Trạng thái', 
+      width: 150,
       cellRenderer: (params: any) => {
-        const isSynced = !!params.data.vectorId;
-        const appearance = isSynced ? 'success' : 'neutral';
-        const text = isSynced ? 'Đã đồng bộ' : 'Chưa đồng bộ';
+        const hasContent = !!params.data.content;
+        const appearance = hasContent ? 'success' : 'neutral';
+        const text = hasContent ? 'Đã viết mô tả' : 'Đang chờ';
         return `<span class="tui-badge tui-badge_${appearance}">${text}</span>`;
       }
     },
-    { field: 'vectorId', headerName: 'Vector ID', width: 150, valueFormatter: params => params.value || '-' },
-    { field: 'lastSyncedAt', headerName: 'Lần cuối đồng bộ', width: 180, valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '-' },
+    { field: 'lastSyncedAt', headerName: 'Cập nhật cuối', width: 180, valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '-' },
     {
       headerName: 'Thao tác',
-      width: 150,
+      width: 180,
+      pinned: 'right',
       cellRenderer: (params: any) => {
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.gap = '8px';
+
         const btn = document.createElement('button');
-        btn.innerText = 'Đồng bộ ngay';
-        btn.className = 'tui-button tui-button_size_s tui-button_appearance_primary';
-        btn.style.padding = '4px 12px';
-        btn.style.fontSize = '12px';
+        btn.innerText = 'Đồng bộ RAG';
+        btn.className = 'tui-button tui-button_size_s tui-button_appearance_secondary';
+        btn.style.padding = '4px 8px';
+        btn.style.fontSize = '11px';
         btn.onclick = () => this.syncProduct(params.data.productId);
-        return btn;
+        
+        container.appendChild(btn);
+        return container;
       }
     }
   ];
@@ -126,6 +148,7 @@ export class AiSyncComponent implements OnInit {
           return {
             productId: p.id,
             productName: p.name,
+            content: sync?.content,
             vectorId: sync?.vectorId,
             lastSyncedAt: sync?.lastSyncedAt,
           };
@@ -146,12 +169,30 @@ export class AiSyncComponent implements OnInit {
     
     this.api.syncProductAi(productId).subscribe({
       next: (res) => {
-        this.alerts.open('Đồng bộ thành công!', { appearance: 'success' }).subscribe();
+        this.alerts.open('Đồng bộ RAG thành công!', { appearance: 'success' }).subscribe();
         this.loadData();
       },
       error: (err) => {
         this.loading = false;
         this.alerts.open('Lỗi đồng bộ: ' + err.message, { appearance: 'error' }).subscribe();
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  generateAllDescriptions() {
+    this.loading = true;
+    this.cdr.detectChanges();
+    
+    this.api.generateAiDescriptions().subscribe({
+      next: (msg) => {
+        this.alerts.open(msg, { appearance: 'success', label: 'Tiến trình AI' }).subscribe();
+        // Giả lập load lại sau 2s để thấy kết quả (vì AI chạy async ngầm trong thực tế, nhưng ở code java mình đang block)
+        setTimeout(() => this.loadData(), 2000);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alerts.open('Lỗi kích hoạt AI: ' + err.message, { appearance: 'error' }).subscribe();
         this.cdr.detectChanges();
       }
     });

@@ -1,8 +1,6 @@
-// Dosiin Professional Header Variables
-
-$dosiin-purple: #9f7aea;
-$dosiin-grey: #f1f3f5;
-$dosiin-text: #1e293b;
+$brand-purple: #9f7aea;
+$brand-grey: #f1f3f5;
+$brand-text: #1e293b;
 
 // TOP BAR
 .top-bar {
@@ -81,8 +79,8 @@ $dosiin-text: #1e293b;
     display: flex;
     align-items: baseline;
     
-    .logo-d { color: #000; letter-spacing: -2px; }
-    .logo-n { color: #000; margin-left: 2px; }
+    .logo-d { color: #000; letter-spacing: -1px; }
+    .logo-n { color: #000; margin-left: 0px; }
   }
 
   .header-tabs {
@@ -90,7 +88,7 @@ $dosiin-text: #1e293b;
     gap: 28px;
 
     .tab {
-      color: $dosiin-text;
+      color: $brand-text;
       text-decoration: none;
       font-weight: 700;
       font-size: 17px;
@@ -99,7 +97,7 @@ $dosiin-text: #1e293b;
       transition: color 0.2s;
 
       &.active {
-        color: $dosiin-purple;
+        color: $brand-purple;
         &::after {
           content: "";
           position: absolute;
@@ -107,7 +105,7 @@ $dosiin-text: #1e293b;
           left: 0;
           width: 100%;
           height: 3px;
-          background: $dosiin-purple;
+          background: $brand-purple;
           border-radius: 2px;
         }
       }
@@ -122,6 +120,7 @@ $dosiin-text: #1e293b;
 .header-center {
   flex: 1;
   max-width: 550px;
+  position: relative;
 
   .search-wrapper {
     background: #f1f5f9;
@@ -130,17 +129,22 @@ $dosiin-text: #1e293b;
     display: flex;
     align-items: center;
     gap: 12px;
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 44px;
+    border: 1px solid transparent;
 
     &:focus-within {
       background: #fff;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      border-color: #e2e8f0;
+      transform: translateY(-1px);
     }
 
     .search-icon {
       color: #94a3b8;
       font-size: 18px;
+      cursor: pointer;
+      &:hover { color: #111; }
     }
 
     input {
@@ -156,8 +160,115 @@ $dosiin-text: #1e293b;
         color: #94a3b8;
       }
     }
+
+    .clear-icon {
+      color: #94a3b8;
+      font-size: 16px;
+      cursor: pointer;
+      transition: color 0.15s, transform 0.15s;
+      
+      &:hover {
+        color: #ef4444;
+        transform: scale(1.1);
+      }
+    }
   }
 }
+
+// LUXE SEARCH SUGGESTIONS
+.search-suggestions-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    width: 550px;
+    border-radius: 20px;
+    box-shadow: 
+        0 20px 50px rgba(0,0,0,0.12),
+        0 0 0 1px rgba(0,0,0,0.04);
+    overflow: hidden;
+    margin-top: 12px;
+    animation: slideUpSuggestions 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    .suggestion-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-bottom: 1px solid rgba(0,0,0,0.03);
+
+        &:last-child { border-bottom: none; }
+
+        &:hover {
+            background: rgba(0,0,0,0.02);
+            padding-left: 28px;
+        }
+
+        .suggestion-img {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #f8fafc;
+            flex-shrink: 0;
+            border: 1px solid #f1f5f9;
+            
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+        }
+
+        .suggestion-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+
+            .suggestion-name {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: #0f172a;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .suggestion-price {
+                font-size: 0.85rem;
+                font-weight: 800;
+                color: #64748b;
+            }
+        }
+    }
+
+    .suggestion-footer {
+        padding: 15px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 800;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-top: 1px solid #f1f5f9;
+
+        &:hover {
+            background: #111;
+            color: #fff;
+        }
+    }
+}
+
+@keyframes slideUpSuggestions {
+    from { opacity: 0; transform: translateY(15px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 
 .header-right {
   display: flex;
@@ -168,7 +279,7 @@ $dosiin-text: #1e293b;
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: $dosiin-grey;
+      background: $brand-grey;
       border: none;
       display: flex;
       align-items: center;
@@ -183,7 +294,7 @@ $dosiin-text: #1e293b;
       }
 
       &:hover {
-        background: darken($dosiin-grey, 5%);
+        background: darken($brand-grey, 5%);
         transform: translateY(-2px);
       }
 
@@ -205,7 +316,117 @@ $dosiin-text: #1e293b;
         border: 2px solid #fff;
         line-height:1;
       }
-    }.user-profile {
+    }
+    
+    // QUICK CART DROPDOWN
+    .quick-cart {
+      width: 320px;
+      min-width: 320px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+      border: 1px solid rgba(0,0,0,0.05);
+      overflow: hidden;
+
+      .quick-cart-header {
+        padding: 16px 20px;
+        background: $brand-grey;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+
+        h3 { margin: 0; font-size: 0.95rem; font-weight: 800; color: #111; }
+        .count { font-size: 0.8rem; color: #666; font-weight: 500; }
+      }
+
+      .quick-cart-items {
+        max-height: 380px;
+        overflow-y: auto;
+        padding: 10px 0;
+
+        &.scrollable {
+          &::-webkit-scrollbar { width: 4px; }
+          &::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+        }
+
+        .q-item {
+          display: flex;
+          gap: 15px;
+          padding: 12px 20px;
+          border-bottom: 1px solid #f8f8f8;
+          transition: background 0.2s;
+          &:hover { background: #fafafa; }
+          &:last-child { border-bottom: none; }
+
+          img {
+            width: 50px;
+            height: 65px;
+            object-fit: cover;
+            border-radius: 6px;
+            background: #f5f5f5;
+          }
+
+          .q-info {
+            flex: 1;
+            .q-name {
+              font-size: 0.85rem;
+              font-weight: 700;
+              color: #111;
+              line-height: 1.3;
+              margin-bottom: 4px;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+            }
+            .q-meta {
+              font-size: 0.8rem;
+              color: #777;
+              .q-price { color: #111; font-weight: 700; }
+            }
+          }
+        }
+
+        .q-empty {
+          padding: 40px 20px;
+          text-align: center;
+          color: #999;
+          font-size: 0.85rem;
+        }
+      }
+
+      .quick-cart-footer {
+        padding: 20px;
+        border-top: 1px solid #eee;
+        background: #fff;
+
+        .q-total {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          font-size: 0.9rem;
+          span { color: #555; }
+          strong { font-size: 1.1rem; color: #fe2c55; font-weight: 800; }
+        }
+
+        .q-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          
+          button {
+            width: 100%;
+            font-size: 0.75rem !important;
+            font-weight: 700;
+          }
+        }
+      }
+    }
+    
+    .user-profile {
     .user-trigger {
       background: none;
       border: none;

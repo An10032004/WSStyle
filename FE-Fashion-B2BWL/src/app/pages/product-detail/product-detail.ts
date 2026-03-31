@@ -358,7 +358,7 @@ export class ProductDetailComponent implements OnInit {
 
   addToCart() {
     if (!this.product) return;
-    this.cart.addToCart(this.product, this.selectedVariant, this.quantity);
+    this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice);
   }
 
   logout(): void {

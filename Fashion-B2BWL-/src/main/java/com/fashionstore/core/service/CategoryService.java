@@ -54,7 +54,7 @@ public class CategoryService {
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = Category.builder()
                 .name(request.getName())
-                .shopId(1) // THIẾU: Gán shop_id mặc định là 1 (Admin của Fashion B2BWL)
+                .shopId(1) // THIẾU: Gán shop_id mặc định là 1 (Admin của WSSTYLE)
                 .build();
 
         // Nếu có parentId → gán parent
