@@ -43,7 +43,6 @@ export class ShopComponent implements OnInit {
   readonly auth = inject(AuthService);
 
   products: Product[] = [];
-  filteredProducts: Product[] = [];
   categories: Category[] = [];
   
   // Filter State (Pure properties to avoid NG01203)
@@ -57,21 +56,13 @@ export class ShopComponent implements OnInit {
   // Pagination State
   page = 0;
   pageSize = 30;
+  totalPages = 0;
+  totalElements = 0;
 
   // Derived Brands from products
   availableBrands: string[] = [];
 
   constructor() {}
-
-  get pagedProducts(): Product[] {
-    const start = this.page * this.pageSize;
-    const end = start + this.pageSize;
-    return this.filteredProducts.slice(start, end);
-  }
-
-  get totalPages(): number {
-    return Math.ceil(this.filteredProducts.length / this.pageSize);
-  }
 
   get filteredCategories(): Category[] {
     if (!this.categorySearchQuery.trim()) {
@@ -91,13 +82,17 @@ export class ShopComponent implements OnInit {
 
   ngOnInit() {
     this.loadCategories();
-    this.loadProducts();
+    this.api.getProductBrands().subscribe(brands => {
+        this.availableBrands = brands;
+        this.cdr.detectChanges();
+    });
 
     this.route.params.subscribe(params => {
         if (params['id']) {
             this.selectedCategoryId = +params['id'];
-            this.applyFilters();
         }
+        // applyFilters handles loadProducts and resetting page to 0
+        this.applyFilters();
     });
 
     this.route.queryParams.subscribe(params => {
@@ -115,16 +110,6 @@ export class ShopComponent implements OnInit {
     });
   }
 
-  loadProducts() {
-    const userId = this.auth.currentUserValue?.id;
-    this.api.getProducts(userId).subscribe(prods => {
-      this.products = prods;
-      // Extract unique brands for filtering
-      this.availableBrands = Array.from(new Set(prods.map(p => this.getBrand(p)))).filter(b => !!b && b !== 'No Brand');
-      this.applyFilters();
-    });
-  }
-
   getBrand(p: Product): string {
     return p.brand || 'No Brand';
   }
@@ -138,49 +123,37 @@ export class ShopComponent implements OnInit {
       });
     };
     findChildren(categoryId);
-    return ids;
+    return ids; // Ensure this returns the correct nested array structure, it currently does flat map.
+  }
+
+  loadProducts() {
+    const userId = this.auth.currentUserValue?.id;
+    let categoryIds: number[] = [];
+    if (this.selectedCategoryId) {
+       categoryIds = this.getValidCategoryIds(this.selectedCategoryId);
+    }
+
+    this.api.searchProducts({
+        search: this.urlSearchQuery,
+        categoryIds: categoryIds.length > 0 ? categoryIds : null,
+        minPrice: this.priceRange[0],
+        maxPrice: this.priceRange[1],
+        brands: Array.from(this.selectedBrands),
+        sortBy: this.sortBy,
+        page: this.page,
+        size: this.pageSize,
+        userId: userId
+    }).subscribe(res => {
+        this.products = res.content;
+        this.totalPages = res.totalPages;
+        this.totalElements = res.totalElements;
+        this.cdr.detectChanges();
+    });
   }
 
   applyFilters() {
-    let result = [...this.products];
-
-    // 1. Filter by Search Query (from Header)
-    if (this.urlSearchQuery) {
-      const query = this.urlSearchQuery.toLowerCase();
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(query) || 
-        this.getBrand(p).toLowerCase().includes(query)
-      );
-    }
-
-    // 2. Filter by Category (include children)
-    if (this.selectedCategoryId) {
-      const validIds = this.getValidCategoryIds(this.selectedCategoryId);
-      result = result.filter(p => p.categoryId != null && validIds.includes(p.categoryId));
-    }
-
-    // 2. Filter by Price
-    const [min, max] = this.priceRange;
-    result = result.filter(p => p.basePrice >= min && p.basePrice <= max);
-
-    // 3. Filter by Brand
-    if (this.selectedBrands.size > 0) {
-      result = result.filter(p => this.selectedBrands.has(this.getBrand(p)));
-    }
-
-    // 4. Sorting
-    if (this.sortBy === 'price-asc') {
-      result.sort((a, b) => a.basePrice - b.basePrice);
-    } else if (this.sortBy === 'price-desc') {
-      result.sort((a, b) => b.basePrice - a.basePrice);
-    } else {
-        result.sort((a, b) => b.id - a.id);
-    }
-
-    this.filteredProducts = result;
-    this.page = 0; // Reset to page 1 on filter change
-    
-    this.cdr.detectChanges();
+    this.page = 0; // Reset to page 0 on filter change
+    this.loadProducts();
   }
 
   onMinPriceChange(val: number) {
@@ -210,7 +183,7 @@ export class ShopComponent implements OnInit {
   onPageChange(page: number) {
     this.page = page;
     this.scrollToTop();
-    this.cdr.detectChanges();
+    this.loadProducts(); // Load new page from server
   }
 
   private scrollToTop() {

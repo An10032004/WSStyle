@@ -14,6 +14,7 @@ import java.util.List;
 public class NetTermRuleService {
 
     private final NetTermRuleRepository netTermRuleRepository;
+    private final RuleCoreService ruleCoreService;
 
     public List<NetTermRule> getAllRules() {
         return netTermRuleRepository.findAll();
@@ -26,6 +27,9 @@ public class NetTermRuleService {
 
     @Transactional
     public NetTermRule createRule(NetTermRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("NET_TERM", request.getPriority(), -1)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for NET Term Rules.");
+        }
         NetTermRule rule = NetTermRule.builder()
                 .name(request.getName())
                 .priority(request.getPriority())
@@ -40,6 +44,9 @@ public class NetTermRuleService {
 
     @Transactional
     public NetTermRule updateRule(Integer id, NetTermRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("NET_TERM", request.getPriority(), id)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for NET Term Rules.");
+        }
         NetTermRule rule = getRuleById(id);
         rule.setName(request.getName());
         rule.setPriority(request.getPriority());

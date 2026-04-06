@@ -41,9 +41,21 @@
 
       <label tuiLabel class="form-field full-width">
         <span style="color: #1976d2; font-weight: bold;">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
-        <tui-select [(ngModel)]="formData.customerGroupId">
-          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="content"></tui-data-list-wrapper>
-          <ng-template #content let-item>{{ item.name }}</ng-template>
+        <tui-select [(ngModel)]="formData.customerGroupId" [valueContent]="selectedGroupNameTemplate">
+          <tui-data-list-wrapper 
+            *tuiDataList 
+            [items]="customerGroups" 
+            [itemContent]="dropdownItem"
+            (itemClick)="formData.customerGroupId = $event.id"
+          ></tui-data-list-wrapper>
+          
+          <ng-template #selectedGroupNameTemplate>
+            {{ selectedGroupName }}
+          </ng-template>
+          
+          <ng-template #dropdownItem let-item>
+            {{ item.name }}
+          </ng-template>
         </tui-select>
       </label>
 

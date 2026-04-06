@@ -51,8 +51,15 @@ export class LoginComponent {
     const { email, password } = this.loginForm.value;
     this.auth.login({ email: email!, password: password! }).subscribe({
       next: (res) => {
-        if (res.success) {
-          this.router.navigate(['/storefront']);
+        if (res.success && res.user) {
+          const role = res.user.role?.toUpperCase() || '';
+          const isAdmin = role === 'ADMINISTRATOR' || role === 'ADMIN' || role === 'STAFF';
+          
+          if (isAdmin) {
+            this.router.navigate(['/dashboard']);
+          } else {
+            this.router.navigate(['/storefront']);
+          }
         } else {
           this.errorMsg = res.message;
           this.loading = false;

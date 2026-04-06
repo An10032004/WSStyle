@@ -15,6 +15,14 @@
         <div class="cart-main">
           <div class="cart-table">
             <div class="table-header">
+              <span class="col-cb">
+                <input
+                  tuiCheckbox
+                  type="checkbox"
+                  [ngModel]="isAllSelected$ | async"
+                  (ngModelChange)="toggleAll($event)"
+                />
+              </span>
               <span class="col-prod">Product</span>
               <span class="col-price">Price</span>
               <span class="col-qty">Quantity</span>
@@ -22,7 +30,15 @@
               <span class="col-actions"></span>
             </div>
 
-            <div class="table-row" *ngFor="let item of items">
+            <div class="table-row" *ngFor="let item of items" [class.selected]="item.selected">
+              <div class="col-cb">
+                <input
+                  tuiCheckbox
+                  type="checkbox"
+                  [ngModel]="item.selected"
+                  (ngModelChange)="toggleItem(item, $event)"
+                />
+              </div>
               <div class="col-prod">
                 <div class="prod-info">
                   <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
@@ -98,7 +114,7 @@
               tuiButton 
               size="l" 
               class="checkout-btn" 
-              [disabled]="!(isValid$ | async)"
+              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async)"
               (click)="goToCheckout()"
             >
               CHECKOUT NOW

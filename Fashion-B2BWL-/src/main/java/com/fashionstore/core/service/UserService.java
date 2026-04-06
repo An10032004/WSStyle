@@ -99,6 +99,8 @@ public class UserService {
                 .phone(request.getPhone())
                 .role("RETAIL") // Default role for storefront users
                 .registrationStatus("APPROVED")
+                .companyName(request.getCompanyName())
+                .taxCode(request.getTaxCode())
                 .build();
         return userRepository.save(user);
     }
@@ -116,6 +118,11 @@ public class UserService {
                     }
                     return matches;
                 });
+    }
+
+    @Transactional
+    public User save(User user) {
+        return userRepository.save(user);
     }
 
     @Transactional

@@ -4,7 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
+import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 import { BehaviorSubject, map, shareReplay, startWith, switchMap, tap } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
@@ -17,7 +17,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [
     CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiBadge,
-    TuiFormatNumberPipe, TuiLabel, TuiLoader, TranslocoModule,
+    TuiFormatNumberPipe, TuiLabel, TuiLoader, TranslocoModule, TuiCheckbox,
     StorefrontHeaderComponent, StorefrontFooterComponent
   ],
   templateUrl: './cart.html',
@@ -42,6 +42,14 @@ export class CartComponent implements OnInit {
 
   isValid$ = this.validationResults$.pipe(
     map(results => results.length === 0 || results.every(r => r.success))
+  );
+
+  isAnySelected$ = this.cart$.pipe(
+    map(items => items.some(i => i.selected))
+  );
+
+  isAllSelected$ = this.cart$.pipe(
+    map(items => items.length > 0 && items.every(i => i.selected))
   );
 
   ngOnInit() {
@@ -72,10 +80,20 @@ export class CartComponent implements OnInit {
   }
 
   get totalItems$() {
-    return this.cart$.pipe(map(items => items.reduce((sum, i) => sum + i.quantity, 0)));
+    return this.cart$.pipe(map(items => items.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0)));
   }
 
   get totalPrice$() {
-    return this.cart$.pipe(map(items => items.reduce((sum, i) => sum + (i.price * i.quantity), 0)));
+    return this.cart$.pipe(map(items => items.filter(i => i.selected).reduce((sum, i) => sum + (i.price * i.quantity), 0)));
+  }
+
+  toggleItem(item: CartItem, selected: boolean) {
+    this.cartService.toggleItemSelection(item.productId, item.variantId, selected);
+    this.revalidate();
+  }
+
+  toggleAll(selected: boolean) {
+    this.cartService.toggleAll(selected);
+    this.revalidate();
   }
 }

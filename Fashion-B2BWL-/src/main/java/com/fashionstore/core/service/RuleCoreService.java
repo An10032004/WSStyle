@@ -19,6 +19,7 @@ public class RuleCoreService {
     private final HidePriceRuleRepository hidePriceRuleRepository;
     private final SaleCampaignRepository saleCampaignRepository;
     private final TaxDisplayRuleRepository taxDisplayRuleRepository;
+    private final NetTermRuleRepository netTermRuleRepository;
 
     /**
      * Common interface-like data holder for rule targeting
@@ -64,12 +65,15 @@ public class RuleCoreService {
         if (applyProductType == null || applyProductType.equals("ALL")) return true;
         
         try {
+            @SuppressWarnings("unchecked")
             Map<String, Object> val = objectMapper.readValue(applyProductValue, Map.class);
-            if (applyProductType.equals("CATEGORY")) {
+            if (applyProductType.equals("CATEGORY") || applyProductType.equals("GROUP")) {
+                @SuppressWarnings("unchecked")
                 List<Integer> categoryIds = (List<Integer>) val.get("categoryIds");
                 return categoryIds != null && categoryIds.contains(categoryId);
             }
             if (applyProductType.equals("SPECIFIC")) {
+                @SuppressWarnings("unchecked")
                 List<Integer> productIds = (List<Integer>) val.get("productIds");
                 return productIds != null && productIds.contains(productId);
             }
@@ -102,7 +106,7 @@ public class RuleCoreService {
                 } else if (existing.priority > newRule.priority) {
                     conflicts.add("CẢNH BÁO: Quy tắc này sẽ GHI ĐÈ lên '" + existing.name + "' ở những phần trùng điều kiện, do nó có mức ưu tiên cao hơn (" + newRule.priority + ")");
                 } else if (existing.priority.equals(newRule.priority)) {
-                    conflicts.add("LỖI ƯU TIÊN: Quy tắc này có cùng mức ưu tiên (" + newRule.priority + ") với '" + existing.name + "'. Hệ thống sẽ không biết áp dụng cái nào trước, vui lòng đổi mức ưu tiên!");
+                    conflicts.add("LỖI ƯU TIÊN: Quy tắc này có cùng mức ưu tiên (" + newRule.priority + ") với '" + existing.name + "'. Hệ thống sẽ không biệt áp dụng cái nào trước, vui lòng đổi mức ưu tiên!");
                 }
             }
         }
@@ -114,14 +118,18 @@ public class RuleCoreService {
         if (r1.applyProductType.equals("ALL") || r2.applyProductType.equals("ALL")) return true;
         
         try {
+            @SuppressWarnings("unchecked")
             Map<String, Object> v1 = objectMapper.readValue(r1.applyProductValue, Map.class);
+            @SuppressWarnings("unchecked")
             Map<String, Object> v2 = objectMapper.readValue(r2.applyProductValue, Map.class);
             
             if (r1.applyProductType.equals(r2.applyProductType)) {
-                String key = r1.applyProductType.equals("CATEGORY") ? "categoryIds" : "productIds";
+                String key = (r1.applyProductType.equals("CATEGORY") || r1.applyProductType.equals("GROUP")) ? "categoryIds" : "productIds";
+                @SuppressWarnings("unchecked")
                 List<Integer> ids1 = (List<Integer>) v1.get(key);
+                @SuppressWarnings("unchecked")
                 List<Integer> ids2 = (List<Integer>) v2.get(key);
-                return !Collections.disjoint(ids1, ids2);
+                return ids1 != null && ids2 != null && !Collections.disjoint(ids1, ids2);
             }
             // If one is CATEGORY and one is SPECIFIC, it's complex. Assume possible overlap for safety.
             return true;
@@ -139,11 +147,15 @@ public class RuleCoreService {
         
         if (r1.applyCustomerType.equals(r2.applyCustomerType) && r1.applyCustomerType.equals("GROUP")) {
             try {
+                @SuppressWarnings("unchecked")
                 Map<String, Object> v1 = objectMapper.readValue(r1.applyCustomerValue, Map.class);
+                @SuppressWarnings("unchecked")
                 Map<String, Object> v2 = objectMapper.readValue(r2.applyCustomerValue, Map.class);
+                @SuppressWarnings("unchecked")
                 List<Integer> g1 = (List<Integer>) v1.get("groupIds");
+                @SuppressWarnings("unchecked")
                 List<Integer> g2 = (List<Integer>) v2.get("groupIds");
-                return !Collections.disjoint(g1, g2);
+                return g1 != null && g2 != null && !Collections.disjoint(g1, g2);
             } catch (Exception e) {
                 return true;
             }
@@ -158,6 +170,10 @@ public class RuleCoreService {
 
     public List<HidePriceRule> getAllActiveHidePriceRules() {
         return hidePriceRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
+    }
+
+    public List<NetTermRule> getAllActiveNetTermRules() {
+        return netTermRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
     }
 
     public List<SaleCampaign> getAllActiveSaleCampaigns() {
@@ -190,6 +206,16 @@ public class RuleCoreService {
         return findBestHidePriceRule(productId, categoryId, user, getAllActiveHidePriceRules());
     }
 
+    public Optional<NetTermRule> findBestNetTermRule(User user, List<NetTermRule> rules) {
+        return rules.stream()
+                .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
+                .min(Comparator.comparing(NetTermRule::getPriority));
+    }
+
+    public Optional<NetTermRule> findBestNetTermRule(User user) {
+        return findBestNetTermRule(user, getAllActiveNetTermRules());
+    }
+
     public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, User user, List<SaleCampaign> rules) {
         return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
@@ -210,5 +236,28 @@ public class RuleCoreService {
 
     public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, User user) {
         return findBestTaxRule(productId, categoryId, user, getAllActiveTaxRules());
+    }
+
+    public boolean isPriorityUnique(String ruleType, Integer priority, Integer excludeId) {
+        boolean exists = false;
+        switch (ruleType) {
+            case "PRICING":
+                exists = pricingRuleRepository.findAll().stream()
+                        .anyMatch(r -> r.getPriority().equals(priority) && !r.getId().equals(excludeId));
+                break;
+            case "HIDE_PRICE":
+                exists = hidePriceRuleRepository.findAll().stream()
+                        .anyMatch(r -> r.getPriority().equals(priority) && !r.getId().equals(excludeId));
+                break;
+            case "NET_TERM":
+                exists = netTermRuleRepository.findAll().stream()
+                        .anyMatch(r -> r.getPriority().equals(priority) && !r.getId().equals(excludeId));
+                break;
+            case "SALE":
+                exists = saleCampaignRepository.findAll().stream()
+                        .anyMatch(r -> r.getPriority().equals(priority) && !r.getId().equals(excludeId));
+                break;
+        }
+        return !exists;
     }
 }

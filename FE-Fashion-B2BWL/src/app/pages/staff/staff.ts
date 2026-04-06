@@ -102,7 +102,9 @@ export class StaffComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
 
   loadData(): void {
-    this.api.getUsers().subscribe(data => {
+    // Only fetch users with administrative/staff roles
+    const adminRoles = ['ADMIN', 'Administrator', 'STAFF'];
+    this.api.getUsersByRoles(adminRoles).subscribe(data => {
       this.rowData = data;
       this.cdr.detectChanges();
     });

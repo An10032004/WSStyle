@@ -56,9 +56,25 @@ export class CheckoutComponent implements OnInit {
     paymentMethod: ['COD', [Validators.required]]
   });
 
-  cart$ = this.cartService.cart$;
+  cart$ = this.cartService.cart$.pipe(map(items => items.filter(i => i.selected)), shareReplay(1)); 
+  subtotal$ = this.cart$.pipe(map(items => items.reduce((sum, i) => sum + (i.price * i.quantity), 0)));
   totalItems$ = this.cart$.pipe(map(items => items.reduce((sum, i) => sum + i.quantity, 0)));
-  totalPrice$ = this.cart$.pipe(map(items => items.reduce((sum, i) => sum + (i.price * i.quantity), 0)));
+  
+  shippingFee$ = new BehaviorSubject<number>(0);
+  totalPrice$ = new BehaviorSubject<number>(0);
+
+  isNetTermEligible$ = this.cart$.pipe(
+    map(items => items.length > 0 && items.every(i => (i as any).isNetTermEligible)),
+    startWith(false)
+  );
+
+  netTermDays$ = this.cart$.pipe(
+    map(items => {
+      const firstEligible = items.find(i => (i as any).isNetTermEligible);
+      return (firstEligible as any)?.netTermDays || 0;
+    }),
+    startWith(0)
+  );
 
   isPlacingOrder = false;
 
@@ -71,12 +87,83 @@ export class CheckoutComponent implements OnInit {
       });
     }
 
+    // Calculate shipping and total
+    this.subtotal$.pipe(
+      switchMap(subtotal => 
+        this.totalItems$.pipe(
+          map(itemsCount => ({ subtotal, itemsCount }))
+        )
+      )
+    ).subscribe(({ subtotal, itemsCount }) => {
+      this.calculateShipping(subtotal, itemsCount);
+    });
+
     // If cart is empty, go back to storefront
     this.cartService.cart$.subscribe(items => {
       if (items.length === 0 && !this.isPlacingOrder) {
         this.router.navigate(['/storefront']);
       }
     });
+  }
+
+  private calculateShipping(subtotal: number, itemsCount: number) {
+    this.apiService.getShippingRules().subscribe(rules => {
+      const activeRules = rules.filter(r => r.status === 'ACTIVE');
+      if (activeRules.length === 0) {
+        this.updateTotal(subtotal, 0);
+        return;
+      }
+
+      // Sort by priority (lower is better, or match logic from backend)
+      const sortedRules = activeRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      const user = this.auth.currentUserValue;
+      
+      // Find matching rule
+      let matchedRule = sortedRules.find(rule => {
+        // Customer Group Check
+        if (rule.applyCustomerType === 'GROUP' && rule.applyCustomerValue) {
+          try {
+            const val = JSON.parse(rule.applyCustomerValue);
+            const groupIds = val.groupIds || [];
+            return groupIds.includes(user?.customerGroup?.id);
+          } catch(e) { return false; }
+        }
+        if (rule.applyCustomerType === 'LOGGED_IN') return !!user;
+        if (rule.applyCustomerType === 'GUEST') return !user;
+        return true; // ALL
+      });
+
+      if (!matchedRule) {
+        this.updateTotal(subtotal, 0);
+        return;
+      }
+
+      // Calculate fee from rateRanges
+      let fee = 0;
+      try {
+        const ranges = JSON.parse(matchedRule.rateRanges || '[]');
+        const valToCheck = matchedRule.baseOn === 'AMOUNT_RANGE' ? subtotal : itemsCount;
+        
+        const rangeMatch = ranges.find((r: any) => {
+          const from = r.from ?? r.min ?? -1;
+          const to = r.to ?? r.max ?? 999999999;
+          return valToCheck >= from && valToCheck <= to;
+        });
+
+        if (rangeMatch) {
+          fee = rangeMatch.rate || 0;
+        }
+      } catch (e) {
+        console.error('Error parsing shipping ranges', e);
+      }
+
+      this.shippingFee$.next(fee);
+      this.updateTotal(subtotal, fee);
+    });
+  }
+
+  private updateTotal(subtotal: number, shipping: number) {
+    this.totalPrice$.next(subtotal + shipping);
   }
 
   setPaymentMethod(method: string) {
@@ -88,9 +175,11 @@ export class CheckoutComponent implements OnInit {
 
     this.isPlacingOrder = true;
     const formValue = this.checkoutForm.value;
-    const currentItems = this.cartService.cartItems;
+    const currentItems = this.cartService.cartItems.filter(i => i.selected);
     const user = this.auth.currentUserValue;
-    const total = currentItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    const subtotal = currentItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    const shippingFee = this.shippingFee$.value;
+    const finalTotal = subtotal + shippingFee;
 
     const request: OrderRequest = {
       userId: user?.id,
@@ -100,6 +189,7 @@ export class CheckoutComponent implements OnInit {
       phone: formValue.phone,
       shippingAddress: formValue.shippingAddress,
       note: formValue.note,
+      shippingFee: shippingFee,
       items: currentItems.map(i => ({
         productId: i.productId,
         variantId: i.variantId,
@@ -110,26 +200,23 @@ export class CheckoutComponent implements OnInit {
 
     this.apiService.createOrder(request).subscribe({
       next: (order) => {
+        this.isPlacingOrder = false;
         this.currentOrder = order;
         if (formValue.paymentMethod === 'VNPAY') {
           // Generate VietQR URL
-          // Bank: VietinBank (970415), Acc: 0968987154
+          // Bank: VietinBank (970415), Acc: 103877669895
           const bankId = '970415';
           const accountNo = '103877669895';
           const accountName = encodeURIComponent('NGUYEN VAN SON');
           const description = encodeURIComponent(`Thanh toan don hang #${order.id}`);
           
-          this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${total}&addInfo=${description}&accountName=${accountName}`;
+          this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${finalTotal}&addInfo=${description}&accountName=${accountName}`;
           
           this.dialogs.open(this.paymentDialogTemplate, { 
             size: 'm', 
             dismissible: false,
             label: 'Secure Checkout' 
-          }).subscribe({
-            complete: () => {
-              this.onPaymentComplete();
-            }
-          });
+          }).subscribe(); // Removed the complete handler that was causing premature redirection
         } else {
           this.onPaymentComplete();
         }
@@ -144,13 +231,44 @@ export class CheckoutComponent implements OnInit {
     });
   }
 
-  onPaymentComplete() {
-    this.alerts.open('Thank you for your order! We will process it shortly.', { 
-      label: 'Order Successful', 
+  onPaymentComplete(isPaidNotify: boolean = false) {
+    const message = isPaidNotify 
+      ? 'Chúng tôi đã nhận được thông báo chuyển khoản của bạn. Vui lòng chờ nhân viên kiểm tra nhé!'
+      : 'Đơn hàng của bạn đã được ghi nhận. Bạn có thể thanh toán sau trong trang Lịch sử đơn hàng.';
+    
+    this.alerts.open(message, { 
+      label: 'Đặt hàng thành công', 
       appearance: 'success',
       autoClose: 5000 
     }).subscribe();
-    this.cartService.clear();
+    
+    this.cartService.clearSelected();
     this.router.navigate(['/storefront']);
+  }
+
+  confirmPayment(observer: any) {
+    if (!this.currentOrder) {
+      observer.complete();
+      return;
+    }
+    
+    this.apiService.updatePaymentStatus(this.currentOrder.id, 'AWAITING_CONFIRMATION').subscribe({
+      next: () => {
+        this.onPaymentComplete(true);
+        observer.complete();
+      },
+      error: () => {
+        this.alerts.open('Có lỗi xảy ra khi thông báo thanh toán. Vui lòng thử lại sau!', { 
+          label: 'Lỗi', 
+          appearance: 'error' 
+        }).subscribe();
+        observer.complete();
+      }
+    });
+  }
+
+  cancelPayment(observer: any) {
+    this.onPaymentComplete(false);
+    observer.complete();
   }
 }

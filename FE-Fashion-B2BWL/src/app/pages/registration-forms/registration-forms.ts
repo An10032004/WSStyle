@@ -132,7 +132,7 @@ export class RegistrationFormsComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
-    this.api.getB2BRegistrationForms().subscribe(data => {
+    this.api.getB2BForms().subscribe(data => {
       this.rowData = data;
       this.cdr.detectChanges();
     });

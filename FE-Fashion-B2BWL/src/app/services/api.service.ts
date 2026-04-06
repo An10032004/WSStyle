@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -25,6 +25,7 @@ export interface OrderRequest {
   phone: string;
   shippingAddress: string;
   note?: string;
+  shippingFee?: number;
   items: OrderItemRequest[];
 }
 
@@ -63,9 +64,14 @@ export interface Product {
   replacementText?: string;
   taxDisplayType?: string;
   taxDisplayLabel?: string;
+  priceExclTax?: number;
+  taxAmount?: number;
   campaignBanner?: string;
   campaignName?: string;
   quantityBreaksJson?: string;
+  isNetTermEligible?: boolean;
+  netTermDays?: number;
+  description?: string;
 }
 
 export interface ProductVariant {
@@ -209,7 +215,6 @@ export interface HidePriceRule {
 export interface CustomerGroup {
   id: number;
   name: string;
-  defaultDiscountRate?: number;
 }
 
 export interface Role {
@@ -436,6 +441,26 @@ export class ApiService {
       map(res => res.data)
     );
   }
+
+  searchProducts(searchParams: any): Observable<{content: Product[], totalElements: number, totalPages: number}> {
+    let params = new HttpParams();
+    Object.keys(searchParams).forEach(key => {
+        if (searchParams[key] !== null && searchParams[key] !== undefined && searchParams[key] !== '') {
+            // For arrays like categoryIds and brands, Spring Boot can take comma-separated
+            if (Array.isArray(searchParams[key])) {
+                params = params.set(key, searchParams[key].join(','));
+            } else {
+                params = params.set(key, searchParams[key]);
+            }
+        }
+    });
+    return this.http.get<ApiResponse<any>>(`${this.base}/products/search`, { params })
+        .pipe(map(r => r.data));
+  }
+
+  getProductBrands(): Observable<string[]> {
+    return this.http.get<ApiResponse<string[]>>(`${this.base}/products/brands`).pipe(map(r => r.data));
+  }
   getProductById(id: number, userId?: number): Observable<Product> {
     const url = userId ? `${this.base}/products/${id}?userId=${userId}` : `${this.base}/products/${id}`;
     return this.http.get<ApiResponse<Product>>(url).pipe(map(r => r.data));
@@ -615,6 +640,32 @@ export class ApiService {
   // ─── Orders ─────────────────────────────────────────────
   getOrders(): Observable<Order[]> {
     return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders`).pipe(map(r => r.data));
+  }
+
+  getOrdersByUser(userId: number): Observable<Order[]> {
+    return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders/user/${userId}`).pipe(map(r => r.data));
+  }
+
+  getOrdersByUserPaged(userId: number, page: number = 0, size: number = 10): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.base}/orders/paged`, {
+      params: { userId: userId.toString(), page: page.toString(), size: size.toString() }
+    }).pipe(map(r => r.data));
+  }
+
+  getReviewsByProduct(productId: number): Observable<any[]> {
+    return this.http.get<ApiResponse<any[]>>(`${this.base}/reviews/product/${productId}`).pipe(map(r => r.data));
+  }
+
+  submitReview(review: any): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/reviews`, review).pipe(map(r => r.data));
+  }
+
+  updateReview(id: number, review: any): Observable<any> {
+    return this.http.put<ApiResponse<any>>(`${this.base}/reviews/${id}`, review).pipe(map(r => r.data));
+  }
+
+  deleteReview(id: number): Observable<any> {
+    return this.http.delete<ApiResponse<any>>(`${this.base}/reviews/${id}`).pipe(map(r => r.data));
   }
 
   getOrderById(id: number): Observable<Order> {

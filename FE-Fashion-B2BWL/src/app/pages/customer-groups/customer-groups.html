@@ -18,12 +18,6 @@
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.DISCOUNT_RATE' | transloco }} (%)
-        <tui-textfield>
-          <input tuiTextfield type="number" [(ngModel)]="formData.defaultDiscountRate" />
-        </tui-textfield>
-      </label>
     </div>
 
     <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -73,10 +67,6 @@
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.GROUP_NAME' | transloco }}:</span>
       <span class="value">{{ selectedGroup.name }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.DISCOUNT_RATE' | transloco }}:</span>
-      <span class="value">{{ selectedGroup.defaultDiscountRate }}%</span>
     </div>
   </div>
   <div style="display: flex; justify-content: flex-end; margin-top: 24px;">

@@ -14,4 +14,5 @@ public class TaxDisplayRuleRequest {
     private String applyCustomerValue;
     private String applyProductType;
     private String applyProductValue;
+    private Double discountRate;
 }

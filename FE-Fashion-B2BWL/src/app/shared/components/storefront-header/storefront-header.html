@@ -156,11 +156,12 @@
         </div>
       </li>
 
-      <li *ngFor="let cat of mockCategories">
-        <a href="javascript:void(0)">{{ cat }}</a>
+      <li *ngFor="let item of navigationItems">
+        <a [routerLink]="item.link">{{ item.label }}</a>
       </li>
       <li><a href="javascript:void(0)" class="hot">Giá sốc</a></li>
       <li><a routerLink="/become-a-partner" class="partner-link">Trở thành đối tác</a></li>
+      <li><a routerLink="/quick-order" class="quick-order-link">Đặt hàng nhanh</a></li>
     </ul>
   </div>
 </nav>

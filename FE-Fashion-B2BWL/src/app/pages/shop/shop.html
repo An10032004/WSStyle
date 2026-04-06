@@ -121,7 +121,7 @@
       <main class="main-content">
         <header class="content-header">
           <div class="count-box">
-             Hiển thị <strong>{{ filteredProducts.length }}</strong> sản phẩm
+             Hiển thị <strong>{{ totalElements }}</strong> sản phẩm
           </div>
           <div class="sort-box">
             <span class="sort-label">Sắp xếp:</span>
@@ -134,9 +134,9 @@
         </header>
 
         <!-- Product Grid -->
-        <div class="product-grid" *ngIf="filteredProducts.length > 0">
+        <div class="product-grid" *ngIf="products.length > 0">
           <a class="product-card" 
-             *ngFor="let p of pagedProducts; let i = index"
+             *ngFor="let p of products; let i = index"
              [routerLink]="['/product', p.id]">
             <div class="product-img-wrapper">
               <div class="product-img">
@@ -185,7 +185,7 @@
           ></tui-pagination>
         </div>
 
-        <div *ngIf="filteredProducts.length === 0" class="empty-state">
+        <div *ngIf="products.length === 0" class="empty-state">
           <tui-icon icon="@tui.package-search" class="empty-icon"></tui-icon>
           <h3>Không tìm thấy sản phẩm nào!</h3>
           <p>Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>

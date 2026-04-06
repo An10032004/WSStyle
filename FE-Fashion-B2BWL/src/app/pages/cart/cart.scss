@@ -73,7 +73,7 @@
 
     .table-header {
       display: grid;
-      grid-template-columns: 1fr 140px 160px 140px 60px;
+      grid-template-columns: 60px 1fr 140px 160px 140px 60px;
       padding: 24px 30px;
       background: #fafafa;
       border-bottom: 1px solid #f1f5f9;
@@ -82,18 +82,33 @@
       color: #64748b;
       text-transform: uppercase;
       letter-spacing: 1.5px;
+
+      .col-cb {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
 
     .table-row {
       display: grid;
-      grid-template-columns: 1fr 140px 160px 140px 60px;
+      grid-template-columns: 60px 1fr 140px 160px 140px 60px;
       padding: 24px 30px;
       border-bottom: 1px solid #f8fafc;
       align-items: center;
-      transition: background 0.2s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
       &:hover { background: #fcfdfe; }
+      &.selected {
+        background: rgba(159, 122, 234, 0.03); // Subtle brand purple tint
+      }
       &:last-child { border-bottom: none; }
+
+      .col-cb {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
       .remove-btn {
         width: 36px;

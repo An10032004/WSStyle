@@ -34,47 +34,80 @@
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
 
-        <div class="pricing-card" [class.rule-active]="product.discountLabel">
-          <div class="rule-badge" *ngIf="product.discountLabel">
+        <div class="pricing-card" [class.rule-active]="isB2BApplied">
+          <div class="rule-badge" *ngIf="isB2BApplied">
             <tui-icon icon="@tui.shield-check"></tui-icon>
-            {{ product.discountLabel }}
+            {{ b2bRule.ruleName }}{{ b2bRule.parsedConfig?.discountValue ? ' (-' + b2bRule.parsedConfig.discountValue + '%)' : '' }}
           </div>
           <div class="main-price" *ngIf="!product.hidePrice; else hiddenPrice">
-            <span class="current">{{ (product.calculatedPrice || product.basePrice) | number:'1.0-0' }} ₫</span>
-            <span class="original" *ngIf="product.calculatedPrice && product.calculatedPrice < product.basePrice">
-              {{ product.basePrice | number:'1.0-0' }} ₫
-            </span>
-            <span class="tax-info" *ngIf="product.taxDisplayLabel">({{ product.taxDisplayLabel }})</span>
+            <!-- BOTH PRICES MODE -->
+            <ng-container *ngIf="product.taxDisplayLabel === 'BOTH_PRICES'; else singlePrice">
+               <div class="combined-prices">
+                 <div class="price-row">
+                    <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
+                    <span class="tag incl" *ngIf="!isVariantPriceApplied">(Đã bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
+                 </div>
+                 <div class="price-row excl" *ngIf="isB2BApplied || isQBApplied">
+                    <span class="val">{{ currentPrice / 1.1 | number:'1.0-0' }} ₫</span>
+                    <span class="tag">(Chưa bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
+                 </div>
+               </div>
+            </ng-container>
+
+            <!-- SINGLE PRICE MODE -->
+            <ng-template #singlePrice>
+               <span class="current">
+                 {{ currentPrice | number:'1.0-0' }} ₫
+               </span>
+               
+               <span class="original" *ngIf="isVariantPriceApplied && (selectedVariant?.price || 0) > currentPrice">
+                 {{ selectedVariant?.price | number:'1.0-0' }} ₫
+               </span>
+               
+               <span class="tax-info" *ngIf="!isVariantPriceApplied && product.taxDisplayLabel && product.taxDisplayLabel !== 'BOTH_PRICES'">
+                 ({{ product.taxDisplayLabel === 'EXCLUDE_TAX_ONLY' ? 'Chưa bao gồm ' : 'Đã bao gồm ' }}{{ product.taxDisplayType || 'thuế' }})
+               </span>
+            </ng-template>
           </div>
           <ng-template #hiddenPrice>
             <div class="main-price">
               <span class="replacement-text">{{ product.replacementText || 'Liên hệ để có giá' }}</span>
             </div>
           </ng-template>
-          <div class="stats">
-            <div class="stars">
-              <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]"></tui-icon>
-              <span>5.0</span>
+          <div class="stats" style="align-items: flex-start; flex-direction: column; gap: 8px;">
+            <div *ngIf="product?.isNetTermEligible">
+              <tui-badge size="m" status="info" style="background: #eef2ff; color: #4338ca;">
+                <tui-icon icon="@tui.clock"></tui-icon> Hỗ trợ công nợ (Net {{ product?.netTermDays }} ngày)
+              </tui-badge>
             </div>
-            <div class="hearts">
-              <tui-icon icon="@tui.heart"></tui-icon>
-              <span>24</span>
+            <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+              <div class="stars">
+                <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]"></tui-icon>
+                <span>5.0</span>
+              </div>
+              <div class="hearts">
+                <tui-icon icon="@tui.heart"></tui-icon>
+                <span>24</span>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="variant-selector" *ngIf="availableColors.length > 0">
           <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
-            <div class="color-swatch-wrapper" *ngFor="let color of availableColors">
-              <div class="color-circle" 
-                   [class.active]="selectedColor === color"
-                   (click)="selectColor(color)"
-                   [title]="color"
-                   [style.background-color]="color">
-                   <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
-              </div>
-              <span class="color-name" *ngIf="selectedColor === color">{{ color }}</span>
+          <div class="swatch-group">
+            <div 
+              class="color-circle" 
+              *ngFor="let color of availableColors"
+              [class.active]="selectedColor === color"
+              [class.light-color]="color === 'White' || color === 'Trắng' || color === 'Cream'"
+              (click)="selectColor(color)"
+              [title]="color"
+              [style.background-color]="getColorHex(color)"
+            >
+              <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
             </div>
+          </div>
         </div>
 
         <div class="variant-selector" *ngIf="availableSizes.length > 0">
@@ -90,6 +123,31 @@
             </button>
           </div>
         </div>
+
+        <div class="variant-selector" *ngIf="availableWeights.length > 0">
+          <div class="selector-label">Cân nặng | <span>{{ selectedWeight || 'Chưa chọn' }}</span></div>
+          <div class="size-options">
+            <button 
+              class="size-btn" 
+              *ngFor="let weight of availableWeights"
+              [class.active]="selectedWeight === weight"
+              (click)="selectWeight(weight)"
+            >
+              {{ weight }}
+            </button>
+          </div>
+        </div>
+
+
+        <!-- PRICE CHANGE NOTIFICATION -->
+        <tui-notification
+          *ngIf="isVariantPriceApplied"
+          status="info"
+          class="price-notif"
+        >
+          <strong>Giá đã thay đổi:</strong> Bạn đang chọn một biến thể có mức giá riêng. 
+          Giá gốc là {{ product?.basePrice | number:'1.0-0' }} ₫.
+        </tui-notification>
 
         <!-- QUANTITY BREAK TABLE -->
         <div class="qb-section" *ngIf="quantityBreaks.length > 0">
@@ -119,17 +177,29 @@
            </div>
         </div>
 
+        <div class="moq-warning" *ngIf="isMoqViolation">
+          <tui-notification status="warning" icon="@tui.circle-alert" class="anim-fade">
+             Bạn cần mua tối thiểu {{ activeOrderLimit?.limitValue }} sản phẩm cho mặt hàng này.
+          </tui-notification>
+        </div>
+
         <div class="purchase-actions">
           <div class="quantity-selector">
-            <button (click)="adjQuantity(-1)"><tui-icon icon="@tui.minus"></tui-icon></button>
-            <input type="number" [value]="quantity" readonly>
-            <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
+             <button (click)="adjQuantity(-1)"><tui-icon icon="@tui.minus"></tui-icon></button>
+             <input type="number" [(ngModel)]="quantity" (input)="handleQuantityInput($event)">
+             <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
           </div>
           <div class="stock-info">{{ selectedVariant?.stockQuantity || 0 }} sản phẩm có sẵn</div>
         </div>
 
         <div class="main-cta" *ngIf="!product.hideAddToCart">
-          <button tuiButton appearance="secondary" class="buy-btn" (click)="addToCart()">
+          <button 
+             tuiButton 
+             appearance="secondary" 
+             class="buy-btn" 
+             (click)="addToCart()"
+             [disabled]="isMoqViolation"
+          >
             Thêm vào giỏ hàng
           </button>
         </div>
@@ -139,25 +209,107 @@
     <!-- BOTTOM SECTIONS -->
     <div class="content-tabs">
       <div class="tab-header">
-        <div class="tab active">Thông tin sản phẩm</div>
-        <div class="tab">Mô tả sản phẩm</div>
-        <div class="tab">Đánh giá sản phẩm</div>
+        <div class="tab" [class.active]="selectedTab === 'SPEC'" (click)="selectedTab = 'SPEC'">Thông tin sản phẩm</div>
+        <div class="tab" [class.active]="selectedTab === 'DESC'" (click)="selectedTab = 'DESC'">Mô tả sản phẩm</div>
+        <div class="tab" [class.active]="selectedTab === 'REVIEWS'" (click)="selectedTab = 'REVIEWS'">Đánh giá sản phẩm ({{ reviews.length }})</div>
       </div>
-      <div class="tab-content">
-        <div class="spec-grid">
+      <div class="tab-content" [ngSwitch]="selectedTab">
+        
+        <!-- Tab: Thông tin -->
+        <div *ngSwitchCase="'SPEC'" class="spec-grid anim-fade">
           <div class="spec-row">
             <span class="label">Danh mục</span>
             <span class="val">Áo Khoác / Jacket</span>
+          </div>
+          <div class="spec-row">
+            <span class="label">Thương hiệu</span>
+            <span class="val">{{ brandName }}</span>
           </div>
           <div class="spec-row">
             <span class="label">SKU</span>
             <span class="val">{{ selectedVariant?.sku || product.productCode }}</span>
           </div>
         </div>
-        
-        <div class="empty-description">
-          <img src="https://dosi-in.com/design/themes/responsive/media/images/addons/dosiin_product_detail/no-description.png" alt="no-desc">
-          <p>Hiện chưa có mô tả cho sản phẩm này</p>
+
+        <!-- Tab: Mô tả -->
+        <div *ngSwitchCase="'DESC'" class="desc-panel anim-fade">
+          <div class="desc-text">
+            <p><strong>{{ product.name }}</strong> - {{ product.description || 'Mẫu thiết kế cao cấp phù hợp với xu hướng thời trang hiện đại.' }}</p>
+            <ul>
+              <li>Chất liệu: Cotton/Polyester cao cấp thoáng mát.</li>
+              <li>Thiết kế: Form dáng chuẩn, đường may tinh xảo.</li>
+              <li>Ứng dụng: Dễ dàng phối đồ cho cả đi chơi và đi làm.</li>
+            </ul>
+          </div>
+          <div class="desc-image-mockup">
+             <img [src]="activeImage" alt="desc-img">
+          </div>
+        </div>
+
+        <!-- Tab: Đánh giá -->
+        <div *ngSwitchCase="'REVIEWS'" class="review-panel anim-fade">
+          <div class="review-summary-header">
+             <div class="rating-big">
+                <span class="num">{{ averageRating | number:'1.1-1' }}</span>
+                <div class="stars">
+                   <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]" 
+                            [style.color]="averageRating >= i ? '#facc15' : '#e2e8f0'"></tui-icon>
+                </div>
+                <span class="total">{{ reviews.length }} Đánh giá</span>
+             </div>
+
+             <div class="rating-bars">
+                <div class="bar-row" *ngFor="let s of [5,4,3,2,1]">
+                   <span class="star-num">{{ s }}</span>
+                   <tui-icon icon="@tui.star-filled"></tui-icon>
+                   <div class="bar-bg">
+                      <div class="bar-fill" [style.width.%]="getRatingPercent(s)"></div>
+                   </div>
+                   <span class="percent">{{ getRatingPercent(s) }}%</span>
+                </div>
+             </div>
+
+             <button 
+                tuiButton 
+                type="button"
+                appearance="primary"
+                class="write-review-btn" 
+                (click)="openReviewDialog()">
+                Viết đánh giá
+               </button>
+          </div>
+          
+          <div class="review-list">
+             <div class="review-item" *ngFor="let r of reviews">
+                <div class="r-user-info">
+                   <div class="avatar">{{ r.userName?.substring(0, 2) || 'KH' }}</div>
+                   <div class="details">
+                      <span class="user">{{ r.userName }}</span>
+                      <span class="date">{{ r.createdAt | date:'dd/MM/yyyy' }}</span>
+                   </div>
+                   <div class="r-actions" *ngIf="(user$ | async)?.id === r.userId">
+                      <button class="edit-btn" (click)="openEditReview(r)" title="Sửa đánh giá">
+                         <tui-icon icon="@tui.pencil"></tui-icon>
+                      </button>
+                      <button class="delete-btn" (click)="deleteReview(r.id)" title="Xóa đánh giá">
+                         <tui-icon icon="@tui.trash"></tui-icon>
+                      </button>
+                   </div>
+                </div>
+                <div class="r-stars">
+                   <tui-icon icon="@tui.star-filled" *ngFor="let i of [1,2,3,4,5]"
+                            [style.color]="r.rating >= i ? '#facc15' : '#e2e8f0'"></tui-icon>
+                </div>
+                <p class="comment">{{ r.comment }}</p>
+                <div class="shop-reply" *ngIf="r.replyMessage">
+                   <strong>Phản hồi từ shop:</strong> {{ r.replyMessage }}
+                </div>
+             </div>
+
+             <div class="empty-reviews" *ngIf="reviews.length === 0">
+                <p>Chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên!</p>
+             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -179,10 +331,23 @@
           <span>{{ quantity }}</span>
           <button (click)="adjQuantity(1)"><tui-icon icon="@tui.plus"></tui-icon></button>
         </div>
-        <div class="total-price" *ngIf="!product.hidePrice">
-          Tạm tính: <span>{{ ((product.calculatedPrice || product.basePrice) * quantity) | number:'1.0-0' }} ₫</span>
+        <div class="moq-mini-warning" *ngIf="isMoqViolation">
+           Cần mua tối thiểu {{ activeOrderLimit?.limitValue }}
         </div>
-        <button class="sticky-buy-btn" *ngIf="!product.hideAddToCart" (click)="addToCart()">Thêm vào giỏ hàng</button>
+        <div class="total-price" *ngIf="!product.hidePrice">
+          Tạm tính: 
+          <span>
+            {{ (currentPrice * quantity) | number:'1.0-0' }} ₫
+          </span>
+        </div>
+        <button 
+           class="sticky-buy-btn" 
+           *ngIf="!product.hideAddToCart" 
+           (click)="addToCart()"
+           [disabled]="isMoqViolation"
+        >
+          Thêm vào giỏ hàng
+        </button>
         <div class="sticky-replacement" *ngIf="product.hidePrice">
            {{ product.replacementText || 'Liên hệ để mua hàng' }}
         </div>
@@ -221,4 +386,35 @@
       </div>
     </div>
   </div>
+
+  <!-- DIALOG TEMPLATES -->
+  <ng-template #reviewDialog let-observer>
+    <div class="review-submit-dialog">
+      <h2 class="tui-text_h4">Bạn cảm thấy sản phẩm thế nào?</h2>
+      <p>Đánh giá của bạn giúp cộng đồng chọn được sản phẩm tốt hơn.</p>
+      
+      <div class="stars-select">
+        <tui-rating
+          [(ngModel)]="reviewRating"
+          [max]="5"
+          class="large-stars"
+        ></tui-rating>
+        <span class="rating-label">{{ reviewRating }} / 5 sao</span>
+      </div>
+
+      <div class="comment-field">
+        <tui-textarea
+          [(ngModel)]="reviewComment"
+          [expandable]="true"
+        >
+          Chia sẻ cảm nhận của bạn về sản phẩm (chất liệu, form dáng,...)
+        </tui-textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button tuiButton type="button" appearance="flat" (click)="observer.complete()">Hủy</button>
+        <button tuiButton type="button" (click)="submitNewReview(observer)">Gửi đánh giá</button>
+      </div>
+    </div>
+  </ng-template>
 </div>

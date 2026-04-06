@@ -35,7 +35,16 @@ export class StorefrontHeaderComponent {
   isMegaMenuOpen = false;
 
   categoryTree: Category[] = [];
-  mockCategories = ['Nam', 'Nữ', 'Phụ kiện', 'Thương hiệu', 'Xếp hạng', 'Mới nhất'];
+  navigationItems: { label: string; link: string }[] = [
+    { label: 'Nam', link: '/shop' },
+    { label: 'Nữ', link: '/shop' },
+    { label: 'Phụ kiện', link: '/shop' },
+    { label: 'Thương hiệu', link: '/shop' },
+    { label: 'Xếp hạng', link: '/shop' },
+    { label: 'Đánh giá', link: '/customer-reviews' },
+    { label: 'Thông tin', link: '/shop' },
+    { label: 'Hỗ trợ', link: '/support' }
+  ];
 
   allProducts: Product[] = [];
   suggestions: Product[] = [];

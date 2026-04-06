@@ -89,6 +89,19 @@
                    <span>Pay with MoMo e-wallet</span>
                  </div>
                </div>
+
+               <div 
+                  class="payment-option highlight" 
+                  *ngIf="isNetTermEligible$ | async"
+                  [class.active]="checkoutForm.get('paymentMethod')?.value === 'NET_TERMS'"
+                  (click)="setPaymentMethod('NET_TERMS')"
+               >
+                 <tui-icon icon="@tui.handshake" class="payment-icon"></tui-icon>
+                 <div class="payment-text">
+                   <strong>NET TERMS (Công nợ)</strong>
+                   <span>Pay in {{ netTermDays$ | async }} days</span>
+                 </div>
+               </div>
             </div>
           </div>
         </form>
@@ -122,11 +135,14 @@
           <div class="summary-calc">
              <div class="calc-row">
                <span>Subtotal</span>
-               <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
+               <strong>{{ subtotal$ | async | number:'1.0-0' }} ₫</strong>
              </div>
              <div class="calc-row">
                <span>Shipping</span>
-               <span class="free">FREE</span>
+               <span class="free" *ngIf="(shippingFee$ | async) === 0; else showFee">FREE</span>
+               <ng-template #showFee>
+                 <strong>{{ shippingFee$ | async | number:'1.0-0' }} ₫</strong>
+               </ng-template>
              </div>
              <div class="summary-divider"></div>
              <div class="calc-row total">
@@ -186,18 +202,26 @@
       </div>
     </div>
 
-    <div class="qr-footer">
+    <div class="qr-footer" style="display: flex; flex-direction: column; gap: 8px;">
       <button 
         tuiButton 
         size="l" 
         class="done-btn" 
-        (click)="observer.complete()"
+        (click)="confirmPayment(observer)"
       >
-        I HAVE PAID
+        TÔI ĐÃ CHUYỂN KHOẢN
       </button>
-      <div class="security-note">
-        <tui-icon icon="@tui.shield-check"></tui-icon>
-        <span>Your transaction is secured and encrypted</span>
+      <button 
+        tuiButton 
+        size="l" 
+        appearance="outline"
+        class="later-btn" 
+        (click)="cancelPayment(observer)"
+      >
+        THANH TOÁN SAU
+      </button>
+      <div class="security-note" style="margin-top: 4px; font-size: 11px; color: #888; text-align: center;">
+        Nếu bạn chưa tiện quét QR lúc này, hãy chọn "Thanh toán sau". Đơn hàng đã được lưu và bạn có thể thanh toán bất cứ khi nào.
       </div>
     </div>
   </div>

@@ -11,13 +11,16 @@ import com.fashionstore.core.service.JwtService;
 import com.fashionstore.core.service.RefreshTokenService;
 import com.fashionstore.core.service.RoleService;
 import com.fashionstore.core.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final UserService userService;
@@ -87,11 +90,32 @@ public class AuthController {
 
     private UserResponse mapToUserResponse(User user) {
         String permissions = "[]";
-        try {
-            permissions = roleService.getRoleByName(user.getRole()).getPermissionsJson();
-        } catch (Exception e) {
-            // Fallback for roles not in app_roles table yet
-            if ("ADMIN".equals(user.getRole())) permissions = "[\"ALL\"]";
+        String userRole = user.getRole();
+        
+        // Special Handling for Administrator (Super User)
+        if ("Administrator".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole)) {
+            // Return all permissions for any admin type role
+            String[] allPerms = {
+                "Quản lý nhân viên", "Quản lý report", "Quản lý coupon", "Quản lý ví điện tử",
+                "Quản lý chiến dịch sale", "Quản lý hồ sơ đại lý", "Quản lý sản phẩm",
+                "Quản lý danh mục", "Quản lý đơn hàng", "Quản lý nhóm khách hàng",
+                "Quản lý ẩn giá", "Quản lý AI", "Quản lý banner", "Quản lý chiết khấu",
+                "Quản lý người dùng", "Quản lý biến thể", "Quản lý giới hạn đặt hàng",
+                "Quản lý phí vận chuyển", "Hỗ trợ khách hàng", "Point of sale",
+                "Quản lý công nợ", "Quản lý giá thuê"
+            };
+            try {
+                permissions = new ObjectMapper().writeValueAsString(allPerms);
+            } catch (Exception e) {
+                permissions = "[\"ALL\"]";
+            }
+        } else {
+            // Standard lookup for other roles (Manager, Content Editor, Customer, etc.)
+            try {
+                permissions = roleService.getRoleByName(userRole).getPermissionsJson();
+            } catch (Exception e) {
+                log.warn("Could not find permissions for role: {}. Defaulting to empty.", userRole);
+            }
         }
 
         return UserResponse.builder()
@@ -99,7 +123,7 @@ public class AuthController {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
-                .role(user.getRole())
+                .role(userRole)
                 .companyName(user.getCompanyName())
                 .registrationStatus(user.getRegistrationStatus())
                 .permissions(permissions)

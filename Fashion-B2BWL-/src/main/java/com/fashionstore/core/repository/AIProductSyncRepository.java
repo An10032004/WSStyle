@@ -11,4 +11,9 @@ import java.util.Optional;
 public interface AIProductSyncRepository extends JpaRepository<AIProductSync, Integer> {
     @Query("SELECT s FROM AIProductSync s WHERE s.product.id = :productId")
     Optional<AIProductSync> findByProductId(@Param("productId") Integer productId);
+
+    /**
+     * Tìm các bản ghi chưa có nội dung mô tả AI
+     */
+    java.util.List<AIProductSync> findByContentIsNull();
 }

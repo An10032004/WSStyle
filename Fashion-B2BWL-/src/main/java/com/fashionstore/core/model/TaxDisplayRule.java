@@ -49,4 +49,7 @@ public class TaxDisplayRule {
 
     @Column(name = "apply_product_value", columnDefinition = "json")
     private String applyProductValue;
+
+    @Column(name = "discount_rate")
+    private Double discountRate;
 }

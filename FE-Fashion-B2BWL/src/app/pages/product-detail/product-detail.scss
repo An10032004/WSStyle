@@ -166,13 +166,32 @@
         }
 
         .main-price {
-          display: flex;
-          align-items: center;
-          gap: 12px;
           margin-bottom: 12px;
-          .current { font-size: 36px; font-weight: 900; color: #000; letter-spacing: -1px; }
-          .original { font-size: 18px; color: #94a3b8; text-decoration: line-through; }
-          .tax-info { font-size: 12px; color: #64748b; font-weight: 500; }
+          
+          .combined-prices {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            
+            .price-row {
+              display: flex;
+              align-items: baseline;
+              gap: 10px;
+              
+              .current { font-size: 36px; font-weight: 900; color: #000; letter-spacing: -1px; }
+              .val { font-size: 22px; font-weight: 700; color: #475569; }
+              .tag { 
+                font-size: 11px; font-weight: 700; color: #64748b; 
+                text-transform: uppercase; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+                &.incl { color: #0369a1; background: #e0f2fe; }
+              }
+              &.excl { border-top: 1px dashed #e2e8f0; padding-top: 8px; margin-top: 4px; }
+            }
+          }
+
+          .current { font-size: 36px; font-weight: 900; color: #000; letter-spacing: -1px; margin-right: 12px; }
+          .original { font-size: 18px; color: #94a3b8; text-decoration: line-through; margin-right: 12px; }
+          .tax-info { font-size: 12px; color: #64748b; font-weight: 500; font-style: italic; }
           .replacement-text { font-size: 24px; font-weight: 800; color: #b91c1c; }
           .discount-badge {
             background: #000; color: #fff; font-size: 11px; font-weight: 800;
@@ -189,65 +208,87 @@
       }
 
       .variant-selector {
-        margin-bottom: 24px;
-        .selector-label { font-size: 14px; font-weight: 700; margin-bottom: 16px; span { color: #888; font-weight: 400; } }
-        .color-swatch-wrapper {
-          display: inline-flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
+        margin-bottom: 28px;
+        
+        .selector-label { 
+          font-size: 13px; font-weight: 800; margin-bottom: 14px; 
+          text-transform: uppercase; letter-spacing: 0.5px;
+          color: #1e293b;
+          span { color: #94a3b8; font-weight: 500; margin-left: 6px; } 
+        }
+
+        .swatch-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .color-circle {
+          position: relative;
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
           cursor: pointer;
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(0,0,0,0.05); /* Subtle inner edge */
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 
-          .color-circle {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border: 2px solid #e2e8f0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          /* Ensure light colors are visible */
+          outline: 1px solid transparent;
+          
+          &.active {
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+            transform: scale(1.1);
             
-            &.active {
-              border-color: #000;
-              transform: scale(1.15);
-              box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
-              color: #fff;
-              
-              tui-icon {
-                 filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
-              }
+            tui-icon {
+               color: #fff;
+               font-size: 14px;
+               filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
             }
-
-            &:hover:not(.active) {
-              border-color: #94a3b8;
-              transform: translateY(-2px);
-            }
-            
-            tui-icon { font-size: 16px; }
           }
 
-          .color-name {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #000;
-            letter-spacing: 0.5px;
-            animation: fadeIn 0.3s ease;
+          &:hover:not(.active) {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.1);
           }
         }
-        .size-options {
-          display: flex; gap: 10px; flex-wrap: wrap;
-          .size-btn {
-            min-width: 54px; height: 40px; border: 1px solid #e2e8f0; background: #fff; font-weight: 700; border-radius: 6px; cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            font-size: 14px;
-            color: #475569;
 
-            &:hover { border-color: #000; color: #000; background: #f8fafc; }
-            &.active { background: #000; color: #fff; border-color: #000; transform: scale(1.05); }
+        /* Size/Weight Chips */
+        .size-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+
+          .size-btn {
+             min-width: 52px;
+             height: 52px;
+             padding: 0 16px;
+             border: 1px solid #e2e8f0;
+             background: #fff;
+             color: #1e293b;
+             border-radius: 8px;
+             font-size: 14px;
+             font-weight: 800;
+             transition: all 0.3s ease;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+
+             &:hover {
+               border-color: #000;
+               background: #f8fafc;
+             }
+
+             &.active {
+               background: #000;
+               color: #fff;
+               border-color: #000;
+             }
           }
+        }
         }
       }
 
@@ -319,9 +360,35 @@
       .purchase-actions {
         display: flex; align-items: center; gap: 24px; margin-bottom: 40px;
         .quantity-selector {
-          display: flex; border: 1px solid #eee; border-radius: 25px; padding: 4px; align-items: center;
-          button { background: none; border: none; width: 32px; height: 32px; cursor: pointer; }
-          input { width: 40px; text-align: center; border: none; font-weight: 700; font-size: 15px; }
+          display: flex; border: 1px solid #e2e8f0; border-radius: 25px; padding: 4px; align-items: center;
+          background: #fff;
+          transition: border-color 0.2s;
+          
+          &:focus-within { border-color: #000; }
+          
+          button { 
+            background: none; border: none; width: 32px; height: 32px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            color: #64748b;
+            &:hover { color: #000; }
+          }
+          
+          input { 
+            width: 50px; text-align: center; border: none; font-weight: 700; font-size: 16px; 
+            background: transparent; outline: none; color: #0f172a;
+            
+            /* Hide arrows */
+            &::-webkit-outer-spin-button,
+            &::-webkit-inner-spin-button { 
+              -webkit-appearance: none; 
+              appearance: none;
+              margin: 0; 
+            }
+            &[type=number] { 
+              -moz-appearance: textfield; 
+              appearance: none;
+            }
+          }
         }
         .stock-info { font-size: 13px; color: #888; }
       }
@@ -362,6 +429,148 @@
           text-align: center; padding: 60px 0;
           img { width: 120px; margin-bottom: 24px; opacity: 0.5; }
           p { color: #888; font-weight: 700; }
+        }
+
+        /* REVIEWS PANEL */
+        .review-panel {
+          .review-summary-header {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 48px;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+
+            @media (max-width: 768px) {
+               grid-template-columns: 1fr;
+               text-align: center;
+               gap: 24px;
+            }
+
+            .rating-big {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 8px;
+              
+              .num { font-size: 48px; font-weight: 900; color: #111; line-height: 1; }
+              .stars { 
+                display: flex; gap: 4px; border: none;
+                tui-icon { color: #facc15; font-size: 20px; } 
+              }
+              .total { font-size: 14px; color: #64748b; font-weight: 600; }
+            }
+
+            .rating-bars {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              flex: 1;
+              max-width: 400px;
+
+              .bar-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 12px;
+                
+                .star-num { font-weight: 700; color: #475569; width: 20px; }
+                .bar-bg { height: 6px; flex: 1; background: #e2e8f0; border-radius: 3px; overflow: hidden;
+                  .bar-fill { height: 100%; background: #facc15; border-radius: 3px; }
+                }
+                .percent { width: 40px; text-align: right; color: #94a3b8; font-weight: 600; }
+              }
+            }
+
+            .write-review-btn {
+              position: relative;
+              z-index: 10;
+              min-width: 160px;
+              cursor: pointer;
+              &:hover { background: #333 !important; transform: translateY(-1px); }
+            }
+          }
+
+          .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+
+            .review-item {
+              padding: 24px;
+              border-bottom: 1px solid #f1f5f9;
+              animation: slideUp 0.4s ease-out;
+
+              .r-user-info {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                margin-bottom: 16px;
+
+                .avatar {
+                  width: 40px;
+                  height: 40px;
+                  background: #f1f5f9;
+                  color: #475569;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-weight: 800;
+                  font-size: 14px;
+                  border: 1.5px solid #e2e8f0;
+                  text-transform: uppercase;
+                }
+
+                .details {
+                   display: flex; flex-direction: column; gap: 2px;
+                   .user { font-weight: 700; color: #111; font-size: 15px; }
+                   .date { font-size: 12px; color: #94a3b8; font-weight: 500; }
+                }
+
+                .r-actions {
+                  margin-left: auto;
+                  display: flex;
+                  gap: 8px;
+                  
+                  button {
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    padding: 6px;
+                    border-radius: 4px;
+                    transition: all 0.2s;
+                    color: #94a3b8;
+                    
+                    tui-icon { font-size: 18px; }
+                    
+                    &:hover { background: #f1f5f9; color: #000; }
+                    &.delete-btn:hover { color: #ef4444; background: #fef2f2; }
+                  }
+                }
+             }
+
+              .r-stars {
+                display: flex;
+                gap: 2px;
+                margin-bottom: 12px;
+                tui-icon { color: #facc15; font-size: 14px; }
+              }
+
+              .comment {
+                font-size: 15px;
+                line-height: 1.6;
+                color: #334155;
+                margin: 0;
+                font-weight: 500;
+              }
+
+              &:last-child { border-bottom: none; }
+            }
+          }
         }
       }
     }
@@ -521,5 +730,50 @@
       text-align: center;
       .product-mini-name { font-size: 18px; font-weight: 700; opacity: 0.8; }
     }
+  }
+
+  /* DIALOGS */
+  .review-submit-dialog {
+    padding: 10px 0;
+    max-width: 500px;
+    
+    h2 { font-weight: 800; margin-bottom: 8px; font-size: 24px; }
+    p { color: #64748b; margin-bottom: 24px; font-size: 14px; }
+
+    .stars-select {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: #f8fafc;
+      border-radius: 12px;
+
+      .large-stars {
+         color: #facc15;
+         --tui-rating-size: 40px;
+      }
+      
+      .rating-label {
+        font-weight: 700;
+        font-size: 16px;
+        color: #1e293b;
+      }
+    }
+
+    .comment-field {
+      margin-bottom: 24px;
+      
+      tui-textarea {
+        width: 100%;
+        min-height: 120px;
+      }
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
   }
 }

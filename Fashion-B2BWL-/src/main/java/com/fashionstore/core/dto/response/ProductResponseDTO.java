@@ -29,6 +29,8 @@ public class ProductResponseDTO {
     // Tax Info
     private String taxDisplayType;
     private String taxDisplayLabel;
+    private BigDecimal priceExclTax;
+    private BigDecimal taxAmount;
     
     // Campaign Info
     private String campaignBanner;
@@ -36,4 +38,8 @@ public class ProductResponseDTO {
 
     // Bulk Info
     private String quantityBreaksJson;
+
+    // Net Term Info
+    private Integer netTermDays;
+    private Boolean isNetTermEligible;
 }

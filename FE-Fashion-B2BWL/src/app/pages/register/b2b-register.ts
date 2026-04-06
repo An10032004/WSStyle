@@ -2,12 +2,14 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
-import { TuiButton, TuiError, TuiTextfield, TuiLabel, TuiNotification, TuiLoader } from '@taiga-ui/core';
+import { TuiButton, TuiError, TuiTextfield, TuiLabel, TuiNotification, TuiLoader, TuiIcon } from '@taiga-ui/core';
 import { TuiFieldErrorPipe } from '@taiga-ui/kit';
-import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule, TuiTextareaModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
+import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 
 @Component({
   selector: 'app-b2b-register',
@@ -18,14 +20,18 @@ import { AuthService } from '../../services/auth.service';
     ReactiveFormsModule,
     RouterModule,
     TuiButton,
+    TuiIcon,
     TuiTextfield,
     TuiLabel,
     TuiError,
     TuiFieldErrorPipe,
     TuiTextfieldControllerModule,
+    TuiTextareaModule,
     TuiNotification,
     TuiLoader,
-    TranslocoModule
+    TranslocoModule,
+    StorefrontHeaderComponent,
+    StorefrontFooterComponent
   ],
   templateUrl: './b2b-register.html',
   styleUrls: ['./b2b-register.scss'],

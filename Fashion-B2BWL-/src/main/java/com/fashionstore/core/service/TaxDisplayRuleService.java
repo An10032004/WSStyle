@@ -37,6 +37,7 @@ public class TaxDisplayRuleService {
                 .applyCustomerValue(request.getApplyCustomerValue())
                 .applyProductType(request.getApplyProductType())
                 .applyProductValue(request.getApplyProductValue())
+                .discountRate(request.getDiscountRate())
                 .build();
         return taxDisplayRuleRepository.save(rule);
     }
@@ -54,6 +55,7 @@ public class TaxDisplayRuleService {
         rule.setApplyCustomerValue(request.getApplyCustomerValue());
         rule.setApplyProductType(request.getApplyProductType());
         rule.setApplyProductValue(request.getApplyProductValue());
+        rule.setDiscountRate(request.getDiscountRate());
         return taxDisplayRuleRepository.save(rule);
     }
 

@@ -23,15 +23,23 @@ export class SidebarComponent {
     const user = this.auth.currentUserValue;
     if (!user) return false;
     
+    const roleUpp = user.role?.toUpperCase() || '';
+    
     // Admin has full access (legacy role check or permission check)
-    if (user.role?.toUpperCase() === 'ADMIN' || user.role?.toUpperCase() === 'SUPER_ADMIN') {
+    if (roleUpp === 'ADMIN' || roleUpp === 'SUPER_ADMIN' || roleUpp === 'ADMINISTRATOR') {
       return true;
     }
 
     // New Granular Permission Check
     if (user.permissions) {
       try {
-        const perms: string[] = JSON.parse(user.permissions);
+        let perms: string[] = [];
+        if (typeof user.permissions === 'string') {
+          perms = JSON.parse(user.permissions);
+        } else if (Array.isArray(user.permissions)) {
+          perms = user.permissions;
+        }
+
         if (perms.includes('ALL')) return true;
         
         const permissionMapping: Record<string, string> = {

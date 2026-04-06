@@ -13,7 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -35,6 +40,45 @@ public class ProductController {
         List<Product> products = productService.getAllProducts();
         List<ProductResponseDTO> dtos = productMapperService.toDTOs(products, user);
         return ResponseEntity.ok(ApiResponse.success(dtos));
+    }
+
+    /**
+     * GET /api/products/search — Tìm kiếm, lọc và phân trang sản phẩm
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Page<ProductResponseDTO>>> searchProducts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<Integer> categoryIds,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<String> brands,
+            @RequestParam(defaultValue = "newest") String sortBy,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            @RequestParam(required = false) Integer userId
+    ) {
+        User user = (userId != null) ? userService.getUserById(userId) : null;
+        
+        Sort sort = Sort.by(Sort.Direction.DESC, "id");
+        if ("price-asc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.ASC, "basePrice");
+        } else if ("price-desc".equals(sortBy)) {
+            sort = Sort.by(Sort.Direction.DESC, "basePrice");
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Product> productsPage = productService.getProductsPaged(search, categoryIds, minPrice, maxPrice, brands, pageable);
+        Page<ProductResponseDTO> dtosPage = productMapperService.toDTOs(productsPage, user);
+        
+        return ResponseEntity.ok(ApiResponse.success(dtosPage));
+    }
+
+    /**
+     * GET /api/products/brands — Lấy danh sách thương hiệu
+     */
+    @GetMapping("/brands")
+    public ResponseEntity<ApiResponse<List<String>>> getBrands() {
+        return ResponseEntity.ok(ApiResponse.success(productService.getAvailableBrands()));
     }
 
     /**

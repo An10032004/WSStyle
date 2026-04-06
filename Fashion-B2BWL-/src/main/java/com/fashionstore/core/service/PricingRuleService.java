@@ -14,6 +14,7 @@ import java.util.List;
 public class PricingRuleService {
 
     private final PricingRuleRepository pricingRuleRepository;
+    private final RuleCoreService ruleCoreService;
 
     public List<PricingRule> getAllRules() {
         return pricingRuleRepository.findAll();
@@ -26,6 +27,9 @@ public class PricingRuleService {
 
     @Transactional
     public PricingRule createRule(PricingRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("PRICING", request.getPriority(), -1)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for Pricing Rules.");
+        }
         PricingRule rule = PricingRule.builder()
                 .name(request.getName())
                 .priority(request.getPriority())
@@ -50,6 +54,9 @@ public class PricingRuleService {
 
     @Transactional
     public PricingRule updateRule(Integer id, PricingRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("PRICING", request.getPriority(), id)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for Pricing Rules.");
+        }
         PricingRule rule = getRuleById(id);
         rule.setName(request.getName());
         rule.setPriority(request.getPriority());

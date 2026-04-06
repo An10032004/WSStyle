@@ -14,6 +14,7 @@ import java.util.List;
 public class HidePriceRuleService {
 
     private final HidePriceRuleRepository hidePriceRuleRepository;
+    private final RuleCoreService ruleCoreService;
 
     public List<HidePriceRule> getAllRules() {
         return hidePriceRuleRepository.findAll();
@@ -26,6 +27,9 @@ public class HidePriceRuleService {
 
     @Transactional
     public HidePriceRule createRule(HidePriceRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("HIDE_PRICE", request.getPriority(), -1)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for Hide Price Rules.");
+        }
         HidePriceRule rule = HidePriceRule.builder()
                 .name(request.getName())
                 .priority(request.getPriority())
@@ -43,6 +47,9 @@ public class HidePriceRuleService {
 
     @Transactional
     public HidePriceRule updateRule(Integer id, HidePriceRuleRequest request) {
+        if (!ruleCoreService.isPriorityUnique("HIDE_PRICE", request.getPriority(), id)) {
+            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for Hide Price Rules.");
+        }
         HidePriceRule rule = getRuleById(id);
         rule.setName(request.getName());
         rule.setPriority(request.getPriority());

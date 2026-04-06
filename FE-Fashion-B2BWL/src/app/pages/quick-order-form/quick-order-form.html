@@ -1,0 +1,177 @@
+<app-storefront-header></app-storefront-header>
+<div class="quick-order-container">
+  <div class="quick-order-header">
+    <div class="header-left">
+      <h1>Quick Order Form</h1>
+      <p class="subtitle">Bulk select items and variants quickly</p>
+    </div>
+    
+    <div class="summary-top" *ngIf="totalItemsSelected > 0">
+      <div class="stat">
+        <span class="badge">{{ totalItemsSelected }}</span> item(s) selected
+      </div>
+      <div class="stat">
+        Cart total: <strong>{{ totalAmount | number }}đ</strong>
+      </div>
+      <button tuiButton type="button" size="s" (click)="addToCart()">Add to Cart</button>
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()">Checkout</button>
+    </div>
+  </div>
+
+  <div class="filter-section">
+    <div class="filter-group">
+      <label tuiLabel="Product Category">
+        <tui-select
+          class="category-select"
+          [(ngModel)]="selectedCategory"
+          [valueContent]="catContent"
+          (ngModelChange)="filterProducts()"
+          tuiTextfieldSize="m"
+        >
+          <tui-data-list-wrapper
+            *tuiDataList
+            [items]="categories"
+            [itemContent]="catContent"
+          ></tui-data-list-wrapper>
+          
+          <ng-template #catContent let-item>
+            {{ item?.name || 'All Categories' }}
+          </ng-template>
+        </tui-select>
+      </label>
+
+      <label tuiLabel="Product Search">
+        <tui-textfield 
+          tuiTextfieldSize="m" 
+          [tuiTextfieldCleaner]="true"
+          iconStart="@tui.search"
+        >
+          <input
+            tuiTextfield
+            placeholder="Search by name or SKU..."
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="filterProducts()"
+          />
+        </tui-textfield>
+      </label>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="quick-order-table">
+      <thead>
+        <tr>
+          <th width="30"></th>
+          <th width="80">Image</th>
+          <th>Product name</th>
+          <th width="100">Stock</th>
+          <th width="150">Price</th>
+          <th width="150">Product SKU</th>
+          <th width="150">Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let item of filteredProducts">
+          <tr [class.expanded]="item.isExpanded">
+            <td>
+              <button
+                tuiButton
+                type="button"
+                size="xs"
+                appearance="flat"
+                (click)="toggleExpand(item)"
+              >
+                <tui-icon [icon]="item.isExpanded ? '@tui.chevron-up' : '@tui.chevron-down'"></tui-icon>
+              </button>
+            </td>
+            <td>
+              <img [src]="item.product.imageUrl || 'assets/placeholder-product.png'" class="prod-thumb">
+            </td>
+            <td class="name-cell">
+              <span class="prod-name">{{ item.product.name }}</span>
+              <span class="prod-code">{{ item.product.productCode }}</span>
+            </td>
+            <td>{{ item.product.basePrice === 0 ? 'N/A' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
+            <td>{{ item.product.basePrice | number }}đ</td>
+            <td>{{ item.product.productCode }}</td>
+            <td>
+              <div class="variant-btn-container" *ngIf="!item.isExpanded">
+                <button tuiButton type="button" size="s" appearance="outline" (click)="toggleExpand(item)">
+                  Choose variant
+                </button>
+                <div class="selection-badge" *ngIf="item.totalSelected > 0">
+                  {{ item.totalSelected }} variant(s) selected
+                </div>
+              </div>
+              <div *ngIf="item.isExpanded" class="qty-status-tag" [class.active]="item.totalSelected > 0">
+                {{ item.totalSelected }} variant(s) selected
+              </div>
+            </td>
+          </tr>
+
+          <!-- Variants Table (Expanded Row) -->
+          <tr *ngIf="item.isExpanded" class="variants-row">
+            <td colspan="7">
+              <div class="variants-container">
+                <table class="variants-table">
+                  <thead>
+                    <tr>
+                      <th width="60">Image</th>
+                      <th>Variant</th>
+                      <th width="100">Stock</th>
+                      <th width="120">Price</th>
+                      <th width="150">SKU</th>
+                      <th width="180">Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let v of item.variants">
+                      <td>
+                        <img [src]="v.imageUrl || item.product.imageUrl || 'assets/placeholder-product.png'" class="variant-thumb">
+                      </td>
+                      <td class="variant-info">
+                        <strong>{{ v.color }} / {{ v.size }}</strong>
+                      </td>
+                      <td>{{ v.stockQuantity | number }}</td>
+                      <td>{{ (v.price || item.product.basePrice) | number }}đ</td>
+                      <td><code>{{ v.sku }}</code></td>
+                      <td>
+                        <div class="quantity-input-container">
+                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item)">
+                             <tui-icon icon="@tui.minus"></tui-icon>
+                           </button>
+                           <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item)" class="qty-input">
+                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item)">
+                             <tui-icon icon="@tui.plus"></tui-icon>
+                           </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="summary-footer" *ngIf="totalItemsSelected > 0">
+    <div class="footer-inner">
+      <div class="footer-stats">
+        <span class="count-tag">{{ totalItemsSelected }} item(s) selected</span>
+        <span class="total-tag">Cart total: <strong>{{ totalAmount | number }}đ</strong></span>
+      </div>
+      <div class="footer-actions">
+        <button tuiButton type="button" (click)="addToCart()" appearance="outline">Add to Cart</button>
+        <button tuiButton type="button" (click)="checkout()" appearance="primary">Checkout Now</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="loading && products.length === 0" class="loading-overlay">
+    <tui-icon icon="@tui.loader"></tui-icon>
+    <p>Loading products...</p>
+  </div>
+</div>

@@ -268,6 +268,17 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
       this.formData.applyProductValue = '{}';
     }
 
+    // Priority Uniqueness Check
+    const priority = this.formData.priority || 0;
+    const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
+    if (duplicate) {
+      this.alerts.open(`Độ ưu tiên ${priority} đã được sử dụng bởi quy tắc "${duplicate.name}". Vui lòng chọn số khác.`, { 
+        appearance: 'error',
+        label: 'Trùng độ ưu tiên'
+      }).subscribe();
+      return;
+    }
+
     const action = this.editingId 
       ? this.api.updateHidePriceRule(this.editingId, this.formData)
       : this.api.createHidePriceRule(this.formData);

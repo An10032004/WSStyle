@@ -24,6 +24,8 @@ import {
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
+import { MaskitoDirective } from '@maskito/angular';
+import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, ShippingRule, Category, Product, CustomerGroup } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
@@ -40,7 +42,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     CommonModule, FormsModule, AgGridAngular, TuiButton, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelectModule,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    RuleConflictWarningComponent, TuiBadge
+    RuleConflictWarningComponent, TuiBadge, MaskitoDirective
   ],
   templateUrl: './shipping-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -70,6 +72,22 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   categories: Category[] = [];
   products: Product[] = [];
   customerGroups: CustomerGroup[] = [];
+  
+  currentLanguage: string = 'vi';
+
+  get maskOptions() {
+    return maskitoNumberOptionsGenerator({
+      thousandSeparator: this.currentLanguage === 'vi' ? '.' : ',',
+      precision: 0,
+      min: 0,
+    });
+  }
+
+  getNumericValue(val: any): number {
+    if (val === null || val === undefined || val === '') return 0;
+    const str = String(val);
+    return Number(str.replace(/[\.,]/g, ''));
+  }
   
   selectedCategoryIds: Category[] = [];
   selectedProductIds: Product[] = [];
@@ -102,6 +120,7 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     this.loadCustomerGroups();
     this.loadCommonData();
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
+      this.currentLanguage = this.languageService.currentLanguage;
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
       if (this.gridApi) {
         this.gridApi.refreshHeader();

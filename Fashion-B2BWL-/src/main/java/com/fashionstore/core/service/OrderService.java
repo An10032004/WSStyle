@@ -10,6 +10,8 @@ import com.fashionstore.core.repository.OrderRepository;
 import com.fashionstore.core.repository.ProductVariantRepository;
 import com.fashionstore.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,15 +65,25 @@ public class OrderService {
             items.add(item);
         }
 
-        order.setTotalAmount(totalAmount);
+        order.setShippingFee(request.getShippingFee() != null ? request.getShippingFee() : BigDecimal.ZERO);
+        BigDecimal finalTotal = totalAmount.add(order.getShippingFee());
+        order.setTotalAmount(finalTotal);
         order.setItems(items);
-        order.setDebtAmount(totalAmount); // Initial debt is total amount
+        order.setDebtAmount(finalTotal); // Initial debt is total amount including shipping
 
         return orderRepository.save(order);
     }
 
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
+    }
+
+    public List<Order> getOrdersByUserId(Integer userId) {
+        return orderRepository.findByUserId(userId);
+    }
+
+    public Page<Order> getOrdersByUserIdPaged(Integer userId, Pageable pageable) {
+        return orderRepository.findByUserId(userId, pageable);
     }
 
     public Order getOrderById(Integer id) {

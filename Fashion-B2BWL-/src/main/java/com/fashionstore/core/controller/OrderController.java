@@ -5,7 +5,12 @@ import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -24,6 +29,20 @@ public class OrderController {
     @GetMapping
     public ApiResponse<List<Order>> getAllOrders() {
         return ApiResponse.success(orderService.getAllOrders());
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<List<Order>>> getOrdersByUser(@PathVariable("userId") Integer userId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersByUserId(userId)));
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<Page<Order>>> getOrdersByUserPaged(
+            @RequestParam("userId") Integer userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersByUserIdPaged(userId, pageable)));
     }
 
     @GetMapping("/{id}")

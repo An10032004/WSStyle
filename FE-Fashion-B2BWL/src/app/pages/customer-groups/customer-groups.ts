@@ -60,8 +60,7 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
   editingId: number | null = null;
   
   formData: Partial<CustomerGroup> = {
-    name: '',
-    defaultDiscountRate: 0
+    name: ''
   };
 
   private langSub?: Subscription;
@@ -109,12 +108,6 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
         tooltipValueGetter: (params: any) => params.value
       },
       { 
-        field: 'defaultDiscountRate', 
-        headerValueGetter: () => this.transloco.translate('MEMBER.DISCOUNT_RATE'), 
-        width: 150,
-        valueFormatter: (params: any) => params.value ? params.value + '%' : '0%'
-      },
-      { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
         width: 180,
         cellRenderer: ActionRendererComponent,
@@ -143,7 +136,7 @@ export class CustomerGroupsComponent implements OnInit, OnDestroy {
 
   onAdd(): void {
     this.editingId = null;
-    this.formData = { name: '', defaultDiscountRate: 0 };
+    this.formData = { name: '' };
     this.showForm = true;
     this.cdr.detectChanges();
   }

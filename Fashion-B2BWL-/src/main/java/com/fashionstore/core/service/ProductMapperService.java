@@ -12,6 +12,8 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 
 @Service
 @RequiredArgsConstructor
@@ -28,10 +30,27 @@ public class ProductMapperService {
         List<SaleCampaign> campaigns = ruleCoreService.getAllActiveSaleCampaigns();
         List<PricingRule> pricingRules = ruleCoreService.getAllActivePricingRules();
         List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
+        List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
 
         return products.stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
                 .toList();
+    }
+
+    public Page<ProductResponseDTO> toDTOs(Page<Product> productsPage, User user) {
+        if (productsPage == null || productsPage.isEmpty()) return Page.empty();
+
+        List<HidePriceRule> hidePriceRules = ruleCoreService.getAllActiveHidePriceRules();
+        List<SaleCampaign> campaigns = ruleCoreService.getAllActiveSaleCampaigns();
+        List<PricingRule> pricingRules = ruleCoreService.getAllActivePricingRules();
+        List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
+        List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
+
+        List<ProductResponseDTO> dtos = productsPage.getContent().stream()
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
+                .toList();
+
+        return new PageImpl<>(dtos, productsPage.getPageable(), productsPage.getTotalElements());
     }
 
     public ProductResponseDTO toDTO(Product product, User user) {
@@ -39,7 +58,8 @@ public class ProductMapperService {
             ruleCoreService.getAllActiveHidePriceRules(),
             ruleCoreService.getAllActiveSaleCampaigns(),
             ruleCoreService.getAllActivePricingRules(),
-            ruleCoreService.getAllActiveTaxRules()
+            ruleCoreService.getAllActiveTaxRules(),
+            ruleCoreService.getAllActiveNetTermRules()
         );
     }
 
@@ -47,7 +67,8 @@ public class ProductMapperService {
                                     List<HidePriceRule> hidePriceRules,
                                     List<SaleCampaign> campaigns,
                                     List<PricingRule> pricingRules,
-                                    List<TaxDisplayRule> taxRules) {
+                                    List<TaxDisplayRule> taxRules,
+                                    List<NetTermRule> netTermRules) {
         Integer productId = product.getId();
         Integer categoryId = product.getCategoryId();
 
@@ -65,6 +86,7 @@ public class ProductMapperService {
                 .origin(product.getOrigin())
                 .hidePrice(false)
                 .hideAddToCart(false)
+                .isNetTermEligible(false)
                 .build();
 
         // 1. Apply Hide Price Rules
@@ -90,7 +112,7 @@ public class ProductMapperService {
         ruleCoreService.findBestPricingRule(productId, categoryId, user, pricingRules).ifPresent(rule -> {
             if ("QUANTITY_BREAK".equals(rule.getRuleType())) {
                 dto.setQuantityBreaksJson(rule.getActionConfig());
-                dto.setDiscountLabel("Bulk Discount Available");
+                dto.setDiscountLabel("Ưu đãi mua sỉ");
             } else {
                 BigDecimal price = dto.getCalculatedPrice();
                 if ("PERCENTAGE".equals(rule.getDiscountType()) && rule.getDiscountValue() != null) {
@@ -108,6 +130,29 @@ public class ProductMapperService {
         ruleCoreService.findBestTaxRule(productId, categoryId, user, taxRules).ifPresent(rule -> {
             dto.setTaxDisplayType(rule.getTaxDisplayType());
             dto.setTaxDisplayLabel(rule.getDisplayType());
+
+            // Apply Tax-related Discount Rate if any
+            if (rule.getDiscountRate() != null && rule.getDiscountRate() > 0) {
+                BigDecimal factor = BigDecimal.valueOf(100 - rule.getDiscountRate())
+                        .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                dto.setCalculatedPrice(dto.getCalculatedPrice().multiply(factor).setScale(0, RoundingMode.HALF_UP));
+                
+                String discountMsg = "Tax Promo: -" + rule.getDiscountRate() + "%";
+                dto.setDiscountLabel(dto.getDiscountLabel() == null ? discountMsg : dto.getDiscountLabel() + " | " + discountMsg);
+            }
+
+            // Calculate Tax-Exclusive Price (Assuming base is tax-inclusive)
+            // priceExcl = calculated / 1.1 (for 10% tax)
+            BigDecimal taxFactor = BigDecimal.valueOf(1.1);
+            BigDecimal priceExcl = dto.getCalculatedPrice().divide(taxFactor, 0, RoundingMode.HALF_UP);
+            dto.setPriceExclTax(priceExcl);
+            dto.setTaxAmount(dto.getCalculatedPrice().subtract(priceExcl));
+        });
+
+        // 5. Apply NET Term Rules
+        ruleCoreService.findBestNetTermRule(user, netTermRules).ifPresent(rule -> {
+            dto.setIsNetTermEligible(true);
+            dto.setNetTermDays(rule.getNetTermDays());
         });
 
         return dto;

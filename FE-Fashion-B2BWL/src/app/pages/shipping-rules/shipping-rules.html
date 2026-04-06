@@ -89,8 +89,8 @@
 
           <label tuiLabel class="form-field" *ngIf="formData.discountType !== 'FREE'">
             Giá trị chiết khấu {{ formData.discountType === 'PERCENTAGE' ? '%' : 'đ' }}
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="formData.discountValue" />
+            <tui-textfield tuiTextfieldSize="m">
+              <input tuiTextfield type="text" [maskito]="maskOptions" [ngModel]="formData.discountValue" (ngModelChange)="formData.discountValue = getNumericValue($event)" />
             </tui-textfield>
           </label>
         </div>
@@ -109,19 +109,21 @@
             <label tuiLabel>
               Từ ({{ formData.baseOn === 'AMOUNT_RANGE' ? 'Số tiền' : 'Số lượng' }})
               <tui-textfield tuiTextfieldSize="m">
-                <input tuiTextfield type="number" [(ngModel)]="range.min" (ngModelChange)="checkConflicts()" />
+                <input tuiTextfield type="text" [maskito]="maskOptions" [ngModel]="range.min" (ngModelChange)="range.min = getNumericValue($event); checkConflicts()" />
               </tui-textfield>
             </label>
+
             <label tuiLabel>
               Đến ({{ formData.baseOn === 'AMOUNT_RANGE' ? 'Số tiền' : 'Số lượng' }})
               <tui-textfield tuiTextfieldSize="m">
-                <input tuiTextfield type="number" [(ngModel)]="range.max" (ngModelChange)="checkConflicts()" />
+                <input tuiTextfield type="text" [maskito]="maskOptions" [ngModel]="range.max" (ngModelChange)="range.max = getNumericValue($event); checkConflicts()" />
               </tui-textfield>
             </label>
+
             <label tuiLabel>
               Phí vận chuyển (đ)
               <tui-textfield tuiTextfieldSize="m">
-                <input tuiTextfield type="number" [(ngModel)]="range.rate" (ngModelChange)="checkConflicts()" />
+                <input tuiTextfield type="text" [maskito]="maskOptions" [ngModel]="range.rate" (ngModelChange)="range.rate = getNumericValue($event); checkConflicts()" />
               </tui-textfield>
             </label>
             <button tuiIconButton type="button" size="m" appearance="flat" icon="@tui.trash" (click)="removeRateRange(i); checkConflicts()" style="color: #ef4444; margin-bottom: 4px;"></button>

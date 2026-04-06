@@ -61,8 +61,6 @@ export class UsersComponent implements OnInit, OnDestroy {
   editingId: number | null = null;
   
   formData: any = {
-    email: '',
-    password: '',
     fullName: '',
     phone: '',
     role: 'RETAIL',
@@ -74,6 +72,12 @@ export class UsersComponent implements OnInit, OnDestroy {
 
   roleOptions = ['RETAIL', 'WHOLESALE', 'GUEST'];
   statusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
+
+  get selectedGroupName(): string {
+    if (!this.customerGroups || !this.formData.customerGroupId) return 'None';
+    const group = this.customerGroups.find(g => g.id === this.formData.customerGroupId);
+    return group ? group.name : 'None';
+  }
 
   private langSub?: Subscription;
 
@@ -107,7 +111,9 @@ export class UsersComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
 
   loadData(): void {
-    this.api.getUsers().subscribe(data => {
+    // Only fetch users with customer/retail roles
+    const customerRoles = ['RETAIL', 'WHOLESALE', 'GUEST', 'CUSTOMER'];
+    this.api.getUsersByRoles(customerRoles).subscribe(data => {
       this.rowData = data;
       this.cdr.detectChanges();
     });

@@ -10,7 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.fashionstore.core.repository.specification.ProductSpecification;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +47,22 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<Product> getProductsByCategory(Integer categoryId) {
         return productRepository.findByCategoryId(categoryId);
+    }
+
+    /**
+     * Lấy sản phẩm có phân trang và lọc (Server-side Pagination & Filtering)
+     */
+    @Transactional(readOnly = true)
+    public Page<Product> getProductsPaged(String search, List<Integer> categoryIds, BigDecimal minPrice, BigDecimal maxPrice, List<String> brands, Pageable pageable) {
+        return productRepository.findAll(ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands), pageable);
+    }
+
+    /**
+     * Lấy danh sách thương hiệu hiện có
+     */
+    @Transactional(readOnly = true)
+    public List<String> getAvailableBrands() {
+        return productRepository.findDistinctBrands();
     }
 
     /**

@@ -16,5 +16,6 @@ public class OrderRequest {
     private String phone;
     private String shippingAddress;
     private String note;
+    private java.math.BigDecimal shippingFee;
     private List<OrderItemRequest> items;
 }

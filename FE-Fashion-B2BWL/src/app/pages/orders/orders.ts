@@ -78,7 +78,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           </div>
           <div class="detail-item">
             <span class="label">{{ 'ORDER.PAYMENT_STATUS' | transloco }}:</span>
-            <tui-badge size="s" [appearance]="selectedOrder.paymentStatus === 'PAID' ? 'success' : 'danger'">
+            <tui-badge size="s" [appearance]="getPaymentStatusAppearance(selectedOrder.paymentStatus)">
               {{ selectedOrder.paymentStatus }}
             </tui-badge>
           </div>
@@ -141,6 +141,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
         </table>
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 24px; gap: 8px;">
+        <button tuiButton size="m" appearance="primary" *ngIf="selectedOrder?.paymentStatus !== 'PAID'" (click)="updatePaymentStatus(selectedOrder!.id, 'PAID')">
+          Xác nhận đã nhận tiền
+        </button>
         <button tuiButton size="m" appearance="accent" *ngIf="selectedOrder?.status === 'PENDING'" (click)="updateStatus(selectedOrder!.id, 'PROCESSING')">
           Xác nhận đơn
         </button>
@@ -235,8 +238,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
       { 
         field: 'paymentStatus', 
         headerValueGetter: () => this.transloco.translate('ORDER.PAYMENT_STATUS'), 
-        width: 140,
-        cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${params.value === 'PAID' ? 'success' : 'danger'}">${params.value}</span>`
+        width: 170,
+        cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${this.getPaymentStatusAppearance(params.value)}">${params.value}</span>`
       },
       { 
         field: 'totalAmount', 
@@ -279,6 +282,26 @@ export class OrdersComponent implements OnInit, OnDestroy {
       case 'CANCELLED': return 'danger';
       default: return 'neutral';
     }
+  }
+
+  getPaymentStatusAppearance(status: string): string {
+    switch (status) {
+      case 'PAID': return 'success';
+      case 'AWAITING_CONFIRMATION': return 'warning';
+      case 'FAILED': return 'danger';
+      default: return 'neutral';
+    }
+  }
+
+  updatePaymentStatus(id: number, status: string): void {
+    this.api.updatePaymentStatus(id, status).subscribe(() => {
+      this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
+      this.loadData();
+      if (this.selectedOrder && this.selectedOrder.id === id) {
+        this.selectedOrder.paymentStatus = status;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   onGridReady(params: GridReadyEvent): void {

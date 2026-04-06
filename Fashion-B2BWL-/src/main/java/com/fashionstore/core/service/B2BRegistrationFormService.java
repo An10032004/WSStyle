@@ -29,6 +29,25 @@ public class B2BRegistrationFormService {
     @Transactional
     public B2BRegistrationForm createForm(B2BRegistrationFormRequest request) {
         User user = userService.getUserById(request.getUserId());
+        
+        // Sync company and tax info to user record immediately
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(request.getFormData());
+            
+            if (node.has("companyName")) {
+                user.setCompanyName(node.get("companyName").asText());
+            }
+            if (node.has("taxCode")) {
+                user.setTaxCode(node.get("taxCode").asText());
+            }
+            // Save updated user
+            userService.save(user); 
+        } catch (Exception e) {
+             // Non-blocking log if JSON parsing fails
+             System.err.println("Error syncing B2B data to user: " + e.getMessage());
+        }
+
         B2BRegistrationForm form = B2BRegistrationForm.builder()
                 .user(user)
                 .formData(request.getFormData())

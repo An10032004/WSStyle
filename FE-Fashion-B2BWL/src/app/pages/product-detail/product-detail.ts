@@ -1,14 +1,17 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { ApiService, Product, ProductVariant } from '../../services/api.service';
+import { ApiService, Product, ProductVariant, OrderLimit } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
-import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown } from '@taiga-ui/core';
-import { TuiCarousel, TuiPagination, TuiBadge } from '@taiga-ui/kit';
+import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown, TuiDialogService, TuiDialog, TuiAlertService, TuiNotification } from '@taiga-ui/core';
+import { TuiCarousel, TuiPagination, TuiBadge, TuiAccordion, TuiRating } from '@taiga-ui/kit';
+import { TuiTextareaModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { take } from 'rxjs';
 
 @Component({
   selector: 'app-product-detail',
@@ -28,6 +31,12 @@ import { TranslocoModule } from '@jsverse/transloco';
     StorefrontHeaderComponent,
     StorefrontFooterComponent,
     TuiFormatNumberPipe,
+    TuiRating,
+    TuiTextareaModule,
+    TuiDialog,
+    FormsModule,
+    ReactiveFormsModule,
+    TuiNotification,
   ],
   templateUrl: './product-detail.html',
   styleUrl: './product-detail.scss',
@@ -40,67 +49,155 @@ export class ProductDetailComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly cart = inject(CartService);
+  private readonly dialogs = inject(TuiDialogService);
+  private readonly alerts = inject(TuiAlertService);
   
   user$ = this.auth.user$;
 
   product?: Product;
   variants: ProductVariant[] = [];
-  selectedVariant?: ProductVariant;
   activeImage?: string;
   allImages: string[] = []; // Full pool of images
   displayImages: string[] = []; // Current visible gallery
-  quantity: number = 1;
   
   categories = ['NEW ARRIVALS', 'BRANDS', 'MEN', 'WOMEN', 'ACCESSORIES', 'SALE'];
   brandName: string = 'ICON DENIM';
 
   // Selection state
-  selectedColor?: string;
-  selectedSize?: string;
+  selectedColor: string | undefined;
+  selectedSize: string | undefined;
+  selectedVariant: ProductVariant | undefined;
+  selectedTab: 'SPEC' | 'DESC' | 'REVIEWS' = 'SPEC';
+  quantity = 1;
+  reviews: any[] = [];
+  editingReviewId: number | null = null;
+  
+  // Selected variant / state
+  reviewRating = 5;
+  reviewComment = '';
   availableColors: string[] = [];
   availableSizes: string[] = [];
 
   isLightboxOpen: boolean = false;
   lightboxIndex: number = 0;
 
+  selectedWeight: string | undefined;
+  selectedLength: number | undefined;
+
+  isVariantsLoaded = false; // Sync flag to prevent initial price jump
+  selectedWidth: number | undefined;
+  selectedHeight: number | undefined;
+  
+  availableWeights: string[] = [];
+
   // Pricing Rules
+  @ViewChild('reviewDialog') reviewDialog!: TemplateRef<any>;
+  
   qbRules: any[] = [];
   b2bRule: any | null = null;
   quantityBreaks: any[] = [];
+  activeOrderLimit: OrderLimit | null = null;
+
+  get isSelectionIncomplete(): boolean {
+    if (!this.product || !this.variants || this.variants.length === 0) return false;
+    
+    const needsColor = this.variants.some(v => !!v.color);
+    const needsSize = this.variants.some(v => !!v.size);
+    const needsWeight = this.variants.some(v => !!v.weight);
+
+    if (needsColor && !this.selectedColor) return true;
+    if (needsSize && !this.selectedSize) return true;
+    if (needsWeight && !this.selectedWeight) return true;
+
+    return false;
+  }
 
   get currentPrice(): number {
     if (!this.product) return 0;
     
-    // 1. Determine Base Price (Prioritize Variant-specific price)
-    let base = this.product.basePrice;
-    if (this.selectedVariant && this.selectedVariant.price != null && this.selectedVariant.price > 0) {
-      base = this.selectedVariant.price;
-    } else {
-      base += (this.selectedVariant?.priceAdjustment || 0);
-    }
-
-    // 2. Apply Variant Discount Price if it exists and is lower than base
-    if (this.selectedVariant && this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0) {
-      base = Math.min(base, this.selectedVariant.discountPrice);
+    // 0. Wait for variants to load to prevent initial price jump (167k -> 190k flash)
+    if (!this.isVariantsLoaded) {
+      return this.product.basePrice;
     }
     
+    // 1. Determine Base Price (Prioritize Variant-specific price as Absolute Override)
+    if (this.selectedVariant) {
+      if (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0) {
+        return this.selectedVariant.discountPrice;
+      }
+      if (this.selectedVariant.price != null && this.selectedVariant.price > 0) {
+        return this.selectedVariant.price;
+      }
+    }
+
+    // 2. If Selection is Incomplete for a product with variants, SHOW RAW BASE PRICE ONLY
+    // We suppress all B2B/QB rules to prevent "Price Dipping" (167k vs 190k)
+    if (this.isSelectionIncomplete) {
+      return this.product.basePrice;
+    }
+
+    let base = this.product.basePrice;
+    base += (this.selectedVariant?.priceAdjustment || 0);
+
     // 3. Apply B2B Pricing Rule (Wholesale)
     if (this.b2bRule) {
       const discountValue = this.b2bRule.discountValue ?? this.b2bRule.parsedConfig?.discountValue ?? 0;
       const discountType = this.b2bRule.discountType ?? this.b2bRule.parsedConfig?.discountType;
 
       if (discountType === 'PERCENTAGE') {
-        return base * (1 - discountValue / 100);
+        base = base * (1 - discountValue / 100);
       } else if (discountType === 'FIXED') {
-        return Math.max(0, base - discountValue);
+        base = Math.max(0, base - discountValue);
+      }
+    }
+
+    // 4. Apply Quantity Break Pricing Rule
+    if (this.quantityBreaks && this.quantityBreaks.length > 0) {
+      const matchedBreak = this.quantityBreaks.find(b => {
+        const min = b.min ?? 1;
+        const max = b.max ?? 999999999;
+        return this.quantity >= min && this.quantity <= max;
+      });
+      if (matchedBreak && matchedBreak.discount != null) {
+        base = base * (1 - matchedBreak.discount / 100);
       }
     }
     
     return base;
   }
 
+  get isVariantPriceApplied(): boolean {
+    return !!(this.selectedVariant && (
+      (this.selectedVariant.price != null && this.selectedVariant.price > 0) ||
+      (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0)
+    ));
+  }
+
   get isB2BApplied(): boolean {
+    if (!this.isVariantsLoaded) return false;
+    if (this.isVariantPriceApplied) return false;
+    
+    // Suppress B2B badges if selection is incomplete for a variant product
+    if (this.isSelectionIncomplete) return false;
+
     return !!this.b2bRule;
+  }
+
+  get isQBApplied(): boolean {
+    if (!this.isVariantsLoaded) return false;
+    if (this.isVariantPriceApplied) return false;
+    
+    // Suppress QB banners if selection is incomplete for a variant product
+    if (this.isSelectionIncomplete) return false;
+
+    return this.quantityBreaks && this.quantityBreaks.length > 0;
+  }
+
+  get isMoqViolation(): boolean {
+    if (!this.activeOrderLimit || this.activeOrderLimit.limitType !== 'MIN_ORDER_QUANTITY') return false;
+    // We match PER_PRODUCT and PER_VARIANT for product-level enforcement
+    const isProductLevel = this.activeOrderLimit.limitLevel === 'PER_PRODUCT' || this.activeOrderLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && this.quantity < this.activeOrderLimit.limitValue;
   }
 
   constructor() {}
@@ -108,25 +205,176 @@ export class ProductDetailComponent implements OnInit {
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (id) {
-      this.loadProduct(id);
+      this.loadProduct();
+    }
+    this.route.params.subscribe(() => {
+        this.loadProduct();
+    });
+  }
+
+  loadOrderLimits(productId: number, categoryId: number) {
+    this.api.getOrderLimits().subscribe(rules => {
+      const activeRules = rules.filter(r => r.status === 'ACTIVE');
+      const user = this.auth.currentUserValue;
+
+      const matchedRules = activeRules.filter(r => {
+        // 1. Customer Check
+        let customerMatch = false;
+        if (r.applyCustomerType === 'ALL') customerMatch = true;
+        else if (r.applyCustomerType === 'GROUP' && r.applyCustomerValue && user?.customerGroup) {
+          try {
+            const val = JSON.parse(r.applyCustomerValue);
+            customerMatch = val.groupId === user.customerGroup.id;
+          } catch (e) {}
+        }
+        if (!customerMatch) return false;
+
+        // 2. Product Check
+        if (r.applyProductType === 'ALL') return true;
+        if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
+          try {
+            const val = JSON.parse(r.applyProductValue);
+            return val.productIds?.includes(productId);
+          } catch (e) {}
+        }
+        if (r.applyProductType === 'CATEGORY' && r.applyProductValue) {
+          try {
+            const val = JSON.parse(r.applyProductValue);
+            return val.categoryIds?.includes(categoryId);
+          } catch (e) {}
+        }
+        return false;
+      });
+
+      if (matchedRules.length > 0) {
+        // Pick highest priority MOQ rule
+        this.activeOrderLimit = matchedRules.sort((a, b) => b.priority - a.priority)[0];
+      } else {
+        this.activeOrderLimit = null;
+      }
+      this.cdr.detectChanges();
+    });
+  }
+
+  loadReviews(productId: number) {
+    this.api.getReviewsByProduct(productId).subscribe(res => {
+      this.reviews = res;
+      this.cdr.markForCheck();
+    });
+  }
+
+  get averageRating(): number {
+    if (this.reviews.length === 0) return 5.0;
+    const sum = this.reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return Math.round((sum / this.reviews.length) * 10) / 10;
+  }
+
+  getRatingPercent(stars: number): number {
+    if (this.reviews.length === 0) return stars === 5 ? 100 : 0;
+    const count = this.reviews.filter(r => r.rating === stars).length;
+    return Math.round((count / this.reviews.length) * 100);
+  }
+
+  openReviewDialog() {
+    console.log('Opening review dialog...');
+    this.auth.user$.pipe(take(1)).subscribe(user => {
+      console.log('User state:', user);
+      if (!user) {
+        this.alerts.open('Vui lòng đăng nhập để đánh giá', { label: 'Thông báo', appearance: 'warning' }).subscribe();
+        return;
+      }
+      this.editingReviewId = null;
+      this.reviewRating = 5;
+      this.reviewComment = '';
+      
+      console.log('Dialog Template:', this.reviewDialog);
+      if (this.reviewDialog) {
+        this.dialogs.open(this.reviewDialog, { size: 'm', label: 'Viết đánh giá sản phẩm' }).subscribe();
+      } else {
+        this.alerts.open('Lỗi: Không tìm thấy mẫu giao diện đánh giá', { appearance: 'error' }).subscribe();
+      }
+    });
+  }
+
+  openEditReview(review: any) {
+    this.editingReviewId = review.id;
+    this.reviewRating = review.rating;
+    this.reviewComment = review.comment;
+    if (this.reviewDialog) {
+      this.dialogs.open(this.reviewDialog, { size: 'm', label: 'Chỉnh sửa đánh giá' }).subscribe();
     }
   }
-  loadProduct(id: number) {
-    const userId = this.auth.currentUserValue?.id;
-    this.api.getProductById(id, userId).subscribe(p => {
-      this.product = p;
-      if (p.quantityBreaksJson) {
-        try {
-          this.quantityBreaks = JSON.parse(p.quantityBreaksJson);
-        } catch (e) {
-          console.error('Error parsing quantity breaks', e);
-        }
+
+  deleteReview(reviewId: number) {
+    if (confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
+      this.api.deleteReview(reviewId).subscribe(res => {
+        this.alerts.open('Xóa đánh giá thành công', { appearance: 'success' }).subscribe();
+        this.loadReviews(this.product!.id);
+      });
+    }
+  }
+
+  submitNewReview(observer: any) {
+    this.auth.user$.pipe(take(1)).subscribe(user => {
+      if (!user || !this.product) return;
+      
+      const reviewData = {
+        productId: this.product.id,
+        userId: user.id,
+        rating: this.reviewRating,
+        comment: this.reviewComment
+      };
+
+      if (this.editingReviewId) {
+        this.api.updateReview(this.editingReviewId, reviewData).subscribe({
+          next: () => {
+            this.alerts.open('Cập nhật đánh giá thành công!', { label: 'Thành công', appearance: 'success' }).subscribe();
+            this.loadReviews(this.product!.id);
+            observer.complete();
+          },
+          error: (err) => {
+            this.alerts.open(err.error?.message || 'Có lỗi xảy ra khi cập nhật đánh giá', { appearance: 'error' }).subscribe();
+          }
+        });
+      } else {
+        this.api.submitReview(reviewData).subscribe({
+          next: () => {
+            this.alerts.open('Gửi đánh giá thành công!', { label: 'Thành công', appearance: 'success' }).subscribe();
+            this.loadReviews(this.product!.id);
+            observer.complete();
+          },
+          error: (err) => {
+            this.alerts.open(err.error?.message || 'Có lỗi xảy ra khi gửi đánh giá', { appearance: 'error' }).subscribe();
+          }
+        });
       }
-      this.brandName = p.brand || 'NO BRAND';
-      this.cdr.detectChanges();
-      this.loadVariants(id);
-      this.loadPricingRules(id);
     });
+  }
+
+  private loadProduct() {
+    const idParam = this.route.snapshot.paramMap.get('id');
+    const userId = this.auth.currentUserValue?.id;
+    if (idParam) {
+      const id = parseInt(idParam);
+      this.api.getProductById(id, userId).subscribe((p) => {
+        this.product = p;
+        this.loadReviews(p.id);
+        if (p.quantityBreaksJson) {
+          try {
+            this.quantityBreaks = JSON.parse(p.quantityBreaksJson);
+          } catch (e) {
+            console.error('Error parsing quantity breaks', e);
+          }
+        }
+        this.brandName = p.brand || 'NO BRAND';
+        this.cdr.detectChanges();
+        this.loadVariants(id);
+        this.loadPricingRules(id);
+        if (p.categoryId) {
+          this.loadOrderLimits(p.id, p.categoryId);
+        }
+      });
+    }
   }
 
   loadPricingRules(productId: number) {
@@ -207,11 +455,7 @@ export class ProductDetailComponent implements OnInit {
       });
       this.availableColors = Array.from(colors);
 
-      if (this.availableColors.length > 0) {
-        this.selectColor(this.availableColors[0]);
-      } else if (this.variants.length > 0) {
-        this.selectVariant(this.variants[0]);
-      }
+      // No auto-selection: let the user pick
       
       // Collect all possible images (Product images + All Variant images)
       const allVariantImages: string[] = [];
@@ -239,6 +483,7 @@ export class ProductDetailComponent implements OnInit {
       if (!this.activeImage && this.displayImages.length > 0) {
         this.activeImage = this.displayImages[0];
       }
+      this.isVariantsLoaded = true; // Signal that we are ready
       this.cdr.detectChanges();
     });
   }
@@ -252,43 +497,73 @@ export class ProductDetailComponent implements OnInit {
     
     this.availableSizes = Array.from(new Set(sizes as string[]));
     
-    if (this.availableSizes.length > 0) {
-      // Preserve size if available in new color, otherwise select first
-      if (!this.selectedSize || !this.availableSizes.includes(this.selectedSize)) {
-        this.selectSize(this.availableSizes[0]);
-      } else {
-        this.selectSize(this.selectedSize);
-      }
-    } else {
-      const v = this.variants.find(v => v.color === color);
-      if (v) this.selectVariant(v);
-    }
+    // No auto-selection of size: find variant if current selection is complete
+    this.findMatchingVariant();
   }
 
   selectSize(size: string) {
     this.selectedSize = size;
-    const v = this.variants.find(v => 
-      v.color === this.selectedColor && 
-      v.size === size
-    );
-    if (v) {
-      this.selectVariant(v);
+    const weights = this.variants
+      .filter(v => v.color === this.selectedColor && v.size === size)
+      .map(v => v.weight)
+      .filter(w => !!w);
+    
+    this.availableWeights = Array.from(new Set(weights as string[]));
+
+    // No auto-selection of weight: find variant if current selection is complete
+    this.findMatchingVariant();
+  }
+
+  selectWeight(weight: string) {
+    this.selectedWeight = weight;
+    this.findMatchingVariant();
+  }
+
+  findMatchingVariant() {
+    if (!this.product || !this.variants) return;
+
+    // Reset current variant if selection is incomplete
+    if (this.isSelectionIncomplete) {
+      this.applyVariant(undefined);
+      return;
+    }
+
+    const matched = this.variants.find(v => {
+      const colorMatch = !v.color || v.color === this.selectedColor;
+      const sizeMatch = !v.size || v.size === this.selectedSize;
+      const weightMatch = !v.weight || v.weight === this.selectedWeight;
+      return colorMatch && sizeMatch && weightMatch;
+    });
+
+    if (matched) {
+      this.applyVariant(matched);
     } else {
-      // Fallback if size not found for color (shouldn't happen with filtered list)
-      const v2 = this.variants.find(v => v.size === size);
-      if (v2) this.selectVariant(v2);
+      this.applyVariant(undefined); // No match found for this combo
     }
   }
 
   selectVariant(v: ProductVariant) {
+    this.selectedColor = v.color;
+    this.selectedSize = v.size;
+    this.selectedWeight = v.weight;
+    this.applyVariant(v);
+  }
+
+  private applyVariant(v: ProductVariant | undefined) {
     this.selectedVariant = v;
     
+    if (!v) {
+      this.displayImages = [...this.allImages];
+      this.cdr.detectChanges();
+      return;
+    }
+
     // 1. Extract variant-specific images
     const variantImages: string[] = [];
     if (v.imageUrl) variantImages.push(v.imageUrl);
     if (v.imageUrls) {
-      const urls = v.imageUrls.split(',').filter(u => !!u.trim());
-      variantImages.push(...urls);
+      const urls = typeof v.imageUrls === 'string' ? v.imageUrls.split(',').filter(u => !!u.trim()) : (v.imageUrls as any);
+      if (Array.isArray(urls)) variantImages.push(...urls);
     }
 
     // 2. Update displayImages: Variant images first, then others from allImages pool
@@ -301,6 +576,30 @@ export class ProductDetailComponent implements OnInit {
     }
     
     this.cdr.detectChanges();
+  }
+
+  getColorHex(color: string): string {
+    const map: { [key: string]: string } = {
+      'Đỏ': '#dc2626',
+      'Đen': '#171717',
+      'Trắng': '#ffffff',
+      'Xanh': '#2563eb',
+      'Vàng': '#facc15',
+      'Hồng': '#db2777',
+      'Xám': '#4b5563',
+      'Nâu': '#78350f',
+      'Kem': '#fef3c7',
+      'Rêu': '#166534',
+      'Be': '#f5f5dc',
+      'Tím': '#7c3aed',
+      'Cam': '#ea580c',
+      'Xanh lá': '#16a34a',
+      'Xanh dương': '#1d4ed8',
+      'Xanh navy': '#1e3a8a',
+      'Xanh rêu': '#3f6212',
+      'Than': '#334155'
+    };
+    return map[color] || color; // Fallback to raw string if no map found
   }
 
   changeImage(img: string) {
@@ -352,7 +651,23 @@ export class ProductDetailComponent implements OnInit {
 
   adjQuantity(amt: number) {
     const max = this.selectedVariant?.stockQuantity || 0;
-    this.quantity = Math.max(1, Math.min(max > 0 ? max : 999, this.quantity + amt));
+    const limit = max > 0 ? max : 999;
+    this.quantity = Math.max(1, Math.min(limit, this.quantity + amt));
+    this.cdr.detectChanges();
+  }
+
+  handleQuantityInput(event: any) {
+    const val = parseInt(event.target.value);
+    const max = this.selectedVariant?.stockQuantity || 0;
+    const limit = max > 0 ? max : 999;
+    
+    if (isNaN(val) || val < 1) {
+      this.quantity = 1;
+    } else if (val > limit) {
+      this.quantity = limit;
+    } else {
+      this.quantity = val;
+    }
     this.cdr.detectChanges();
   }
 
