@@ -25,15 +25,15 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     public List<User> getAllUsers() {
-        return userRepository.findAll();
+        return userRepository.findAllWithCustomerGroup();
     }
 
     public List<User> getUsersByRoles(List<String> roles) {
-        return userRepository.findByRoleIn(roles);
+        return userRepository.findByRoleInWithCustomerGroup(roles);
     }
 
     public User getUserById(Integer id) {
-        return userRepository.findById(id)
+        return userRepository.findByIdWithCustomerGroup(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 
@@ -108,7 +108,7 @@ public class UserService {
     public Optional<User> authenticate(LoginRequest request) {
         log.debug("Authenticating user: {}", request.getEmail());
         
-        return userRepository.findByEmail(request.getEmail())
+        return userRepository.findByEmailWithCustomerGroup(request.getEmail())
                 .filter(user -> {
                     boolean matches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
                     if (!matches) {

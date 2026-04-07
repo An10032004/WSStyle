@@ -76,6 +76,12 @@ export class B2BRegisterComponent {
       next: () => {
         this.success = true;
         this.loading = false;
+        this.api.getUserById(user.id).subscribe({
+          next: (fresh) => this.auth.updateStoredUser(fresh),
+          error: () => {
+            /* hồ sơ đã lưu; session có thể cập nhật sau khi đăng nhập lại */
+          },
+        });
       },
       error: (err) => {
         this.errorMsg = 'Failed to submit registration. Please try again.';

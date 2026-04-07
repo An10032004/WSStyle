@@ -141,6 +141,16 @@ export class UsersComponent implements OnInit, OnDestroy {
         headerValueGetter: () => this.transloco.translate('MEMBER.GROUP'), 
         width: 150 
       },
+      {
+        field: 'companyName',
+        headerValueGetter: () => this.transloco.translate('MEMBER.COMPANY'),
+        width: 180,
+      },
+      {
+        field: 'taxCode',
+        headerValueGetter: () => this.transloco.translate('MEMBER.TAX_CODE'),
+        width: 130,
+      },
       { 
         field: 'registrationStatus', 
         headerValueGetter: () => this.transloco.translate('MEMBER.STATUS'), 

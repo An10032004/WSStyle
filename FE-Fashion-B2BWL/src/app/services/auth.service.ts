@@ -84,4 +84,10 @@ export class AuthService {
   get currentUserValue(): User | null {
     return this.userSubject.value;
   }
+
+  /** Cập nhật session sau khi backend đổi hồ sơ (vd. đăng ký đại lý). */
+  updateStoredUser(user: User): void {
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    this.userSubject.next(user);
+  }
 }

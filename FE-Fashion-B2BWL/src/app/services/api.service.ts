@@ -622,6 +622,9 @@ export class ApiService {
   getUsersByRoles(roles: string[]): Observable<User[]> {
     return this.http.get<ApiResponse<User[]>>(`${this.base}/users/roles`, { params: { roles: roles.join(',') } }).pipe(map(r => r.data));
   }
+  getUserById(id: number): Observable<User> {
+    return this.http.get<ApiResponse<User>>(`${this.base}/users/${id}`).pipe(map(r => r.data));
+  }
   createUser(body: any): Observable<User> {
     return this.http.post<ApiResponse<User>>(`${this.base}/users`, body).pipe(map(r => r.data));
   }

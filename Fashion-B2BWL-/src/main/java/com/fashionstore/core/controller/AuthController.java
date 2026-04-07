@@ -4,7 +4,9 @@ import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
 import com.fashionstore.core.dto.request.TokenRefreshRequest;
 import com.fashionstore.core.dto.response.AuthResponse;
+import com.fashionstore.core.dto.response.CustomerGroupSummaryDTO;
 import com.fashionstore.core.dto.response.UserResponse;
+import com.fashionstore.core.model.CustomerGroup;
 import com.fashionstore.core.model.RefreshToken;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.service.JwtService;
@@ -32,6 +34,7 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
         try {
             User user = userService.register(request);
+            user = userService.getUserById(user.getId());
             return ResponseEntity.ok(AuthResponse.builder()
                     .success(true)
                     .message("User registered successfully")
@@ -74,6 +77,7 @@ public class AuthController {
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
+                .map(user -> userService.getUserById(user.getId()))
                 .map(user -> {
                     String token = jwtService.generateToken(user.getEmail());
                     return ResponseEntity.ok(AuthResponse.builder()
@@ -86,6 +90,16 @@ public class AuthController {
                             .build());
                 })
                 .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+    }
+
+    private static CustomerGroupSummaryDTO toCustomerGroupSummary(CustomerGroup group) {
+        if (group == null) {
+            return null;
+        }
+        return CustomerGroupSummaryDTO.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .build();
     }
 
     private UserResponse mapToUserResponse(User user) {
@@ -125,7 +139,9 @@ public class AuthController {
                 .phone(user.getPhone())
                 .role(userRole)
                 .companyName(user.getCompanyName())
+                .taxCode(user.getTaxCode())
                 .registrationStatus(user.getRegistrationStatus())
+                .customerGroup(toCustomerGroupSummary(user.getCustomerGroup()))
                 .permissions(permissions)
                 .build();
     }

@@ -154,13 +154,13 @@
       <span class="label">{{ 'MEMBER.STATUS' | transloco }}:</span>
       <span class="value">{{ selectedUser.registrationStatus }}</span>
     </div>
-    <div class="detail-row" *ngIf="selectedUser.companyName">
+    <div class="detail-row">
       <span class="label">{{ 'MEMBER.COMPANY' | transloco }}:</span>
-      <span class="value">{{ selectedUser.companyName }}</span>
+      <span class="value">{{ selectedUser.companyName || '—' }}</span>
     </div>
-    <div class="detail-row" *ngIf="selectedUser.taxCode">
+    <div class="detail-row">
       <span class="label">{{ 'MEMBER.TAX_CODE' | transloco }}:</span>
-      <span class="value">{{ selectedUser.taxCode }}</span>
+      <span class="value">{{ selectedUser.taxCode || '—' }}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
