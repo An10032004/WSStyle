@@ -88,6 +88,10 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     const str = String(val);
     return Number(str.replace(/[\.,]/g, ''));
   }
+
+  trackByRangeIndex(index: number): number {
+    return index;
+  }
   
   selectedCategoryIds: Category[] = [];
   selectedProductIds: Product[] = [];
@@ -100,6 +104,9 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   baseOptions = ['QUANTITY_RANGE', 'AMOUNT_RANGE'];
   customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
   discountTypeOptions = ['FREE', 'FLAT', 'PERCENTAGE'];
+
+  /** Tạm ẩn form chiết khấu phí vận chuyển — phí chỉ theo khoảng phí. */
+  readonly showShippingDiscountUi = false;
 
   conflicts: string[] = [];
 
@@ -287,23 +294,14 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
         const ids = val.groupIds || (val.groupId ? [val.groupId] : []);
         this.selectedGroupIds = this.customerGroups.filter(g => ids.includes(g.id));
       } catch (e) {}
+    } else {
+      this.selectedGroupIds = [];
     }
 
-    if (rule.applyProductType === 'CATEGORY' && rule.applyProductValue) {
-      try {
-        const val = JSON.parse(rule.applyProductValue);
-        const ids = val.categoryIds || [];
-        this.selectedCategoryIds = this.categories.filter(c => ids.includes(c.id));
-      } catch (e) {}
-    }
-
-    if (rule.applyProductType === 'SPECIFIC' && rule.applyProductValue) {
-      try {
-        const val = JSON.parse(rule.applyProductValue);
-        const ids = val.productIds || [];
-        this.selectedProductIds = this.products.filter(p => ids.includes(p.id));
-      } catch (e) {}
-    }
+    this.formData.applyProductType = 'ALL';
+    this.formData.applyProductValue = '{}';
+    this.selectedCategoryIds = [];
+    this.selectedProductIds = [];
 
     this.conflicts = [];
     this.checkConflicts();
@@ -314,13 +312,16 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
 
   addRateRange(): void {
     const lastMax = this.rateRangesList.length > 0 ? this.rateRangesList[this.rateRangesList.length - 1].max : 0;
-    this.rateRangesList.push({ min: lastMax + 1, max: lastMax + 1000000, rate: 0 });
-    this.cdr.detectChanges();
+    this.rateRangesList = [
+      ...this.rateRangesList,
+      { min: lastMax + 1, max: lastMax + 1000000, rate: 0 },
+    ];
+    this.cdr.markForCheck();
   }
 
   removeRateRange(index: number): void {
-    this.rateRangesList.splice(index, 1);
-    this.cdr.detectChanges();
+    this.rateRangesList = this.rateRangesList.filter((_, i) => i !== index);
+    this.cdr.markForCheck();
   }
 
   syncRateRanges(): void {
@@ -335,12 +336,8 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     this.syncRateRanges();
     const target = {
       name: this.formData.name || 'New Rule',
-      applyProductType: this.formData.applyProductType || 'ALL',
-      applyProductValue: this.formData.applyProductType === 'CATEGORY' 
-        ? JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) })
-        : (this.formData.applyProductType === 'SPECIFIC' 
-          ? JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) }) 
-          : '{}'),
+      applyProductType: 'ALL',
+      applyProductValue: '{}',
       applyCustomerType: this.formData.applyCustomerType || 'ALL',
       applyCustomerValue: this.formData.applyCustomerType === 'GROUP'
         ? JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) })
@@ -371,20 +368,14 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   onSubmit(): void {
     this.syncRateRanges();
 
-    // Process Targeting values
     if (this.formData.applyCustomerType === 'GROUP') {
       this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
     } else {
       this.formData.applyCustomerValue = '{}';
     }
 
-    if (this.formData.applyProductType === 'CATEGORY') {
-      this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) });
-    } else if (this.formData.applyProductType === 'SPECIFIC') {
-      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) });
-    } else {
-      this.formData.applyProductValue = '{}';
-    }
+    this.formData.applyProductType = 'ALL';
+    this.formData.applyProductValue = '{}';
 
     const action = this.editingId ? this.api.updateShippingRule(this.editingId, this.formData) : this.api.createShippingRule(this.formData);
     action.subscribe(() => { 

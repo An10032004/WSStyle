@@ -1,7 +1,9 @@
 package com.fashionstore.core.controller;
 
+import com.fashionstore.core.dto.request.ShippingQuoteRequest;
 import com.fashionstore.core.dto.request.ShippingRuleRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.ShippingQuoteResponse;
 import com.fashionstore.core.model.ShippingRule;
 import com.fashionstore.core.service.ShippingRuleService;
 import com.fashionstore.core.facade.AdminRuleFacade;
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -21,6 +24,20 @@ public class ShippingRuleController {
 
     private final ShippingRuleService shippingRuleService;
     private final AdminRuleFacade adminRuleFacade;
+
+    /**
+     * Ước tính phí ship (storefront giỏ hàng / checkout): theo tổng đơn + loại khách, không lọc SP.
+     */
+    @PostMapping("/quote")
+    public ResponseEntity<ApiResponse<ShippingQuoteResponse>> quote(@RequestBody ShippingQuoteRequest request) {
+        if (request == null) {
+            request = new ShippingQuoteRequest();
+        }
+        BigDecimal amt = request.getOrderAmount() != null ? request.getOrderAmount() : BigDecimal.ZERO;
+        int qty = request.getTotalQuantity() != null ? request.getTotalQuantity() : 0;
+        ShippingQuoteResponse q = shippingRuleService.quote(request.getUserId(), amt, qty);
+        return ResponseEntity.ok(ApiResponse.success(q));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ShippingRule>>> getAllRules() {

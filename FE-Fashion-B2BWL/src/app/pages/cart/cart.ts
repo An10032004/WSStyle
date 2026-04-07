@@ -5,11 +5,11 @@ import { FormsModule } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
-import { BehaviorSubject, map, shareReplay, startWith, switchMap, tap } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
-import { ApiService, OrderRequest } from '../../services/api.service';
+import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -27,8 +27,37 @@ import { AuthService } from '../../services/auth.service';
 export class CartComponent implements OnInit {
   private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
-  
+  private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
+
   cart$ = this.cartService.cart$;
+
+  /** Phí ship theo tổng đơn + loại KH (API), không lọc SP — chỉ hiển thị giỏ hàng. */
+  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+    debounceTime(200),
+    switchMap(([items, user]) => {
+      const selected = items.filter(i => i.selected !== false);
+      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      const qty = selected.reduce((s, i) => s + i.quantity, 0);
+      if (selected.length === 0) {
+        return of({
+          fee: 0,
+          matched: false,
+          tierFeeBeforeDiscount: 0,
+          ruleName: undefined as string | undefined,
+          baseOn: undefined as string | undefined,
+        });
+      }
+      return this.api.quoteShipping({
+        userId: user?.id,
+        orderAmount: subtotal,
+        totalQuantity: qty,
+      });
+    }),
+    shareReplay(1),
+  );
+
+  shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
   
   // Validation trigger
   private validateTrigger = new BehaviorSubject<void>(undefined);
@@ -79,13 +108,20 @@ export class CartComponent implements OnInit {
     this.router.navigate(['/checkout']);
   }
 
-  get totalItems$() {
-    return this.cart$.pipe(map(items => items.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0)));
-  }
+  readonly totalItems$ = this.cart$.pipe(
+    map(items => items.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0)),
+    shareReplay(1),
+  );
 
-  get totalPrice$() {
-    return this.cart$.pipe(map(items => items.filter(i => i.selected).reduce((sum, i) => sum + (i.price * i.quantity), 0)));
-  }
+  readonly totalPrice$ = this.cart$.pipe(
+    map(items => items.filter(i => i.selected).reduce((sum, i) => sum + i.price * i.quantity, 0)),
+    shareReplay(1),
+  );
+
+  /** Tổng thanh toán ước tính = tạm tính + phí ship. */
+  readonly grandTotal$ = combineLatest([this.totalPrice$, this.shippingFee$]).pipe(
+    map(([sub, fee]) => sub + fee),
+  );
 
   toggleItem(item: CartItem, selected: boolean) {
     this.cartService.toggleItemSelection(item.productId, item.variantId, selected);

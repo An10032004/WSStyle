@@ -1,5 +1,6 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.dto.response.ShippingQuoteResponse;
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.request.OrderItemRequest;
 import com.fashionstore.core.model.Order;
@@ -29,6 +30,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ProductVariantRepository productVariantRepository;
     private final OrderLimitService orderLimitService;
+    private final ShippingRuleService shippingRuleService;
 
     @Transactional
     public Order createOrder(OrderRequest request) {
@@ -92,7 +94,9 @@ public class OrderService {
             items.add(item);
         }
 
-        order.setShippingFee(request.getShippingFee() != null ? request.getShippingFee() : BigDecimal.ZERO);
+        int totalQty = itemReqs.stream().mapToInt(OrderItemRequest::getQuantity).sum();
+        ShippingQuoteResponse shipQuote = shippingRuleService.quote(request.getUserId(), totalAmount, totalQty);
+        order.setShippingFee(shipQuote.getFee() != null ? shipQuote.getFee() : BigDecimal.ZERO);
         BigDecimal finalTotal = totalAmount.add(order.getShippingFee());
         order.setTotalAmount(finalTotal);
         order.setItems(items);

@@ -173,6 +173,15 @@ export interface ShippingRule {
   discountValue?: number;
 }
 
+/** Phản hồi POST /api/shipping-rules/quote — theo tổng đơn + loại khách, không lọc SP. */
+export interface ShippingQuote {
+  fee: number;
+  tierFeeBeforeDiscount?: number;
+  ruleName?: string;
+  baseOn?: string;
+  matched: boolean;
+}
+
 export interface NetTermRule {
   id: number;
   name: string;
@@ -556,6 +565,16 @@ export class ApiService {
   // ─── Shipping Rules ────────────────────────────────────
   getShippingRules(): Observable<ShippingRule[]> {
     return this.http.get<ApiResponse<ShippingRule[]>>(`${this.base}/shipping-rules`).pipe(map(r => r.data));
+  }
+
+  quoteShipping(body: { userId?: number | null; orderAmount: number; totalQuantity: number }): Observable<ShippingQuote> {
+    return this.http
+      .post<ApiResponse<ShippingQuote>>(`${this.base}/shipping-rules/quote`, {
+        userId: body.userId ?? null,
+        orderAmount: body.orderAmount,
+        totalQuantity: body.totalQuantity,
+      })
+      .pipe(map(r => r.data));
   }
   createShippingRule(body: Partial<ShippingRule>): Observable<ShippingRule> {
     return this.http.post<ApiResponse<ShippingRule>>(`${this.base}/shipping-rules`, body).pipe(map(r => r.data));

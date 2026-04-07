@@ -36,6 +36,9 @@
 
       <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
         <h4 style="margin-bottom: 16px;">Đối tượng áp dụng</h4>
+        <p style="margin: 0 0 12px; color: #64748b; font-size: 13px;">
+          Phí ship tính theo <strong>tổng giá trị đơn</strong> hoặc <strong>tổng số lượng</strong> (tùy “Cơ sở tính”), và <strong>loại khách hàng</strong>. Không giới hạn theo danh mục hay sản phẩm — trên storefront chỉ hiển thị ở giỏ hàng / thanh toán.
+        </p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <label tuiLabel class="form-field">
             Loại khách hàng áp dụng
@@ -51,33 +54,10 @@
               <ng-template #groupContent let-item>{{ item.name }}</ng-template>
             </tui-multi-select>
           </label>
-
-          <label tuiLabel class="form-field">
-            Áp dụng cho loại sản phẩm
-            <tui-select [(ngModel)]="formData.applyProductType" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
-
-          <label tuiLabel class="form-field" *ngIf="formData.applyProductType === 'CATEGORY'">
-            Chọn danh mục
-            <tui-multi-select [(ngModel)]="selectedCategoryIds" [stringify]="stringifyCategory" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
-              <ng-template #catContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
-
-          <label tuiLabel class="form-field" *ngIf="formData.applyProductType === 'SPECIFIC'">
-            Chọn sản phẩm
-            <tui-multi-select [(ngModel)]="selectedProductIds" [stringify]="stringifyProduct" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
-              <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
         </div>
       </div>
 
-      <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;">
+      <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;" *ngIf="showShippingDiscountUi">
         <h4 style="margin-bottom: 16px;">{{ 'RULE.DISCOUNT' | transloco }} (Chiết khấu phí vận chuyển)</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <label tuiLabel class="form-field">
@@ -105,7 +85,7 @@
         </h4>
         
         <div class="rate-ranges-editor">
-          <div *ngFor="let range of rateRangesList; let i = index" class="range-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr 40px; gap: 12px; margin-bottom: 8px; align-items: end;">
+          <div *ngFor="let range of rateRangesList; let i = index; trackBy: trackByRangeIndex" class="range-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; margin-bottom: 8px; align-items: end;">
             <label tuiLabel>
               Từ ({{ formData.baseOn === 'AMOUNT_RANGE' ? 'Số tiền' : 'Số lượng' }})
               <tui-textfield tuiTextfieldSize="m">
@@ -126,7 +106,16 @@
                 <input tuiTextfield type="text" [maskito]="maskOptions" [ngModel]="range.rate" (ngModelChange)="range.rate = getNumericValue($event); checkConflicts()" />
               </tui-textfield>
             </label>
-            <button tuiIconButton type="button" size="m" appearance="flat" icon="@tui.trash" (click)="removeRateRange(i); checkConflicts()" style="color: #ef4444; margin-bottom: 4px;"></button>
+            <button
+              type="button"
+              tuiButton
+              size="s"
+              appearance="secondary-destructive"
+              (click)="removeRateRange(i); checkConflicts()"
+              title="Xóa khoảng phí"
+            >
+              <tui-icon icon="@tui.trash"></tui-icon>
+            </button>
           </div>
           <p *ngIf="rateRangesList.length === 0" style="color: #94a3b8; font-style: italic; text-align: center; padding: 20px; border: 1px dashed #cbd5e1; border-radius: 8px;">
             Chưa có khoảng phí nào. Nhấn "Thêm khoảng phí" để bắt đầu.
@@ -154,9 +143,7 @@
        <p><strong>Loại người dùng:</strong> 
          <tui-badge appearance="info">{{ selectedRule.applyCustomerType }}</tui-badge>
        </p>
-       <p><strong>Loại sản phẩm áp dụng:</strong> 
-         <tui-badge appearance="info">{{ selectedRule.applyProductType }}</tui-badge>
-       </p>
+       <p><strong>Phạm vi sản phẩm:</strong> Toàn bộ đơn (theo tổng tiền / tổng SL — không lọc SP trên storefront)</p>
        <p><strong>{{ 'RULE.BASE_ON' | transloco }}:</strong> {{ 'ENUMS.' + selectedRule.baseOn | transloco }}</p>
        <p><strong>{{ 'RULE.PRIORITY' | transloco }}:</strong> {{ selectedRule.priority }}</p>
        
@@ -167,12 +154,11 @@
               — {{ getCustomerGroupNames(selectedRule) }}
             </span>
           </p>
-          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
-            <span *ngIf="selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
-              — {{ getProductTargetNames(selectedRule) }}
-            </span>
+          <p *ngIf="selectedRule.applyProductType && selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)">
+            <strong>Phạm vi SP (dữ liệu cũ):</strong> {{ getProductTargetNames(selectedRule) }}
+            <span style="color: #94a3b8; font-size: 12px;"> — Lưu ý: hệ thống hiện chỉ áp dụng theo tổng đơn + khách.</span>
           </p>
-          <p><strong>Chiết khấu:</strong> {{ selectedRule.discountType }} {{ selectedRule.discountType !== 'FREE' ? (selectedRule.discountValue + (selectedRule.discountType === 'PERCENTAGE' ? '%' : 'đ')) : '' }}</p>
+          <p *ngIf="showShippingDiscountUi"><strong>Chiết khấu:</strong> {{ selectedRule.discountType }} {{ selectedRule.discountType !== 'FREE' ? (selectedRule.discountValue + (selectedRule.discountType === 'PERCENTAGE' ? '%' : 'đ')) : '' }}</p>
        </div>
 
        <div class="full-width" style="margin-top: 24px;">

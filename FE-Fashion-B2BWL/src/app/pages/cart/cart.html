@@ -92,10 +92,23 @@
               <span>Total Items</span>
               <strong>{{ totalItems$ | async }}</strong>
             </div>
+
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <div class="summary-row">
+              <span>Estimated shipping</span>
+              <ng-container *ngIf="(shippingFee$ | async) as shipFee">
+                <span class="free" *ngIf="shipFee === 0">FREE</span>
+                <strong *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
+              </ng-container>
+            </div>
             
             <div class="summary-row total">
               <span>Grand Total</span>
-              <span class="total-price-val">{{ totalPrice$ | async | number:'1.0-0' }} ₫</span>
+              <span class="total-price-val">{{ grandTotal$ | async | number:'1.0-0' }} ₫</span>
             </div>
 
             <!-- RULE VALIDATION MESSAGES -->
