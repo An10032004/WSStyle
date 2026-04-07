@@ -1,12 +1,12 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AgGridAngular } from 'ag-grid-angular';
-import { 
-  AllCommunityModule, 
-  ModuleRegistry, 
-  ColDef, 
-  GridApi, 
-  GridReadyEvent 
+import {
+  AllCommunityModule,
+  ModuleRegistry,
+  ColDef,
+  GridApi,
+  GridReadyEvent
 } from 'ag-grid-community';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, Order } from '../../services/api.service';
@@ -25,8 +25,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [CommonModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton, TuiBadge],
   template: `
     <div class="page-container">
-      <div class="header-section" style="padding: 16px">
-        <h2 class="title">{{ 'ORDER.TITLE' | transloco }}</h2>
+      <div class="header-section" style="padding: 16px; display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="title" style="margin:0">{{ 'ORDER.TITLE' | transloco }}</h2>
+        <input type="text" class="tui-input" placeholder="Tìm kiếm đơn hàng..." style="padding:8px 12px; border:1px solid #ccc; border-radius:4px; max-width:300px; width:100%; outline:none;" (input)="onQuickFilterChange($event)"/>
       </div>
       <div class="grid-wrapper">
         <ag-grid-angular
@@ -183,13 +184,13 @@ export class OrdersComponent implements OnInit, OnDestroy {
   private langSub?: Subscription;
 
   constructor(
-    private api: ApiService, 
-    private cdr: ChangeDetectorRef, 
-    private transloco: TranslocoService, 
+    private api: ApiService,
+    private cdr: ChangeDetectorRef,
+    private transloco: TranslocoService,
     private languageService: LanguageService,
     private dialogs: TuiDialogService,
     private alerts: TuiAlertService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.updateColumnDefs();
@@ -215,44 +216,46 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   updateColumnDefs(): void {
     this.columnDefs = [
-      { 
-        field: 'id', 
-        headerValueGetter: () => this.transloco.translate('ORDER.ID'), 
+      {
+        field: 'id',
+        headerValueGetter: () => this.transloco.translate('ORDER.ID'),
         width: 100,
         pinned: 'left'
       },
       { field: 'createdAt', headerValueGetter: () => this.transloco.translate('ORDER.DATE'), width: 170, valueFormatter: params => new Date(params.value).toLocaleString() },
-      { 
-        field: 'user.fullName', 
-        headerValueGetter: () => this.transloco.translate('ORDER.USER'), 
+      {
+        field: 'user.fullName',
+        headerValueGetter: () => this.transloco.translate('ORDER.USER'),
         width: 250,
         pinned: 'left',
         tooltipValueGetter: (params: any) => params.value
       },
-      { 
-        field: 'status', 
-        headerValueGetter: () => this.transloco.translate('ORDER.STATUS'), 
+      {
+        field: 'status',
+        headerValueGetter: () => this.transloco.translate('ORDER.STATUS'),
         width: 130,
         cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${this.getStatusAppearance(params.value)}">${params.value}</span>`
       },
-      { 
-        field: 'paymentStatus', 
-        headerValueGetter: () => this.transloco.translate('ORDER.PAYMENT_STATUS'), 
+      {
+        field: 'paymentStatus',
+        headerValueGetter: () => this.transloco.translate('ORDER.PAYMENT_STATUS'),
         width: 170,
         cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${this.getPaymentStatusAppearance(params.value)}">${params.value}</span>`
       },
-      { 
-        field: 'totalAmount', 
-        headerValueGetter: () => this.transloco.translate('ORDER.TOTAL'), 
+      {
+        field: 'totalAmount',
+        headerValueGetter: () => this.transloco.translate('ORDER.TOTAL'),
         width: 140,
         valueFormatter: params => params.value.toLocaleString() + 'đ'
       },
-      { 
+      {
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
-        width: 120,
+        width: 250,
+        minWidth: 250,
         cellRenderer: ActionRendererComponent,
         cellRendererParams: {
-          onView: (data: Order) => this.onView(data)
+          onView: (data: Order) => this.onView(data),
+          onReject: (data: Order) => this.onReject(data)
         }
       }
     ];
@@ -267,6 +270,15 @@ export class OrdersComponent implements OnInit, OnDestroy {
     });
   }
 
+  onReject(order: Order): void {
+    if (confirm('Bạn có chắc chắn muốn từ chối đơn hàng này không?')) {
+      this.api.updateOrderStatus(order.id, 'REJECTED').subscribe(() => {
+        this.alerts.open('Đơn hàng đã bị từ chối.', { appearance: 'success' }).subscribe();
+        this.loadData();
+      });
+    }
+  }
+
   updateStatus(id: number, status: string): void {
     this.api.updateOrderStatus(id, status).subscribe(() => {
       this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
@@ -276,10 +288,12 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   getStatusAppearance(status: string): string {
     switch (status) {
-      case 'COMPLETED': return 'success';
+      case 'COMPLETED':
+      case 'APPROVED': return 'success';
       case 'PENDING': return 'warning';
       case 'PROCESSING': return 'info';
-      case 'CANCELLED': return 'danger';
+      case 'CANCELLED':
+      case 'REJECTED': return 'danger';
       default: return 'neutral';
     }
   }
@@ -307,4 +321,11 @@ export class OrdersComponent implements OnInit, OnDestroy {
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
   }
+
+  onQuickFilterChange(event: any): void {
+    if (this.gridApi) {
+      this.gridApi.setGridOption('quickFilterText', event.target.value);
+    }
+  }
 }
+

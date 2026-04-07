@@ -143,7 +143,7 @@ public class OrderService {
     }
 
     public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+        return orderRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
     }
 
     public List<Order> getOrdersByUserId(Integer userId) {
@@ -173,6 +173,7 @@ public class OrderService {
         if ("PAID".equals(paymentStatus)) {
             order.setPaidAmount(order.getTotalAmount());
             order.setDebtAmount(BigDecimal.ZERO);
+            order.setStatus("APPROVED");
         }
         return orderRepository.save(order);
     }

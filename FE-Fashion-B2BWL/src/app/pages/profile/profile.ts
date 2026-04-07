@@ -20,9 +20,10 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
       <h1>My Account</h1>
       
       <div class="profile-grid">
-        <!-- Account Info Card -->
-        <div class="profile-card" *ngIf="user$ | async as user">
-          <div class="profile-header">
+        <div class="top-row">
+          <!-- Account Info Card -->
+          <div class="profile-card info-card" *ngIf="user$ | async as user">
+            <div class="profile-header">
             <div class="avatar">{{ user.fullName?.charAt(0) }}</div>
             <h2>{{ user.fullName }}</h2>
             <div class="role-badges">
@@ -53,7 +54,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
           </div>
         </div>
 
-        <div class="profile-card" *ngIf="debtSummary$ | async as debt">
+        <div class="profile-card debt-card" *ngIf="debtSummary$ | async as debt">
           <div class="profile-header" style="text-align:left">
             <h2 style="margin:0">Công nợ</h2>
             <div class="role-badges" style="justify-content:flex-start; margin-top:8px;">
@@ -70,11 +71,18 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
             <div class="detail-item" *ngIf="debt.items.length === 0">
               <p>Không có đơn công nợ đang mở.</p>
             </div>
-            <div class="detail-item" *ngFor="let d of debt.items.slice(0,3)">
-              <label>Đơn #{{ d.orderId }}</label>
-              <p>{{ debtStatusLabel(d.daysLeft) }} - Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+            <div class="detail-item debt-row" *ngFor="let d of debt.items">
+              <div class="debt-info">
+                <label>Đơn #{{ d.orderId }}</label>
+                <p>{{ debtStatusLabel(d.daysLeft) }} - Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+              </div>
+              <button tuiButton type="button" size="s" appearance="primary" *ngIf="d.paymentStatus !== 'PAID' && d.paymentStatus !== 'AWAITING_CONFIRMATION'" (click)="payDebt(d.orderId)">
+                Thanh toán
+              </button>
+              <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Đang xử lý</tui-badge>
             </div>
           </div>
+        </div>
         </div>
 
         <!-- Order History Card -->
@@ -163,9 +171,11 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
     .profile-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; }
     h1 { font-weight: 800; margin-bottom: 30px; font-size: 32px; }
     
-    .profile-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+    .profile-grid { display: flex; flex-direction: column; gap: 30px; }
+    .top-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; align-items: start; }
     
-    .profile-card, .orders-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+    .profile-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; margin: 0; box-sizing: border-box; }
+    .orders-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; box-sizing: border-box; }
     
     .profile-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
     .avatar { width: 80px; height: 80px; background: #111; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; margin: 0 auto 15px; }
@@ -178,6 +188,10 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
       label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
       p { font-size: 15px; color: #333; margin: 0; font-weight: 600; }
     }
+    
+    .debt-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+    .debt-row:last-child { border-bottom: none; }
+    .debt-info { display: flex; flex-direction: column; }
 
     .orders-card { .card-header { margin-bottom: 24px; } }
     .order-list { display: flex; flex-direction: column; gap: 16px; }
@@ -252,6 +266,8 @@ export class ProfileComponent {
   size = 5;
   totalElements = 0;
   loading = false;
+  
+  refreshDebt$ = new BehaviorSubject<void>(undefined);
 
   orders$ = combineLatest([this.user$, this.page$]).pipe(
     tap(() => this.loading = true),
@@ -270,18 +286,20 @@ export class ProfileComponent {
     })
   );
 
-  debtSummary$ = this.user$.pipe(
-    switchMap(user => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary))
+  debtSummary$ = combineLatest([this.user$, this.refreshDebt$]).pipe(
+    switchMap(([user]) => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary))
   );
 
   expandedOrderIds = new Set<number>();
 
   getStatusAppearance(status: string): string {
     switch (status) {
-      case 'COMPLETED': return 'success';
+      case 'COMPLETED':
+      case 'APPROVED': return 'success';
       case 'PENDING': return 'warning';
       case 'PROCESSING': return 'info';
-      case 'CANCELLED': return 'danger';
+      case 'CANCELLED': 
+      case 'REJECTED': return 'danger';
       default: return 'neutral';
     }
   }
@@ -337,6 +355,15 @@ export class ProfileComponent {
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
+  }
+
+  payDebt(orderId: number): void {
+    this.api.updatePaymentStatus(orderId, 'AWAITING_CONFIRMATION').pipe(
+      tap(() => {
+        this.alerts.open('Yêu cầu thanh toán đang được xử lý.', { label: 'Thành công', appearance: 'success' }).subscribe();
+        this.refreshDebt$.next();
+      })
+    ).subscribe();
   }
 
   debtStatusLabel(daysLeft: number): string {

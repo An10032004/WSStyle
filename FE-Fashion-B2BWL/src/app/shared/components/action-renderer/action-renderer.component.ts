@@ -13,6 +13,7 @@ import { TranslocoModule } from '@jsverse/transloco';
     <div style="display:flex; gap:8px; align-items:center; height:100%;">
       <button *ngIf="params?.onView" tuiButton appearance="secondary" size="s" iconStart="@tui.eye" (click)="onView()">{{ 'PRODUCT.VIEW' | transloco }}</button>
       <button *ngIf="params?.onEdit" tuiButton appearance="secondary" size="s" iconStart="@tui.pencil" (click)="onEdit()">{{ 'PRODUCT.EDIT' | transloco }}</button>
+      <button *ngIf="params?.onReject" tuiButton appearance="accent" size="s" iconStart="@tui.x" (click)="onReject()">Reject</button>
       <button *ngIf="params?.onDelete" tuiButton appearance="accent" size="s" iconStart="@tui.trash-2" (click)="onDelete()">{{ 'PRODUCT.DELETE' | transloco }}</button>
     </div>
   `,
@@ -45,5 +46,9 @@ export class ActionRendererComponent implements ICellRendererAngularComp {
 
   onDelete() {
     if (this.params.onDelete) this.params.onDelete(this.params.data);
+  }
+
+  onReject() {
+    if (this.params.onReject) this.params.onReject(this.params.data);
   }
 }
