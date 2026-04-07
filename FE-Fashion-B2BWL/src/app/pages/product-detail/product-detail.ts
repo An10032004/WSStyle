@@ -24,6 +24,11 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { take } from 'rxjs';
 import { distinctUntilChanged, map, skip } from 'rxjs/operators';
 import { pickSingleBestRule } from '../../utils/rule-priority';
+import {
+  resolveOrderLimitWinners,
+  isMaxOrderQtyType,
+  isMinOrderQtyType,
+} from '../../utils/order-limit-precedence';
 import { ruleMatchesTargeting } from '../../utils/rule-targeting';
 
 @Component({
@@ -111,6 +116,8 @@ export class ProductDetailComponent implements OnInit {
   b2bRule: any | null = null;
   quantityBreaks: any[] = [];
   activeOrderLimit: OrderLimit | null = null;
+  /** Giới hạn SL tối đa (PER_PRODUCT / PER_VARIANT), chọn theo priority giống MOQ */
+  activeMaxQtyLimit: OrderLimit | null = null;
 
   get isSelectionIncomplete(): boolean {
     if (!this.product || !this.variants || this.variants.length === 0) return false;
@@ -208,10 +215,69 @@ export class ProductDetailComponent implements OnInit {
   }
 
   get isMoqViolation(): boolean {
-    if (!this.activeOrderLimit || this.activeOrderLimit.limitType !== 'MIN_ORDER_QUANTITY') return false;
-    // We match PER_PRODUCT and PER_VARIANT for product-level enforcement
-    const isProductLevel = this.activeOrderLimit.limitLevel === 'PER_PRODUCT' || this.activeOrderLimit.limitLevel === 'PER_VARIANT';
-    return isProductLevel && this.quantity < this.activeOrderLimit.limitValue;
+    if (!this.activeOrderLimit) return false;
+    const t = this.activeOrderLimit.limitType;
+    if (t !== 'MIN_ORDER_QUANTITY' && t !== 'MIN_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeOrderLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeOrderLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && this.quantity < (this.activeOrderLimit.limitValue ?? 0);
+  }
+
+  get isMaxQtyViolation(): boolean {
+    if (!this.activeMaxQtyLimit) return false;
+    const t = this.activeMaxQtyLimit.limitType;
+    if (t !== 'MAX_ORDER_QUANTITY' && t !== 'MAX_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT';
+    const maxV = Number(this.activeMaxQtyLimit.limitValue ?? 0);
+    return isProductLevel && maxV > 0 && this.quantity > maxV;
+  }
+
+  /** Chặn thêm giỏ khi vi phạm MOQ hoặc vượt max SL (theo dòng SP) */
+  get orderLimitBuyBlocked(): boolean {
+    return this.isMoqViolation || this.isMaxQtyViolation;
+  }
+
+  /** Thông báo info khi có MOQ theo dòng SP và khách đã đạt ngưỡng */
+  get showMoqPolicyNotice(): boolean {
+    if (!this.activeOrderLimit) return false;
+    const t = this.activeOrderLimit.limitType;
+    if (t !== 'MIN_ORDER_QUANTITY' && t !== 'MIN_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeOrderLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeOrderLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && !this.isMoqViolation;
+  }
+
+  /** Thông báo info khi có max SL theo dòng SP và SL hiện tại không vượt ngưỡng */
+  get showMaxQtyPolicyNotice(): boolean {
+    if (!this.activeMaxQtyLimit) return false;
+    const isProductLevel =
+      this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && !this.isMaxQtyViolation;
+  }
+
+  /** Trần số lượng trên PDP: tồn kho ∧ max quy tắc (nếu có) */
+  private get effectiveQuantityCap(): number {
+    const stock = this.selectedVariant?.stockQuantity ?? 0;
+    const stockCap = stock > 0 ? stock : 999;
+    if (this.activeMaxQtyLimit) {
+      const t = this.activeMaxQtyLimit.limitType;
+      if (
+        (t === 'MAX_ORDER_QUANTITY' || t === 'MAX_ORDER_QTY') &&
+        (this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+          this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT')
+      ) {
+        const ruleMax = Number(this.activeMaxQtyLimit.limitValue ?? 0);
+        if (ruleMax > 0) {
+          return Math.min(stockCap, ruleMax);
+        }
+      }
+    }
+    return stockCap;
   }
 
   constructor() {}
@@ -248,8 +314,38 @@ export class ProductDetailComponent implements OnInit {
         ruleMatchesTargeting(r, { productId, categoryId, user })
       );
 
+      const lineQtyMatched = matchedRules.filter(
+        (r) =>
+          (isMinOrderQtyType(r.limitType) || isMaxOrderQtyType(r.limitType)) &&
+          (r.limitLevel === 'PER_PRODUCT' || r.limitLevel === 'PER_VARIANT')
+      );
+      const lineQtyWinners = resolveOrderLimitWinners(lineQtyMatched);
       this.activeOrderLimit =
-        matchedRules.length > 0 ? pickSingleBestRule(matchedRules) : null;
+        lineQtyWinners.find((r) => isMinOrderQtyType(r.limitType)) ?? null;
+      this.activeMaxQtyLimit =
+        lineQtyWinners.find((r) => isMaxOrderQtyType(r.limitType)) ?? null;
+
+      const cap = this.effectiveQuantityCap;
+      let q = this.quantity;
+      if (q > cap) {
+        q = cap;
+      }
+      const moq = this.activeOrderLimit?.limitValue;
+      if (
+        this.activeOrderLimit &&
+        (this.activeOrderLimit.limitType === 'MIN_ORDER_QUANTITY' ||
+          this.activeOrderLimit.limitType === 'MIN_ORDER_QTY') &&
+        moq != null &&
+        Number(moq) > 0 &&
+        q < Number(moq)
+      ) {
+        q = Number(moq);
+      }
+      if (q > cap) {
+        q = cap;
+      }
+      this.quantity = Math.max(1, q);
+
       this.cdr.detectChanges();
     });
   }
@@ -615,17 +711,15 @@ export class ProductDetailComponent implements OnInit {
   }
 
   adjQuantity(amt: number) {
-    const max = this.selectedVariant?.stockQuantity || 0;
-    const limit = max > 0 ? max : 999;
+    const limit = this.effectiveQuantityCap;
     this.quantity = Math.max(1, Math.min(limit, this.quantity + amt));
     this.cdr.detectChanges();
   }
 
   handleQuantityInput(event: any) {
-    const val = parseInt(event.target.value);
-    const max = this.selectedVariant?.stockQuantity || 0;
-    const limit = max > 0 ? max : 999;
-    
+    const val = parseInt(event.target.value, 10);
+    const limit = this.effectiveQuantityCap;
+
     if (isNaN(val) || val < 1) {
       this.quantity = 1;
     } else if (val > limit) {

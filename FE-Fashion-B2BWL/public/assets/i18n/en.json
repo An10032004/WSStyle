@@ -120,7 +120,9 @@
     "TAX_TYPE": "Tax Type",
     "DISPLAY_TYPE": "Display Type",
     "HIDE_ADD_TO_CART": "Hide Add to Cart",
-    "REPLACEMENT_TEXT": "Replacement Text"
+    "REPLACEMENT_TEXT": "Replacement Text",
+    "CUSTOMER_SCOPE": "Customer scope",
+    "PRODUCT_SCOPE": "Product scope"
   },
   "MEMBER": {
     "GROUPS_TITLE": "Customer Groups",
@@ -158,6 +160,7 @@
     "MIN_ORDER_AMOUNT": "Min Order Amount",
     "MAX_ORDER_AMOUNT": "Max Order Amount",
     "MIN_ORDER_QUANTITY": "Min Order Quantity",
+    "MAX_ORDER_QUANTITY": "Max Order Quantity",
     "OVER_MONTHLY_SPEND": "Over Monthly Spend",
     "RETAIL": "Retail Customer",
     "WHOLESALE": "Wholesale / B2B",
@@ -225,7 +228,19 @@
     "RULE_SECTION": "Order Limit Rule",
     "APPLIES_SECTION": "Applies to Customers",
     "TYPE": "Type",
-    "MIN_VALUE": "Minimum"
+    "MIN_VALUE": "Minimum",
+    "VALUE_MIN_QTY": "Minimum quantity threshold",
+    "VALUE_MAX_QTY": "Maximum quantity threshold",
+    "VALUE_MIN_AMOUNT": "Minimum amount threshold (₫)",
+    "VALUE_MAX_AMOUNT": "Maximum amount threshold (₫)",
+    "VALUE_THRESHOLD": "Threshold",
+    "VALUE_HINT": "This number is the min/max threshold for the selected limit type and level (per order vs per product line).",
+    "PRODUCT_TARGET_CATEGORY": "Category",
+    "PRODUCT_TARGET_GROUP": "Category set (group)",
+    "PRODUCT_TARGET_SPECIFIC": "Specific products",
+    "PRODUCT_SCOPE_HINT": "Category and Category set both use your category list; they differ by type code only (for compatibility with other rules). Lower priority number wins when scopes overlap.",
+    "PICK_CATEGORIES": "Select categories",
+    "PICK_CATEGORY_GROUP": "Select categories (group scope)"
   },
   "DASHBOARD": {
     "TITLE": "Business Dashboard",

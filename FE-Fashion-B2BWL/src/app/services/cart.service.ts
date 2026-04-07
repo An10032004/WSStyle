@@ -166,14 +166,17 @@ export class CartService {
     });
   }
 
+  /** Chỉ kiểm tra các dòng được chọn (đồng bộ với tổng tiền checkout). */
   validate(): Observable<any[]> {
-    const items = this.cartSubject.value.map(i => ({
-      productId: i.productId,
-      categoryId: i.categoryId,
-      quantity: i.quantity,
-      price: i.price
-    }));
-    
+    const items = this.cartSubject.value
+      .filter(i => i.selected !== false)
+      .map(i => ({
+        productId: i.productId,
+        categoryId: i.categoryId,
+        quantity: i.quantity,
+        price: i.price
+      }));
+
     if (items.length === 0) return of([]);
 
     return this.auth.user$.pipe(

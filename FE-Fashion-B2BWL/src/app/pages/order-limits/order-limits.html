@@ -10,6 +10,7 @@
   <app-order-limit-editor
     *ngIf="showForm"
     [rule]="formData"
+    [excludeRuleId]="editingId"
     [categories]="categories"
     [products]="products"
     [customerGroups]="customerGroups"
@@ -42,7 +43,7 @@
               — {{ getCustomerGroupNames(selectedRule) }}
             </span>
           </p>
-          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
+          <p><strong>Sản phẩm:</strong> {{ formatApplyProductType(selectedRule.applyProductType) }}
             <span *ngIf="selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
               — {{ getProductTargetNames(selectedRule) }}
             </span>

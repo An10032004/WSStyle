@@ -1,5 +1,6 @@
 package com.fashionstore.core.controller;
 
+import com.fashionstore.core.dto.request.OrderLimitConflictRequest;
 import com.fashionstore.core.dto.request.OrderLimitRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.model.OrderLimit;
@@ -36,6 +37,15 @@ public class OrderLimitController {
     public ResponseEntity<ApiResponse<List<OrderLimitService.ValidationResult>>> validate(@RequestBody ValidateCartRequest request) {
         User user = (request.getUserId() != null) ? userService.getUserById(request.getUserId()) : null;
         return ResponseEntity.ok(ApiResponse.success(orderLimitService.validateCart(user, request.getItems())));
+    }
+
+    /** Cảnh báo MOQ/MOV: trùng ưu tiên, trùng phạm vi nhưng khác ngưỡng, v.v. */
+    @PostMapping("/conflicts")
+    public ResponseEntity<List<String>> checkConflicts(@RequestBody OrderLimitConflictRequest request) {
+        if (request == null || request.getDraft() == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(orderLimitService.detectConflicts(request.getDraft(), request.getExcludeRuleId()));
     }
 
     @GetMapping

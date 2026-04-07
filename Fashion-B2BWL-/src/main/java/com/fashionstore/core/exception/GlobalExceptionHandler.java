@@ -25,6 +25,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Quy tắc nghiệp vụ (ví dụ: trùng mức ưu tiên MOQ/MOV) — 400
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Xử lý lỗi validation từ @Valid (400)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)

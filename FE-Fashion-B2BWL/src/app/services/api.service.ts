@@ -545,6 +545,14 @@ export class ApiService {
     return this.http.post<ApiResponse<any[]>>(`${this.base}/order-limits/validate`, { userId, items }).pipe(map(r => r.data));
   }
 
+  /** Cảnh báo trùng ưu tiên / trùng phạm vi MOQ-MOV (backend OrderLimitService.detectConflicts). */
+  checkOrderLimitConflicts(draft: Partial<OrderLimit>, excludeRuleId: number | null | undefined): Observable<string[]> {
+    return this.http.post<string[]>(`${this.base}/order-limits/conflicts`, {
+      draft,
+      excludeRuleId: excludeRuleId ?? null,
+    });
+  }
+
   // ─── Shipping Rules ────────────────────────────────────
   getShippingRules(): Observable<ShippingRule[]> {
     return this.http.get<ApiResponse<ShippingRule[]>>(`${this.base}/shipping-rules`).pipe(map(r => r.data));

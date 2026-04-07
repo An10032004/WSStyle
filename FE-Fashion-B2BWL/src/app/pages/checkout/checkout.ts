@@ -5,7 +5,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } 
 import { CartService, CartItem } from '../../services/cart.service';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiTextfield, TuiDialogService } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
-import { BehaviorSubject, map, shareReplay, startWith, switchMap, tap } from 'rxjs';
+import { BehaviorSubject, map, shareReplay, startWith, switchMap, tap, take } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -174,6 +174,36 @@ export class CheckoutComponent implements OnInit {
     if (this.checkoutForm.invalid || this.isPlacingOrder) return;
 
     this.isPlacingOrder = true;
+    this.cartService.validate().pipe(take(1)).subscribe({
+      next: (results) => {
+        const failures = (results || []).filter((r: { success?: boolean }) => r.success === false);
+        if (failures.length > 0) {
+          failures.forEach((f: { message?: string }) => {
+            this.alerts
+              .open(f.message || 'Đơn hàng không đáp ứng quy định giới hạn.', {
+                label: 'Quy định đơn hàng',
+                appearance: 'warning',
+              })
+              .subscribe();
+          });
+          this.isPlacingOrder = false;
+          return;
+        }
+        this.placeOrderAfterValidation();
+      },
+      error: () => {
+        this.alerts
+          .open('Không kiểm tra được quy định đơn hàng. Vui lòng thử lại.', {
+            label: 'Lỗi',
+            appearance: 'error',
+          })
+          .subscribe();
+        this.isPlacingOrder = false;
+      },
+    });
+  }
+
+  private placeOrderAfterValidation() {
     const formValue = this.checkoutForm.value;
     const currentItems = this.cartService.cartItems.filter(i => i.selected);
     const user = this.auth.currentUserValue;
@@ -203,28 +233,26 @@ export class CheckoutComponent implements OnInit {
         this.isPlacingOrder = false;
         this.currentOrder = order;
         if (formValue.paymentMethod === 'VNPAY') {
-          // Generate VietQR URL
-          // Bank: VietinBank (970415), Acc: 103877669895
           const bankId = '970415';
           const accountNo = '103877669895';
           const accountName = encodeURIComponent('NGUYEN VAN SON');
           const description = encodeURIComponent(`Thanh toan don hang #${order.id}`);
-          
+
           this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${finalTotal}&addInfo=${description}&accountName=${accountName}`;
-          
-          this.dialogs.open(this.paymentDialogTemplate, { 
-            size: 'm', 
+
+          this.dialogs.open(this.paymentDialogTemplate, {
+            size: 'm',
             dismissible: false,
-            label: 'Secure Checkout' 
-          }).subscribe(); // Removed the complete handler that was causing premature redirection
+            label: 'Secure Checkout'
+          }).subscribe();
         } else {
           this.onPaymentComplete();
         }
       },
-      error: (err) => {
-        this.alerts.open('An error occurred while placing your order. Please try again.', { 
-          label: 'Order Failed', 
-          appearance: 'error' 
+      error: () => {
+        this.alerts.open('An error occurred while placing your order. Please try again.', {
+          label: 'Order Failed',
+          appearance: 'error'
         }).subscribe();
         this.isPlacingOrder = false;
       }

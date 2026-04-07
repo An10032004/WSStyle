@@ -1,4 +1,19 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  DestroyRef,
+  inject,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, of, Observable } from 'rxjs';
+import { debounceTime, switchMap, catchError } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
@@ -17,8 +32,9 @@ import {
   TuiRadio
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
-import { OrderLimit } from '../../services/api.service';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
+import { ApiService, OrderLimit } from '../../services/api.service';
+import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
 
 @Component({
   selector: 'app-order-limit-editor',
@@ -41,7 +57,8 @@ import { OrderLimit } from '../../services/api.service';
     TranslocoModule, 
     TuiTextfield,
     TuiDropdown,
-    TuiMultiSelectModule
+    TuiMultiSelectModule,
+    RuleConflictWarningComponent,
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -49,6 +66,8 @@ import { OrderLimit } from '../../services/api.service';
         <button tuiIconButton type="button" iconStart="@tui.arrow-left" appearance="flat" size="s" (click)="cancel.emit()"></button>
         <h3 class="tui-text_h5">{{ 'ORDER_LIMIT.TITLE' | transloco }}</h3>
       </div>
+
+      <app-rule-conflict-warning [conflicts]="conflicts" style="display: block; max-width: 1400px; margin: 0 auto 16px; padding: 0 32px;"></app-rule-conflict-warning>
 
       <div class="editor-layout">
         <!-- LEFT: CONFIGURATION -->
@@ -66,18 +85,28 @@ import { OrderLimit } from '../../services/api.service';
               <div class="section-card">
                 <h4 class="section-title-premium">{{ 'ORDER_LIMIT.GENERAL_SETTINGS' | transloco }}</h4>
                 <div class="field-item">
-                  <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                     <input tuiTextfield [(ngModel)]="rule.name" name="ruleName" />
-                     {{ 'RULE.NAME' | transloco }}
-                  </tui-textfield>
+                  <label tuiLabel>
+                    {{ 'RULE.NAME' | transloco }}
+                    <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
+                      <input tuiTextfield [(ngModel)]="rule.name" name="ruleName" (input)="touchLimitForm()" />
+                    </tui-textfield>
+                  </label>
                 </div>
 
                 <div class="field-item">
-                  <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                     <input tuiTextfield type="number" [(ngModel)]="rule.priority" name="rulePriority" />
-                     {{ 'RULE.PRIORITY' | transloco }}
-                  </tui-textfield>
-                  <div class="field-hint">0 is the highest priority.</div>
+                  <label tuiLabel>
+                    {{ 'RULE.PRIORITY' | transloco }}
+                    <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
+                      <input
+                        tuiTextfield
+                        type="number"
+                        [(ngModel)]="rule.priority"
+                        name="rulePriority"
+                        (ngModelChange)="touchLimitForm()"
+                      />
+                    </tui-textfield>
+                  </label>
+                  <div class="field-hint">Số nhỏ hơn = ưu tiên cao hơn (đồng bộ bảng giá / chiết khấu). Không được trùng mức ưu tiên với quy tắc MOQ/MOV khác.</div>
                 </div>
               </div>
 
@@ -87,14 +116,14 @@ import { OrderLimit } from '../../services/api.service';
                 
                 <div class="radio-group-modern">
                   <label class="modern-radio">
-                    <input tuiRadio type="radio" name="limitLevel" value="PER_PRODUCT" [(ngModel)]="rule.limitLevel" />
+                    <input tuiRadio type="radio" name="limitLevel" value="PER_PRODUCT" [(ngModel)]="rule.limitLevel" (ngModelChange)="touchLimitForm()" />
                     <div class="radio-content">
                       <span class="radio-title">Apply order limit per product</span>
                       <span class="radio-desc">Each product or variant must meet its own quantity or amount limits.</span>
                     </div>
                   </label>
                   <label class="modern-radio">
-                    <input tuiRadio type="radio" name="limitLevel" value="PER_ORDER" [(ngModel)]="rule.limitLevel" />
+                    <input tuiRadio type="radio" name="limitLevel" value="PER_ORDER" [(ngModel)]="rule.limitLevel" (ngModelChange)="touchLimitForm()" />
                     <div class="radio-content">
                       <span class="radio-title">Apply order limit per order</span>
                       <span class="radio-desc">The quantity or amount limits apply to the entire order total (combined across all items).</span>
@@ -102,20 +131,36 @@ import { OrderLimit } from '../../services/api.service';
                   </label>
                 </div>
 
-                <div class="grid-form-row">
-                  <div class="field-item flex-2">
+                <div class="grid-form-row grid-form-row-limit">
+                  <div class="field-item flex-2 grid-form-col">
                     <label tuiLabel>
                       {{ 'ORDER_LIMIT.TYPE' | transloco }}
-                      <tui-select [(ngModel)]="rule.limitType" tuiTextfieldSize="l">
+                      <tui-select
+                        [(ngModel)]="rule.limitType"
+                        tuiTextfieldSize="l"
+                        (ngModelChange)="touchLimitForm()"
+                      >
                         <tui-data-list-wrapper *tuiDataList [items]="typeOptions"></tui-data-list-wrapper>
                       </tui-select>
                     </label>
                   </div>
-                  <div class="field-item flex-1">
-                    <tui-textfield tuiTextfieldSize="l">
-                       <input tuiTextfield type="number" [(ngModel)]="rule.limitValue" name="limitValue" />
-                       {{ 'ORDER_LIMIT.MIN_VALUE' | transloco }}
-                    </tui-textfield>
+                  <div class="field-item flex-1 grid-form-col">
+                    <label tuiLabel>
+                      {{ limitValueLabelKey | transloco }}
+                      <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
+                        <input
+                          tuiTextfield
+                          type="number"
+                          [(ngModel)]="rule.limitValue"
+                          name="limitValue"
+                          min="0"
+                          step="any"
+                          (ngModelChange)="onLimitValueChange($event)"
+                          (input)="touchLimitForm()"
+                        />
+                      </tui-textfield>
+                    </label>
+                    <div class="field-hint">{{ 'ORDER_LIMIT.VALUE_HINT' | transloco }}</div>
                   </div>
                 </div>
               </div>
@@ -156,15 +201,21 @@ import { OrderLimit } from '../../services/api.service';
                 <div class="field-item">
                    <label tuiLabel>
                       Loại sản phẩm áp dụng
-                      <tui-select [(ngModel)]="rule.applyProductType" (ngModelChange)="syncTargeting()" tuiTextfieldSize="l">
+                      <tui-select
+                        [(ngModel)]="rule.applyProductType"
+                        (ngModelChange)="syncTargeting()"
+                        tuiTextfieldSize="l"
+                        [stringify]="stringifyProductType"
+                      >
                         <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
                       </tui-select>
                    </label>
+                   <div class="field-hint">{{ 'ORDER_LIMIT.PRODUCT_SCOPE_HINT' | transloco }}</div>
                 </div>
                 
-                <div class="field-item" *ngIf="rule.applyProductType === 'CATEGORY'">
+                <div class="field-item" *ngIf="rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP'">
                    <label tuiLabel>
-                      Chọn danh mục
+                      {{ pickCategoriesLabelKey | transloco }}
                       <tui-multi-select 
                         [(ngModel)]="selectedCategoryIds" 
                         (ngModelChange)="syncTargeting()" 
@@ -211,7 +262,7 @@ import { OrderLimit } from '../../services/api.service';
 
           <div class="actions-footer">
              <button tuiButton type="button" appearance="secondary" size="l" (click)="cancel.emit()">{{ 'GLOBAL.CANCEL' | transloco }}</button>
-             <button tuiButton type="button" appearance="primary" size="l" (click)="save.emit(rule)">{{ 'GLOBAL.SAVE' | transloco }}</button>
+             <button tuiButton type="button" appearance="primary" size="l" [disabled]="hasBlockingConflict()" (click)="save.emit(rule)">{{ 'GLOBAL.SAVE' | transloco }}</button>
           </div>
         </div>
 
@@ -244,9 +295,13 @@ import { OrderLimit } from '../../services/api.service';
                   </div>
                 </div>
 
-                <div class="validation-alert" *ngIf="rule.limitValue && rule.limitValue > 4">
+                <div class="validation-alert" *ngIf="previewNeedsMoreQty">
                   <tui-icon icon="@tui.info" size="s"></tui-icon>
-                  <span>You must choose at least {{ rule.limitValue }} products for this item</span>
+                  <span>Preview: cần tối thiểu {{ rule.limitValue }} sản phẩm cho mặt hàng này (min SL).</span>
+                </div>
+                <div class="validation-alert" *ngIf="previewExceedsMaxQty">
+                  <tui-icon icon="@tui.info" size="s"></tui-icon>
+                  <span>Preview: vượt tối đa {{ rule.limitValue }} sản phẩm (max SL).</span>
                 </div>
 
                 <button class="mock-atc-btn">Add to cart</button>
@@ -282,9 +337,11 @@ import { OrderLimit } from '../../services/api.service';
     .radio-title { font-weight: 600; color: #1e293b; font-size: 15px; }
     .radio-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
 
-    .grid-form-row { display: flex; gap: 20px; align-items: flex-end; }
-    .flex-1 { flex: 1; }
-    .flex-2 { flex: 2; }
+    .grid-form-row { display: flex; gap: 20px; align-items: flex-start; }
+    .grid-form-row-limit .grid-form-col { display: flex; flex-direction: column; min-width: 0; }
+    .grid-form-row-limit .grid-form-col label[tuiLabel] { width: 100%; }
+    .flex-1 { flex: 1; min-width: 0; }
+    .flex-2 { flex: 2; min-width: 0; }
 
     .empty-tab-message { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; text-align: center; color: #94a3b8; }
     .empty-tab-message p { font-weight: 700; font-size: 18px; margin-top: 20px; color: #334155; }
@@ -324,8 +381,16 @@ import { OrderLimit } from '../../services/api.service';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OrderLimitEditorComponent implements OnInit {
+export class OrderLimitEditorComponent implements OnInit, OnChanges {
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly transloco = inject(TranslocoService);
+  private readonly api = inject(ApiService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly conflictCheck$ = new Subject<void>();
+
   @Input() rule!: Partial<OrderLimit>;
+  /** Khi sửa: loại trừ rule hiện tại khỏi so khớp xung đột. */
+  @Input() excludeRuleId: number | null = null;
   @Input() categories: any[] = [];
   @Input() products: any[] = [];
   @Input() customerGroups: any[] = [];
@@ -336,27 +401,163 @@ export class OrderLimitEditorComponent implements OnInit {
   @Output() save = new EventEmitter<Partial<OrderLimit>>();
   @Output() cancel = new EventEmitter<void>();
 
+  /** Cảnh báo MOQ/MOV từ backend (trùng ưu tiên, trùng phạm vi khác ngưỡng, …). */
+  conflicts: string[] = [];
+
   activeTab = 0;
   previewMode: 'mobile' | 'desktop' = 'desktop';
   
-  typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_AMOUNT'];
+  typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_QUANTITY', 'MIN_ORDER_AMOUNT', 'MAX_ORDER_AMOUNT'];
   customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
-  productTypeOptions = ['ALL', 'CATEGORY', 'SPECIFIC'];
+  productTypeOptions = ['ALL', 'CATEGORY', 'GROUP', 'SPECIFIC'];
+
+  /** Nhãn trong select (ENUMS.GROUP là nhóm KH — không dùng cho phạm vi SP). */
+  stringifyProductType = (v: string | null | undefined): string => {
+    const t = v ?? 'ALL';
+    switch (t) {
+      case 'GROUP':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_GROUP');
+      case 'CATEGORY':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_CATEGORY');
+      case 'SPECIFIC':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_SPECIFIC');
+      case 'ALL':
+        return this.transloco.translate('ENUMS.ALL');
+      default:
+        return t;
+    }
+  };
+
+  get pickCategoriesLabelKey(): string {
+    return this.rule?.applyProductType === 'GROUP'
+      ? 'ORDER_LIMIT.PICK_CATEGORY_GROUP'
+      : 'ORDER_LIMIT.PICK_CATEGORIES';
+  }
 
   selectedCategoryIds: any[] = [];
   selectedProductIds: any[] = [];
   selectedGroupIds: any[] = [];
 
+  /** Nhãn ô nhập theo loại quy tắc (tránh hiển thị \"tối thiểu\" khi đang cấu hình max). */
+  get limitValueLabelKey(): string {
+    const t = this.rule?.limitType || 'MIN_ORDER_QUANTITY';
+    switch (t) {
+      case 'MIN_ORDER_QTY':
+      case 'MIN_ORDER_QUANTITY':
+        return 'ORDER_LIMIT.VALUE_MIN_QTY';
+      case 'MAX_ORDER_QTY':
+      case 'MAX_ORDER_QUANTITY':
+        return 'ORDER_LIMIT.VALUE_MAX_QTY';
+      case 'MIN_ORDER_VALUE':
+      case 'MIN_ORDER_AMOUNT':
+        return 'ORDER_LIMIT.VALUE_MIN_AMOUNT';
+      case 'MAX_ORDER_AMOUNT':
+        return 'ORDER_LIMIT.VALUE_MAX_AMOUNT';
+      default:
+        return 'ORDER_LIMIT.VALUE_THRESHOLD';
+    }
+  }
+
+  /** Mock preview qty = 4 */
+  get previewNeedsMoreQty(): boolean {
+    const v = Number(this.rule?.limitValue);
+    if (!v || v <= 0) return false;
+    const t = this.rule?.limitType;
+    if (t !== 'MIN_ORDER_QUANTITY' && t !== 'MIN_ORDER_QTY') return false;
+    if (this.rule?.limitLevel !== 'PER_PRODUCT' && this.rule?.limitLevel !== 'PER_VARIANT') return false;
+    return 4 < v;
+  }
+
+  get previewExceedsMaxQty(): boolean {
+    const v = Number(this.rule?.limitValue);
+    if (!v || v <= 0) return false;
+    const t = this.rule?.limitType;
+    if (t !== 'MAX_ORDER_QUANTITY' && t !== 'MAX_ORDER_QTY') return false;
+    if (this.rule?.limitLevel !== 'PER_PRODUCT' && this.rule?.limitLevel !== 'PER_VARIANT') return false;
+    return 4 > v;
+  }
+
+  touchLimitForm(): void {
+    this.cdr.markForCheck();
+    this.scheduleConflictCheck();
+  }
+
+  private scheduleConflictCheck(): void {
+    this.conflictCheck$.next();
+  }
+
+  /** Trùng priority với quy tắc khác — không cho lưu (đồng bộ thông báo BLOCKED phía trên). */
+  hasBlockingConflict(): boolean {
+    return this.conflicts.some(c => c.startsWith('BLOCKED'));
+  }
+
+  private runConflictCheck(): Observable<string[]> {
+    this.syncTargeting({ skipConflictSchedule: true });
+    const r = this.rule;
+    const draft: Partial<OrderLimit> = {
+      name: r.name ?? '',
+      priority: r.priority ?? 0,
+      status: r.status ?? 'ACTIVE',
+      limitLevel: r.limitLevel ?? 'PER_PRODUCT',
+      limitType: r.limitType ?? 'MIN_ORDER_QUANTITY',
+      applyCustomerType: r.applyCustomerType ?? 'ALL',
+      applyCustomerValue: r.applyCustomerValue ?? '{}',
+      applyProductType: r.applyProductType ?? 'ALL',
+      applyProductValue: r.applyProductValue ?? '{}',
+      limitValue: typeof r.limitValue === 'number' ? r.limitValue : Number(r.limitValue) || 0,
+    };
+    return this.api.checkOrderLimitConflicts(draft, this.excludeRuleId).pipe(catchError(() => of([])));
+  }
+
+  onLimitValueChange(value: number | string | null): void {
+    if (value === '' || value === null || value === undefined) {
+      this.rule.limitValue = 0;
+    } else {
+      const n = typeof value === 'number' ? value : Number(value);
+      this.rule.limitValue = Number.isFinite(n) ? n : 0;
+    }
+    this.touchLimitForm();
+  }
+
   ngOnInit() {
     // Default values if not set
     if (!this.rule.limitLevel) this.rule.limitLevel = 'PER_PRODUCT';
     if (!this.rule.limitType) this.rule.limitType = 'MIN_ORDER_QUANTITY';
-    if (this.rule.limitValue === undefined) this.rule.limitValue = 0;
+    if (this.rule.limitValue === undefined || this.rule.limitValue === null) {
+      this.rule.limitValue = 0;
+    } else if (typeof this.rule.limitValue !== 'number') {
+      const n = Number(this.rule.limitValue);
+      this.rule.limitValue = Number.isFinite(n) ? n : 0;
+    }
     if (!this.rule.applyCustomerType) this.rule.applyCustomerType = 'ALL';
     if (!this.rule.applyProductType) this.rule.applyProductType = 'ALL';
 
     // Parse targeting data
     this.parseTargeting();
+
+    this.conflictCheck$
+      .pipe(
+        debounceTime(400),
+        switchMap(() => this.runConflictCheck()),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(msgs => {
+        this.conflicts = msgs;
+        this.cdr.markForCheck();
+      });
+    this.scheduleConflictCheck();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['rule'] && !changes['rule'].firstChange) {
+      this.parseTargeting();
+    }
+    if (
+      (changes['excludeRuleId'] && !changes['excludeRuleId'].firstChange) ||
+      (changes['rule'] && !changes['rule'].firstChange)
+    ) {
+      this.scheduleConflictCheck();
+    }
   }
 
   parseTargeting() {
@@ -368,7 +569,10 @@ export class OrderLimitEditorComponent implements OnInit {
       } catch (e) {}
     }
 
-    if (this.rule.applyProductType === 'CATEGORY' && this.rule.applyProductValue) {
+    if (
+      (this.rule.applyProductType === 'CATEGORY' || this.rule.applyProductType === 'GROUP') &&
+      this.rule.applyProductValue
+    ) {
       try {
         const val = JSON.parse(this.rule.applyProductValue);
         const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
@@ -385,19 +589,22 @@ export class OrderLimitEditorComponent implements OnInit {
     }
   }
 
-  syncTargeting() {
+  syncTargeting(options?: { skipConflictSchedule?: boolean }) {
     if (this.rule.applyCustomerType === 'GROUP') {
       this.rule.applyCustomerValue = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
     } else {
       this.rule.applyCustomerValue = '{}';
     }
 
-    if (this.rule.applyProductType === 'CATEGORY') {
+    if (this.rule.applyProductType === 'CATEGORY' || this.rule.applyProductType === 'GROUP') {
       this.rule.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) });
     } else if (this.rule.applyProductType === 'SPECIFIC') {
       this.rule.applyProductValue = JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) });
     } else {
       this.rule.applyProductValue = '{}';
+    }
+    if (!options?.skipConflictSchedule) {
+      this.scheduleConflictCheck();
     }
   }
 }

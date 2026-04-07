@@ -182,6 +182,21 @@
              Bạn cần mua tối thiểu {{ activeOrderLimit?.limitValue }} sản phẩm cho mặt hàng này.
           </tui-notification>
         </div>
+        <div class="moq-warning" *ngIf="isMaxQtyViolation">
+          <tui-notification status="warning" icon="@tui.circle-alert" class="anim-fade">
+             Số lượng vượt mức tối đa {{ activeMaxQtyLimit?.limitValue }} sản phẩm cho mặt hàng này (theo quy định đơn hàng).
+          </tui-notification>
+        </div>
+        <div class="moq-warning order-limit-policy-info" *ngIf="showMoqPolicyNotice">
+          <tui-notification status="info" icon="@tui.info" class="anim-fade">
+            Quy định đơn hàng: mua tối thiểu <strong>{{ activeOrderLimit?.limitValue }}</strong> sản phẩm mỗi lần cho mặt hàng này.
+          </tui-notification>
+        </div>
+        <div class="moq-warning order-limit-policy-info" *ngIf="showMaxQtyPolicyNotice">
+          <tui-notification status="info" icon="@tui.info" class="anim-fade">
+            Quy định đơn hàng: tối đa <strong>{{ activeMaxQtyLimit?.limitValue }}</strong> sản phẩm mỗi lần cho mặt hàng này.
+          </tui-notification>
+        </div>
 
         <div class="purchase-actions">
           <div class="quantity-selector">
@@ -198,7 +213,7 @@
              appearance="secondary" 
              class="buy-btn" 
              (click)="addToCart()"
-             [disabled]="isMoqViolation"
+             [disabled]="orderLimitBuyBlocked"
           >
             Thêm vào giỏ hàng
           </button>
@@ -334,6 +349,15 @@
         <div class="moq-mini-warning" *ngIf="isMoqViolation">
            Cần mua tối thiểu {{ activeOrderLimit?.limitValue }}
         </div>
+        <div class="moq-mini-warning" *ngIf="isMaxQtyViolation">
+           Vượt tối đa {{ activeMaxQtyLimit?.limitValue }} sản phẩm / lần
+        </div>
+        <div class="moq-mini-info" *ngIf="showMoqPolicyNotice">
+          Tối thiểu {{ activeOrderLimit?.limitValue }} / lần
+        </div>
+        <div class="moq-mini-info" *ngIf="showMaxQtyPolicyNotice">
+          Tối đa {{ activeMaxQtyLimit?.limitValue }} / lần
+        </div>
         <div class="total-price" *ngIf="!product.hidePrice">
           Tạm tính: 
           <span>
@@ -344,7 +368,7 @@
            class="sticky-buy-btn" 
            *ngIf="!product.hideAddToCart" 
            (click)="addToCart()"
-           [disabled]="isMoqViolation"
+           [disabled]="orderLimitBuyBlocked"
         >
           Thêm vào giỏ hàng
         </button>

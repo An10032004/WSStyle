@@ -124,7 +124,9 @@
     "TAX_TYPE": "Loại Thuế",
     "DISPLAY_TYPE": "Kiểu Hiển thị",
     "HIDE_ADD_TO_CART": "Ẩn nút mua",
-    "REPLACEMENT_TEXT": "Văn bản thay thế"
+    "REPLACEMENT_TEXT": "Văn bản thay thế",
+    "CUSTOMER_SCOPE": "Phạm vi khách",
+    "PRODUCT_SCOPE": "Phạm vi SP"
   },
   "MEMBER": {
     "GROUPS_TITLE": "Nhóm khách hàng",
@@ -162,6 +164,7 @@
     "MIN_ORDER_AMOUNT": "Giá trị đơn hàng tối thiểu",
     "MAX_ORDER_AMOUNT": "Giá trị đơn hàng tối đa",
     "MIN_ORDER_QUANTITY": "Số lượng đơn hàng tối thiểu",
+    "MAX_ORDER_QUANTITY": "Số lượng đơn hàng tối đa",
     "OVER_MONTHLY_SPEND": "Vượt mức chi tiêu tháng",
     "RETAIL": "Khách lẻ (Retail)",
     "WHOLESALE": "Khách sỉ (B2B)",
@@ -229,7 +232,19 @@
     "RULE_SECTION": "Quy tắc Giới hạn đơn hàng",
     "APPLIES_SECTION": "Áp dụng cho khách hàng",
     "TYPE": "Loại giới hạn",
-    "MIN_VALUE": "Giá trị tối thiểu"
+    "MIN_VALUE": "Giá trị tối thiểu",
+    "VALUE_MIN_QTY": "Ngưỡng số lượng tối thiểu",
+    "VALUE_MAX_QTY": "Ngưỡng số lượng tối đa",
+    "VALUE_MIN_AMOUNT": "Ngưỡng giá trị tối thiểu (₫)",
+    "VALUE_MAX_AMOUNT": "Ngưỡng giá trị tối đa (₫)",
+    "VALUE_THRESHOLD": "Ngưỡng áp dụng",
+    "VALUE_HINT": "Con số này là ngưỡng min/max theo đúng \"Loại giới hạn\" và \"Cấp độ\" (theo đơn hoặc theo từng sản phẩm) bạn đã chọn.",
+    "PRODUCT_TARGET_CATEGORY": "Danh mục",
+    "PRODUCT_TARGET_GROUP": "Nhóm danh mục",
+    "PRODUCT_TARGET_SPECIFIC": "Sản phẩm cụ thể",
+    "PRODUCT_SCOPE_HINT": "Danh mục và Nhóm danh mục đều chọn từ danh sách danh mục; khác biệt chỉ là mã loại (đồng bộ quy tắc khác). Ưu tiên số nhỏ hơn thắng khi phạm vi trùng.",
+    "PICK_CATEGORIES": "Chọn danh mục",
+    "PICK_CATEGORY_GROUP": "Chọn danh mục (nhóm phạm vi)"
   },
   "DASHBOARD": {
     "TITLE": "Bảng điều khiển kinh doanh",

@@ -114,24 +114,39 @@ public class RuleCoreService {
         return conflicts;
     }
 
+    /** CATEGORY và GROUP đều lọc theo {@code categoryIds} trong JSON (đồng bộ OrderLimit / Pricing). */
+    private static boolean isProductCategoryLike(String applyProductType) {
+        return "CATEGORY".equals(applyProductType) || "GROUP".equals(applyProductType);
+    }
+
     private boolean checkProductOverlap(RuleTarget r1, RuleTarget r2) {
         if (r1.applyProductType.equals("ALL") || r2.applyProductType.equals("ALL")) return true;
-        
+
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> v1 = objectMapper.readValue(r1.applyProductValue, Map.class);
             @SuppressWarnings("unchecked")
             Map<String, Object> v2 = objectMapper.readValue(r2.applyProductValue, Map.class);
-            
+
             if (r1.applyProductType.equals(r2.applyProductType)) {
-                String key = (r1.applyProductType.equals("CATEGORY") || r1.applyProductType.equals("GROUP")) ? "categoryIds" : "productIds";
+                String key = isProductCategoryLike(r1.applyProductType) ? "categoryIds" : "productIds";
                 @SuppressWarnings("unchecked")
                 List<Integer> ids1 = (List<Integer>) v1.get(key);
                 @SuppressWarnings("unchecked")
                 List<Integer> ids2 = (List<Integer>) v2.get(key);
                 return ids1 != null && ids2 != null && !Collections.disjoint(ids1, ids2);
             }
-            // If one is CATEGORY and one is SPECIFIC, it's complex. Assume possible overlap for safety.
+            // Hai loại khác nhau nhưng cùng lọc theo danh mục (CATEGORY vs GROUP): so sánh tập categoryIds.
+            if (isProductCategoryLike(r1.applyProductType) && isProductCategoryLike(r2.applyProductType)) {
+                @SuppressWarnings("unchecked")
+                List<Integer> ids1 = (List<Integer>) v1.get("categoryIds");
+                @SuppressWarnings("unchecked")
+                List<Integer> ids2 = (List<Integer>) v2.get("categoryIds");
+                return ids1 != null && ids2 != null && !Collections.disjoint(ids1, ids2);
+            }
+            // CATEGORY/GROUP vs SPECIFIC: có thể giao nhau — giữ an toàn.
+            if (isProductCategoryLike(r1.applyProductType) && "SPECIFIC".equals(r2.applyProductType)) return true;
+            if ("SPECIFIC".equals(r1.applyProductType) && isProductCategoryLike(r2.applyProductType)) return true;
             return true;
         } catch (Exception e) {
             return true; // Overlap on error
@@ -162,6 +177,28 @@ public class RuleCoreService {
         }
         
         return r1.applyCustomerType.equals(r2.applyCustomerType);
+    }
+
+    /**
+     * Hai quy tắc giới hạn đơn hàng có phạm vi KH + SP chồng lên nhau (giống logic detectConflicts / bảng giá).
+     * Dùng để chỉ giữ quy tắc có priority nhỏ hơn khi cùng kiểu cạnh tranh (ví dụ hai MAX cùng cấp).
+     */
+    public boolean orderLimitTargetingOverlaps(OrderLimit a, OrderLimit b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        RuleTarget ta = ruleTargetFromOrderLimit(a);
+        RuleTarget tb = ruleTargetFromOrderLimit(b);
+        return checkProductOverlap(ta, tb) && checkCustomerOverlap(ta, tb);
+    }
+
+    private static RuleTarget ruleTargetFromOrderLimit(OrderLimit r) {
+        RuleTarget t = new RuleTarget();
+        t.applyCustomerType = r.getApplyCustomerType() != null ? r.getApplyCustomerType() : "ALL";
+        t.applyCustomerValue = r.getApplyCustomerValue();
+        t.applyProductType = r.getApplyProductType() != null ? r.getApplyProductType() : "ALL";
+        t.applyProductValue = r.getApplyProductValue();
+        return t;
     }
 
     public List<PricingRule> getAllActivePricingRules() {
