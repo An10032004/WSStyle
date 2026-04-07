@@ -2,6 +2,7 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.dto.request.NetTermRuleRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.NetTermQuoteResponse;
 import com.fashionstore.core.model.NetTermRule;
 import com.fashionstore.core.service.NetTermRuleService;
 import jakarta.validation.Valid;
@@ -23,6 +24,11 @@ public class NetTermRuleController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<NetTermRule>>> getAllRules() {
         return ResponseEntity.ok(ApiResponse.success(netTermRuleService.getAllRules()));
+    }
+
+    @GetMapping("/quote")
+    public ResponseEntity<ApiResponse<NetTermQuoteResponse>> quote(@RequestParam(required = false) Integer userId) {
+        return ResponseEntity.ok(ApiResponse.success(netTermRuleService.quote(userId)));
     }
 
     @GetMapping("/{id}")

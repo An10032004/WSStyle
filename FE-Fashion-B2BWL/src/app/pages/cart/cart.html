@@ -113,6 +113,10 @@
 
             <!-- RULE VALIDATION MESSAGES -->
             <div class="validation-section" *ngIf="(validationResults$ | async) as results">
+               <div class="invalid-msg" *ngIf="(isBlockedByDebt$ | async)">
+                 <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
+                 Bạn có công nợ quá hạn. Vui lòng vào hồ sơ để thanh toán trước khi checkout.
+               </div>
                <div class="valid-msg" *ngIf="results.length === 0 || results.every(r => r.success)">
                  <tui-icon icon="@tui.check-circle" class="success-icon"></tui-icon>
                  Your order is eligible for checkout.
@@ -127,7 +131,7 @@
               tuiButton 
               size="l" 
               class="checkout-btn" 
-              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async)"
+              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async)"
               (click)="goToCheckout()"
             >
               CHECKOUT NOW

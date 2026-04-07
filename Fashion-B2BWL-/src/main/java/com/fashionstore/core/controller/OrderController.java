@@ -2,6 +2,8 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.DebtOrderReportRowResponse;
+import com.fashionstore.core.dto.response.DebtSummaryResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,18 @@ public class OrderController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<ApiResponse<List<Order>>> getOrdersByUser(@PathVariable("userId") Integer userId) {
         return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersByUserId(userId)));
+    }
+
+    @GetMapping("/user/{userId}/debt-summary")
+    public ResponseEntity<ApiResponse<DebtSummaryResponse>> getDebtSummary(@PathVariable("userId") Integer userId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getDebtSummary(userId)));
+    }
+
+    @GetMapping("/debt-report")
+    public ResponseEntity<ApiResponse<List<DebtOrderReportRowResponse>>> getDebtReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getDebtReport(startDate, endDate)));
     }
 
     @GetMapping("/paged")

@@ -61,11 +61,11 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   selectedRule: NetTermRule | null = null;
 
   formData: Partial<NetTermRule> = {
-    name: '', priority: 0, status: 'ACTIVE', applyCustomerType: 'ALL', applyCustomerValue: '{}', conditionType: 'OVER_MONTHLY_SPEND', netTermDays: 30
+    name: '', priority: 0, status: 'ACTIVE', applyCustomerType: 'GROUP', applyCustomerValue: '{}', conditionType: 'OVER_MONTHLY_SPEND', netTermDays: 30
   };
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
-  customerTypeOptions = ['ALL', 'GROUP', 'SPECIFIC'];
+  customerTypeOptions = ['GROUP'];
 
   customerGroups: any[] = [];
   selectedGroupIds: any[] = [];
@@ -178,7 +178,7 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
 
   onAdd(): void {
     this.editingId = null;
-    this.formData = { name: '', priority: 0, status: 'ACTIVE', applyCustomerType: 'ALL', applyCustomerValue: '{}', conditionType: 'OVER_MONTHLY_SPEND', netTermDays: 30 };
+    this.formData = { name: '', priority: 0, status: 'ACTIVE', applyCustomerType: 'GROUP', applyCustomerValue: '{}', conditionType: 'OVER_MONTHLY_SPEND', netTermDays: 30 };
     this.selectedGroupIds = [];
     this.showForm = true;
     this.showDetails = false;
@@ -187,7 +187,7 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
 
   onEdit(data: NetTermRule): void {
     this.editingId = data.id;
-    this.formData = { ...data };
+    this.formData = { ...data, applyCustomerType: 'GROUP' };
     this.parseTargeting();
     this.showForm = true;
     this.showDetails = false;

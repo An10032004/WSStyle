@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton } from '@taiga-ui/core';
-import { ApiService, SalesReport } from '../../services/api.service';
+import { ApiService, DebtOrderReportRow, SalesReport } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
@@ -56,6 +56,32 @@ import { firstValueFrom } from 'rxjs';
              </tbody>
            </table>
         </div>
+
+        <div class="table-container" style="margin-top:28px;">
+           <h2 class="tui-text_h6">Net Terms Debt Report</h2>
+           <table class="tui-table">
+             <thead>
+               <tr class="tui-table__tr">
+                 <th class="tui-table__th">Order</th>
+                 <th class="tui-table__th">Customer</th>
+                 <th class="tui-table__th">Group</th>
+                 <th class="tui-table__th">Due Date</th>
+                 <th class="tui-table__th">Days Left</th>
+                 <th class="tui-table__th">Status</th>
+               </tr>
+             </thead>
+             <tbody>
+               <tr *ngFor="let d of debtRows()" class="tui-table__tr">
+                 <td class="tui-table__td">#{{ d.orderId }}</td>
+                 <td class="tui-table__td">{{ d.customerName || '-' }}</td>
+                 <td class="tui-table__td">{{ d.customerGroupName || '-' }}</td>
+                 <td class="tui-table__td">{{ d.dueDate | date:'dd/MM/yyyy' }}</td>
+                 <td class="tui-table__td">{{ d.daysLeft }}</td>
+                 <td class="tui-table__td">{{ d.debtStatus }}</td>
+               </tr>
+             </tbody>
+           </table>
+        </div>
       </div>
     </div>
   `,
@@ -77,6 +103,7 @@ import { firstValueFrom } from 'rxjs';
 export class AdvancedReportsComponent {
   private readonly api = inject(ApiService);
   readonly report = signal<SalesReport | null>(null);
+  readonly debtRows = signal<DebtOrderReportRow[]>([]);
   
   startDate = '';
   endDate = '';
@@ -88,6 +115,8 @@ export class AdvancedReportsComponent {
   async refresh() {
     const data = await firstValueFrom(this.api.getSalesReport(this.startDate, this.endDate));
     this.report.set(data);
+    const debt = await firstValueFrom(this.api.getDebtReport(this.startDate, this.endDate));
+    this.debtRows.set(debt || []);
   }
 
   setRange(type: '7days' | '30days') {

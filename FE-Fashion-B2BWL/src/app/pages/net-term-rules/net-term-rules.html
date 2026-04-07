@@ -33,13 +33,6 @@
       </label>
 
       <label tuiLabel class="form-field">
-        Loại khách hàng áp dụng
-        <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="syncTargeting()">
-          <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
         Chọn nhóm khách hàng
         <tui-multi-select [(ngModel)]="selectedGroupIds" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
           <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>

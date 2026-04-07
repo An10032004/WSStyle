@@ -5,11 +5,11 @@ import { FormsModule } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
-import { BehaviorSubject, combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap, take } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
-import { ApiService } from '../../services/api.service';
+import { ApiService, DebtSummary } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -58,6 +58,13 @@ export class CartComponent implements OnInit {
   );
 
   shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
+
+  debtSummary$ = this.auth.user$.pipe(
+    switchMap(user => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary)),
+    startWith({ blocked: false, overdueCount: 0, items: [] } as DebtSummary),
+    shareReplay(1),
+  );
+  isBlockedByDebt$ = this.debtSummary$.pipe(map(s => s.blocked));
   
   // Validation trigger
   private validateTrigger = new BehaviorSubject<void>(undefined);
@@ -105,7 +112,12 @@ export class CartComponent implements OnInit {
   }
 
   goToCheckout() {
-    this.router.navigate(['/checkout']);
+    this.isBlockedByDebt$.pipe(take(1)).subscribe(blocked => {
+      if (blocked) {
+        return;
+      }
+      this.router.navigate(['/checkout']);
+    });
   }
 
   readonly totalItems$ = this.cart$.pipe(

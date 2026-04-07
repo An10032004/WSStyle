@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ApiService, Order } from '../../services/api.service';
+import { ApiService, DebtSummary, Order } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
 import { Observable, switchMap, of, tap, BehaviorSubject, combineLatest, map } from 'rxjs';
 import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
@@ -50,6 +50,30 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
             <button tuiButton type="button" appearance="outline" size="m" (click)="logout()" style="width: 100%; margin-top: 10px;">
               Logout
             </button>
+          </div>
+        </div>
+
+        <div class="profile-card" *ngIf="debtSummary$ | async as debt">
+          <div class="profile-header" style="text-align:left">
+            <h2 style="margin:0">Công nợ</h2>
+            <div class="role-badges" style="justify-content:flex-start; margin-top:8px;">
+              <span class="role-badge" [style.background]="debt.blocked ? '#fee2e2' : '#ecfdf5'" [style.color]="debt.blocked ? '#b91c1c' : '#065f46'">
+                {{ debt.blocked ? 'Đang bị khóa đặt đơn' : 'Không quá hạn' }}
+              </span>
+            </div>
+          </div>
+          <div class="profile-details">
+            <div class="detail-item">
+              <label>Số đơn công nợ quá hạn</label>
+              <p>{{ debt.overdueCount }}</p>
+            </div>
+            <div class="detail-item" *ngIf="debt.items.length === 0">
+              <p>Không có đơn công nợ đang mở.</p>
+            </div>
+            <div class="detail-item" *ngFor="let d of debt.items.slice(0,3)">
+              <label>Đơn #{{ d.orderId }}</label>
+              <p>{{ debtStatusLabel(d.daysLeft) }} - Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+            </div>
           </div>
         </div>
 
@@ -246,6 +270,10 @@ export class ProfileComponent {
     })
   );
 
+  debtSummary$ = this.user$.pipe(
+    switchMap(user => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary))
+  );
+
   expandedOrderIds = new Set<number>();
 
   getStatusAppearance(status: string): string {
@@ -309,5 +337,11 @@ export class ProfileComponent {
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
+  }
+
+  debtStatusLabel(daysLeft: number): string {
+    if (daysLeft < 0) return `Quá hạn ${Math.abs(daysLeft)} ngày`;
+    if (daysLeft === 0) return 'Đến hạn hôm nay';
+    return `Còn ${daysLeft} ngày`;
   }
 }

@@ -78,6 +78,16 @@
     transform: translateY(-2px);
   }
 
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: auto;
+    transform: none !important;
+    &:hover {
+      border-color: #eee;
+    }
+  }
+
   &.active {
     border-color: #000;
     background: #fdfdfd;

@@ -1,6 +1,8 @@
 package com.fashionstore.core.service;
 
 import com.fashionstore.core.dto.response.ShippingQuoteResponse;
+import com.fashionstore.core.dto.response.DebtOrderReportRowResponse;
+import com.fashionstore.core.dto.response.DebtSummaryResponse;
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.request.OrderItemRequest;
 import com.fashionstore.core.model.Order;
@@ -12,12 +14,16 @@ import com.fashionstore.core.repository.OrderRepository;
 import com.fashionstore.core.repository.ProductVariantRepository;
 import com.fashionstore.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,18 +37,42 @@ public class OrderService {
     private final ProductVariantRepository productVariantRepository;
     private final OrderLimitService orderLimitService;
     private final ShippingRuleService shippingRuleService;
+    private final NetTermRuleService netTermRuleService;
+
+    /** Bật API debt-summary và chặn đặt hàng khi quá hạn; tắt khi cấu hình flow riêng (app.net-term.debt-check.enabled=false). */
+    @Value("${app.net-term.debt-check.enabled:true}")
+    private boolean netTermDebtCheckEnabled;
 
     @Transactional
     public Order createOrder(OrderRequest request) {
+        if (request == null || request.getUserId() == null) {
+            throw new RuntimeException("Thiếu thông tin người dùng (userId). Vui lòng đăng nhập lại trước khi đặt hàng.");
+        }
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (hasOverdueDebt(user.getId())) {
+            throw new RuntimeException("Bạn có đơn công nợ quá hạn. Vui lòng thanh toán trước khi tạo đơn mới.");
+        }
 
         List<OrderItemRequest> itemReqs = request.getItems() != null ? request.getItems() : List.of();
         List<ProductVariant> resolvedVariants = new ArrayList<>(itemReqs.size());
         List<OrderLimitService.CartItemDTO> limitCart = new ArrayList<>(itemReqs.size());
         for (OrderItemRequest itemReq : itemReqs) {
-            ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
-                    .orElseThrow(() -> new RuntimeException("Variant not found: " + itemReq.getVariantId()));
+            ProductVariant variant;
+            if (itemReq.getVariantId() != null) {
+                variant = productVariantRepository.findById(itemReq.getVariantId())
+                        .orElseThrow(() -> new RuntimeException("Variant not found: " + itemReq.getVariantId()));
+            } else if (itemReq.getProductId() != null) {
+                variant = productVariantRepository.findByProductId(itemReq.getProductId()).stream()
+                        .sorted((a, b) -> Integer.compare(
+                                a.getId() != null ? a.getId() : Integer.MAX_VALUE,
+                                b.getId() != null ? b.getId() : Integer.MAX_VALUE))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể cho sản phẩm: " + itemReq.getProductId()));
+            } else {
+                throw new RuntimeException("Dòng sản phẩm thiếu cả variantId và productId.");
+            }
             resolvedVariants.add(variant);
             Product product = variant.getProduct();
             Integer categoryId = product != null ? product.getCategoryId() : null;
@@ -100,7 +130,14 @@ public class OrderService {
         BigDecimal finalTotal = totalAmount.add(order.getShippingFee());
         order.setTotalAmount(finalTotal);
         order.setItems(items);
-        order.setDebtAmount(finalTotal); // Initial debt is total amount including shipping
+        if ("NET_TERMS".equals(request.getPaymentMethod())) {
+            order.setDebtAmount(finalTotal);
+            int netDays = resolveNetTermDays(user);
+            order.setDueDate(LocalDateTime.now().plusDays(Math.max(netDays, 1)));
+        } else {
+            order.setDebtAmount(BigDecimal.ZERO);
+            order.setDueDate(null);
+        }
 
         return orderRepository.save(order);
     }
@@ -138,5 +175,75 @@ public class OrderService {
             order.setDebtAmount(BigDecimal.ZERO);
         }
         return orderRepository.save(order);
+    }
+
+    @Transactional(readOnly = true)
+    public DebtSummaryResponse getDebtSummary(Integer userId) {
+        if (!netTermDebtCheckEnabled || userId == null) {
+            return DebtSummaryResponse.builder()
+                    .blocked(false)
+                    .overdueCount(0)
+                    .items(List.of())
+                    .build();
+        }
+        List<Order> debts = orderRepository.findDebtOrdersForUserSummary(userId, BigDecimal.ZERO);
+        List<DebtOrderReportRowResponse> rows = debts.stream()
+                .filter(o -> o.getDueDate() != null)
+                .sorted((a, b) -> a.getDueDate().compareTo(b.getDueDate()))
+                .map(this::toDebtRow)
+                .toList();
+        int overdue = (int) rows.stream().filter(r -> r.getDaysLeft() < 0).count();
+        return DebtSummaryResponse.builder()
+                .blocked(overdue > 0)
+                .overdueCount(overdue)
+                .items(rows)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DebtOrderReportRowResponse> getDebtReport(String startDate, String endDate) {
+        LocalDateTime start = parseDateTime(startDate, LocalDateTime.now().minusDays(30));
+        LocalDateTime end = parseDateTime(endDate, LocalDateTime.now());
+        return orderRepository.findDebtOrdersForReport(start, end).stream()
+                .map(this::toDebtRow)
+                .toList();
+    }
+
+    private DebtOrderReportRowResponse toDebtRow(Order order) {
+        LocalDate today = LocalDate.now();
+        LocalDate due = order.getDueDate() != null ? order.getDueDate().toLocalDate() : today;
+        long daysLeft = ChronoUnit.DAYS.between(today, due);
+        String debtStatus = daysLeft < 0 ? "QUA_HAN" : (daysLeft <= 3 ? "SAP_DEN_HAN" : "CON_HAN");
+        return DebtOrderReportRowResponse.builder()
+                .orderId(order.getId())
+                .customerName(order.getUser() != null ? order.getUser().getFullName() : order.getFullName())
+                .customerGroupName(order.getUser() != null && order.getUser().getCustomerGroup() != null ? order.getUser().getCustomerGroup().getName() : null)
+                .createdAt(order.getCreatedAt())
+                .dueDate(order.getDueDate())
+                .daysLeft(daysLeft)
+                .debtStatus(debtStatus)
+                .paymentStatus(order.getPaymentStatus())
+                .build();
+    }
+
+    private boolean hasOverdueDebt(Integer userId) {
+        if (userId == null) {
+            return false;
+        }
+        return getDebtSummary(userId).isBlocked();
+    }
+
+    private int resolveNetTermDays(User user) {
+        var q = netTermRuleService.quote(user.getId());
+        return q.isEligible() && q.getNetTermDays() != null ? q.getNetTermDays() : 30;
+    }
+
+    private LocalDateTime parseDateTime(String dateStr, LocalDateTime defaultDate) {
+        if (dateStr == null || dateStr.isEmpty()) return defaultDate;
+        try {
+            return LocalDateTime.parse(dateStr + "T00:00:00");
+        } catch (Exception e) {
+            return defaultDate;
+        }
     }
 }

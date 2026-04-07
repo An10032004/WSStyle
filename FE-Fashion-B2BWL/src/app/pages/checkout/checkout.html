@@ -54,10 +54,19 @@
             </h3>
             
             <div class="payment-options">
+               <div class="payment-option" *ngIf="(isBlockedByDebt$ | async)" style="border:1px solid #fecaca; background:#fef2f2;">
+                 <tui-icon icon="@tui.triangle-alert" class="payment-icon"></tui-icon>
+                 <div class="payment-text">
+                   <strong style="color:#b91c1c">Bạn có công nợ quá hạn</strong>
+                   <span>Vui lòng thanh toán đơn công nợ trước khi tiếp tục đặt đơn mới.</span>
+                 </div>
+               </div>
+
                <div 
                   class="payment-option" 
+                  [class.disabled]="isBlockedByDebt$ | async"
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'COD'"
-                  (click)="setPaymentMethod('COD')"
+                  (click)="setPaymentMethodIfAllowed('COD')"
                >
                  <tui-icon icon="@tui.hand-coins" class="payment-icon"></tui-icon>
                  <div class="payment-text">
@@ -68,8 +77,9 @@
 
                <div 
                   class="payment-option" 
+                  [class.disabled]="isBlockedByDebt$ | async"
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'VNPAY'"
-                  (click)="setPaymentMethod('VNPAY')"
+                  (click)="setPaymentMethodIfAllowed('VNPAY')"
                >
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay" class="payment-img">
                  <div class="payment-text">
@@ -80,8 +90,9 @@
 
                <div 
                   class="payment-option" 
+                  [class.disabled]="isBlockedByDebt$ | async"
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'MOMO'"
-                  (click)="setPaymentMethod('MOMO')"
+                  (click)="setPaymentMethodIfAllowed('MOMO')"
                >
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo" class="payment-img">
                  <div class="payment-text">
@@ -93,8 +104,9 @@
                <div 
                   class="payment-option highlight" 
                   *ngIf="isNetTermEligible$ | async"
+                  [class.disabled]="isBlockedByDebt$ | async"
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'NET_TERMS'"
-                  (click)="setPaymentMethod('NET_TERMS')"
+                  (click)="setPaymentMethodIfAllowed('NET_TERMS')"
                >
                  <tui-icon icon="@tui.handshake" class="payment-icon"></tui-icon>
                  <div class="payment-text">
@@ -155,7 +167,7 @@
             tuiButton 
             size="l" 
             class="place-order-btn" 
-            [disabled]="checkoutForm.invalid || isPlacingOrder"
+            [disabled]="checkoutForm.invalid || isPlacingOrder || (isBlockedByDebt$ | async)"
             (click)="onSubmit()"
           >
             <tui-loader [showLoader]="isPlacingOrder" [inheritColor]="true" [overlay]="true">

@@ -29,6 +29,7 @@ public class ReportService {
         List<Order> orders = orderRepository.findByCreatedAtBetween(start, end);
 
         BigDecimal totalRevenue = orders.stream()
+                .filter(o -> "PAID".equals(o.getPaymentStatus()))
                 .map(Order::getTotalAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -60,7 +61,9 @@ public class ReportService {
                 BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
 
                 bs.setQuantity(bs.getQuantity() + qty);
-                bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
+                if ("PAID".equals(order.getPaymentStatus())) {
+                    bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
+                }
                 bestSellerMap.put(name, bs);
             }
         }
@@ -75,7 +78,9 @@ public class ReportService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (Order order : orders) {
             String date = order.getCreatedAt().format(formatter);
-            revenueMap.put(date, revenueMap.getOrDefault(date, BigDecimal.ZERO).add(order.getTotalAmount()));
+            if ("PAID".equals(order.getPaymentStatus())) {
+                revenueMap.put(date, revenueMap.getOrDefault(date, BigDecimal.ZERO).add(order.getTotalAmount()));
+            }
         }
 
         List<SalesReportResponse.RevenuePoint> revenueByDate = revenueMap.entrySet().stream()

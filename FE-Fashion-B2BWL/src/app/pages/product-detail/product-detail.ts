@@ -732,6 +732,15 @@ export class ProductDetailComponent implements OnInit {
 
   addToCart() {
     if (!this.product) return;
+    if (this.variants.length > 0 && !this.selectedVariant) {
+      this.alerts
+        .open('Vui lòng chọn đủ màu / size (hoặc biến thể) trước khi thêm vào giỏ hàng.', {
+          label: 'Chưa chọn biến thể',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
     this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice);
   }
 

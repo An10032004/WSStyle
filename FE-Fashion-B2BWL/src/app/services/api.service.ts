@@ -193,6 +193,29 @@ export interface NetTermRule {
   netTermDays: number;
 }
 
+export interface NetTermQuote {
+  eligible: boolean;
+  netTermDays?: number;
+  ruleName?: string;
+}
+
+export interface DebtOrderReportRow {
+  orderId: number;
+  customerName?: string;
+  customerGroupName?: string;
+  createdAt?: string;
+  dueDate?: string;
+  daysLeft: number;
+  debtStatus: 'CON_HAN' | 'SAP_DEN_HAN' | 'QUA_HAN';
+  paymentStatus?: string;
+}
+
+export interface DebtSummary {
+  blocked: boolean;
+  overdueCount: number;
+  items: DebtOrderReportRow[];
+}
+
 export interface TaxDisplayRule {
   id: number;
   name: string;
@@ -599,6 +622,11 @@ export class ApiService {
   deleteNetTermRule(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/net-term-rules/${id}`).pipe(map(r => r.data));
   }
+  quoteNetTerm(userId?: number | null): Observable<NetTermQuote> {
+    const params: any = {};
+    if (userId != null) params.userId = userId;
+    return this.http.get<ApiResponse<NetTermQuote>>(`${this.base}/net-term-rules/quote`, { params }).pipe(map(r => r.data));
+  }
 
   // ─── Tax Display Rules ──────────────────────────────────
   getTaxDisplayRules(): Observable<TaxDisplayRule[]> {
@@ -674,6 +702,16 @@ export class ApiService {
 
   getOrdersByUser(userId: number): Observable<Order[]> {
     return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders/user/${userId}`).pipe(map(r => r.data));
+  }
+
+  getDebtSummary(userId: number): Observable<DebtSummary> {
+    return this.http.get<ApiResponse<DebtSummary>>(`${this.base}/orders/user/${userId}/debt-summary`).pipe(map(r => r.data));
+  }
+
+  getDebtReport(startDate?: string, endDate?: string): Observable<DebtOrderReportRow[]> {
+    return this.http.get<ApiResponse<DebtOrderReportRow[]>>(`${this.base}/orders/debt-report`, {
+      params: { startDate: startDate || '', endDate: endDate || '' }
+    }).pipe(map(r => r.data));
   }
 
   getOrdersByUserPaged(userId: number, page: number = 0, size: number = 10): Observable<any> {
