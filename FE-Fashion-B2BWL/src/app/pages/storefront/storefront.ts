@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { TuiButton, TuiIcon, TuiLabel, TuiDropdown } from '@taiga-ui/core';
@@ -8,6 +9,7 @@ import { StorefrontHeaderComponent } from '../../shared/components/storefront-he
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { ApiService, Product } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { distinctUntilChanged, map, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-storefront',
@@ -31,6 +33,7 @@ import { AuthService } from '../../services/auth.service';
 })
 export class StorefrontComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   user$ = this.auth.user$;
 
@@ -61,12 +64,19 @@ export class StorefrontComponent implements OnInit {
     private cdr: ChangeDetectorRef
   ) {}
   ngOnInit() {
-    this.api.getProducts().subscribe(products => {
-      this.products = products;
-      this.filterByTag();
-      this.updateTrendingCategories();
-      this.cdr.detectChanges();
-    });
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id),
+        distinctUntilChanged(),
+        switchMap((uid) => this.api.getProducts(uid)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((products) => {
+        this.products = products;
+        this.filterByTag();
+        this.updateTrendingCategories();
+        this.cdr.detectChanges();
+      });
 
     this.api.getCategories().subscribe(cats => {
       this.categoriesData = cats;

@@ -1,4 +1,14 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ChangeDetectionStrategy,
+  inject,
+  ChangeDetectorRef,
+  ViewChild,
+  TemplateRef,
+  DestroyRef,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ApiService, Product, ProductVariant, OrderLimit } from '../../services/api.service';
@@ -12,6 +22,9 @@ import { TuiTextareaModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { take } from 'rxjs';
+import { distinctUntilChanged, map, skip } from 'rxjs/operators';
+import { pickSingleBestRule } from '../../utils/rule-priority';
+import { ruleMatchesTargeting } from '../../utils/rule-targeting';
 
 @Component({
   selector: 'app-product-detail',
@@ -43,6 +56,7 @@ import { take } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductDetailComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -146,7 +160,7 @@ export class ProductDetailComponent implements OnInit {
 
       if (discountType === 'PERCENTAGE') {
         base = base * (1 - discountValue / 100);
-      } else if (discountType === 'FIXED') {
+      } else if (discountType === 'FIXED' || discountType === 'FIXED_AMOUNT') {
         base = Math.max(0, base - discountValue);
       }
     }
@@ -210,48 +224,32 @@ export class ProductDetailComponent implements OnInit {
     this.route.params.subscribe(() => {
         this.loadProduct();
     });
+
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id ?? null),
+        distinctUntilChanged(),
+        skip(1),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        if (this.route.snapshot.paramMap.get('id')) {
+          this.loadProduct();
+        }
+      });
   }
 
-  loadOrderLimits(productId: number, categoryId: number) {
+  loadOrderLimits(productId: number, categoryId: number | null | undefined) {
     this.api.getOrderLimits().subscribe(rules => {
       const activeRules = rules.filter(r => r.status === 'ACTIVE');
       const user = this.auth.currentUserValue;
 
-      const matchedRules = activeRules.filter(r => {
-        // 1. Customer Check
-        let customerMatch = false;
-        if (r.applyCustomerType === 'ALL') customerMatch = true;
-        else if (r.applyCustomerType === 'GROUP' && r.applyCustomerValue && user?.customerGroup) {
-          try {
-            const val = JSON.parse(r.applyCustomerValue);
-            customerMatch = val.groupId === user.customerGroup.id;
-          } catch (e) {}
-        }
-        if (!customerMatch) return false;
+      const matchedRules = activeRules.filter((r) =>
+        ruleMatchesTargeting(r, { productId, categoryId, user })
+      );
 
-        // 2. Product Check
-        if (r.applyProductType === 'ALL') return true;
-        if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.productIds?.includes(productId);
-          } catch (e) {}
-        }
-        if (r.applyProductType === 'CATEGORY' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.categoryIds?.includes(categoryId);
-          } catch (e) {}
-        }
-        return false;
-      });
-
-      if (matchedRules.length > 0) {
-        // Pick highest priority MOQ rule
-        this.activeOrderLimit = matchedRules.sort((a, b) => b.priority - a.priority)[0];
-      } else {
-        this.activeOrderLimit = null;
-      }
+      this.activeOrderLimit =
+        matchedRules.length > 0 ? pickSingleBestRule(matchedRules) : null;
       this.cdr.detectChanges();
     });
   }
@@ -369,29 +367,20 @@ export class ProductDetailComponent implements OnInit {
         this.brandName = p.brand || 'NO BRAND';
         this.cdr.detectChanges();
         this.loadVariants(id);
-        this.loadPricingRules(id);
-        if (p.categoryId) {
-          this.loadOrderLimits(p.id, p.categoryId);
-        }
+        this.loadPricingRules(id, p.categoryId);
+        this.loadOrderLimits(p.id, p.categoryId);
       });
     }
   }
 
-  loadPricingRules(productId: number) {
+  loadPricingRules(productId: number, categoryId: number | null | undefined) {
     this.api.getPricingRules().subscribe(rules => {
       const activeRules = rules.filter(r => r.status === 'ACTIVE');
-      
-      // 1. Quantity Break Rules
-      this.qbRules = activeRules.filter(r => {
+      const user = this.auth.currentUserValue;
+
+      this.qbRules = activeRules.filter((r) => {
         if (r.ruleType !== 'QUANTITY_BREAK') return false;
-        if (r.applyProductType === 'ALL') return true;
-        if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.productIds?.includes(productId);
-          } catch (e) { return false; }
-        }
-        return false;
+        return ruleMatchesTargeting(r, { productId, categoryId, user });
       });
 
       this.qbRules.forEach(r => {
@@ -402,44 +391,20 @@ export class ProductDetailComponent implements OnInit {
         }
       });
 
-      // 2. B2B Pricing Rules
-      const user = this.auth.currentUserValue;
-      const b2bRules = activeRules.filter(r => {
+      const b2bRules = activeRules.filter((r) => {
         if (r.ruleType !== 'B2B_PRICE') return false;
-        
-        // Product Check
-        let productMatch = false;
-        if (r.applyProductType === 'ALL') productMatch = true;
-        else if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            productMatch = val.productIds?.includes(productId);
-          } catch (e) {}
-        }
-
-        if (!productMatch) return false;
-
-        // Customer Check
-        if (r.applyCustomerType === 'ALL') return true;
-        if (r.applyCustomerType === 'GROUP' && r.applyCustomerValue && user?.customerGroup) {
-          try {
-            const val = JSON.parse(r.applyCustomerValue);
-            return val.groupId === user.customerGroup.id;
-          } catch (e) {}
-        }
-        return false;
+        return ruleMatchesTargeting(r, { productId, categoryId, user });
       });
 
-      // Pick highest priority B2B rule
-      if (b2bRules.length > 0) {
-        this.b2bRule = b2bRules.sort((a, b) => b.priority - a.priority)[0];
+      this.b2bRule = pickSingleBestRule(b2bRules);
+      if (this.b2bRule?.actionConfig) {
         try {
           this.b2bRule.parsedConfig = JSON.parse(this.b2bRule.actionConfig);
-        } catch (e) {}
-      } else {
-        this.b2bRule = null;
+        } catch (e) {
+          this.b2bRule.parsedConfig = undefined;
+        }
       }
-      
+
       this.cdr.detectChanges();
     });
   }

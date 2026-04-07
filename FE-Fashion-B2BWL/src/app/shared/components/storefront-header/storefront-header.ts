@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -6,7 +7,7 @@ import { TuiButton, TuiIcon, TuiDropdown, TuiDataList } from '@taiga-ui/core';
 import { AuthService } from '../../../services/auth.service';
 import { ApiService, Category, Product } from '../../../services/api.service';
 import { CartService } from '../../../services/cart.service';
-import { Observable, map } from 'rxjs';
+import { Observable, map, distinctUntilChanged, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-storefront-header',
@@ -16,8 +17,9 @@ import { Observable, map } from 'rxjs';
   styleUrls: ['./storefront-header.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StorefrontHeaderComponent {
+export class StorefrontHeaderComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -51,9 +53,17 @@ export class StorefrontHeaderComponent {
   showSuggestions = false;
 
   ngOnInit() {
-    this.api.getProducts().subscribe(prods => {
-      this.allProducts = prods;
-    });
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id),
+        distinctUntilChanged(),
+        switchMap((uid) => this.api.getProducts(uid)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((prods) => {
+        this.allProducts = prods;
+        this.cdr.markForCheck();
+      });
 
     this.api.getCategories().subscribe(cats => {
       if (!cats || cats.length === 0) return;
