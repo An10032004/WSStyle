@@ -302,16 +302,26 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
-    // Prevent Users page from assigning permission roles via tags.assignedRole
+    // Prevent Users page from assigning permission roles when creating a new user,
+    // but preserve existing assignedRole when editing other fields (e.g., customer group).
     const payload: any = { ...this.formData };
-    if (payload.tags) {
-      try {
-        const t = JSON.parse(payload.tags as string) || {};
-        if (t.assignedRole) delete t.assignedRole;
-        payload.tags = Object.keys(t).length ? JSON.stringify(t) : null;
-      } catch (e) {
-        // If tags isn't valid JSON, drop assignedRole by not including tags
-        payload.tags = null;
+    if (!this.editingId) {
+      // Creating: strip any assignedRole from tags to forbid assignment via Users page
+      if (payload.tags) {
+        try {
+          const t = JSON.parse(payload.tags as string) || {};
+          if (t.assignedRole) delete t.assignedRole;
+          payload.tags = Object.keys(t).length ? JSON.stringify(t) : null;
+        } catch (e) {
+          payload.tags = null;
+        }
+      }
+    } else {
+      // Editing existing user: ensure tags is preserved (don't remove assignedRole)
+      // If tags missing for any reason, try to keep the original tags from rowData
+      if (payload.tags === undefined || payload.tags === null) {
+        const original = this.rowData.find(r => r.id === this.editingId);
+        if (original) payload.tags = (original as any).tags ?? null;
       }
     }
 

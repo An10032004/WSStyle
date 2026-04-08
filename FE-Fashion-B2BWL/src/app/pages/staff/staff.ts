@@ -283,8 +283,9 @@ export class StaffComponent implements OnInit, OnDestroy {
     this.formData = { 
       ...user, 
       password: '', // Don't show password hash
-      assignedRole: assignedFromTags ?? null
-      // customerGroup intentionally omitted for staff
+      assignedRole: assignedFromTags ?? null,
+      // Preserve existing customer group by sending customerGroupId
+      customerGroupId: (user as any)?.customerGroup?.id ?? null
     };
 
     // Refresh assignedRoleOptions according to the user's primary role
