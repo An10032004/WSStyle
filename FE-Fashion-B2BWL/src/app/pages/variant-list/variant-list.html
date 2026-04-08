@@ -62,11 +62,6 @@
           </tui-textfield>
         </label>
         <label tuiLabel class="form-field">
-          {{ 'VARIANT.PRICE_ADJ' | transloco }} (VNĐ)
-          <tui-textfield>
-            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.priceAdjustment" placeholder="0" maxlength="13" />
-            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
-          </tui-textfield>
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.COST_PRICE' | transloco }} (VNĐ)
@@ -83,13 +78,6 @@
           </tui-textfield>
         </label>
         <label tuiLabel class="form-field">
-          Giá giảm riêng (VNĐ)
-          <tui-textfield>
-            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.discountPrice" placeholder="0" maxlength="13" />
-            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
-          </tui-textfield>
-        </label>
-        <label tuiLabel class="form-field">
           Mã vạch (Barcode)
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.barcode" placeholder="893..." />
@@ -97,15 +85,15 @@
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.COLOR' | transloco }}
-          <tui-textfield>
-            <input tuiTextfield [(ngModel)]="formData.color" placeholder="Red, Blue..." />
-          </tui-textfield>
+          <div class="option-buttons">
+            <button *ngFor="let c of colorOptions" tuiButton size="s" type="button" [appearance]="isColorSelected(c) ? 'primary' : 'outline'" (click)="selectColor(c)">{{ c }}</button>
+          </div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.SIZE' | transloco }}
-          <tui-textfield>
-            <input tuiTextfield [(ngModel)]="formData.size" placeholder="S, M, L..." />
-          </tui-textfield>
+          <div class="option-buttons">
+            <button *ngFor="let s of sizeOptions" tuiButton size="s" type="button" [appearance]="isSizeSelected(s) ? 'primary' : 'outline'" (click)="selectSize(s)">{{ s }}</button>
+          </div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.WEIGHT' | transloco }}
@@ -170,14 +158,13 @@
          <p><strong>{{ 'VARIANT.SKU' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.sku }}</span></p>
          <p><strong>{{ 'VARIANT.PRODUCT' | transloco }}:&nbsp;</strong> {{ getProductDisplay(selectedVariant.productId ?? null) }}</p>
          <p><strong>{{ 'VARIANT.STOCK' | transloco }}:&nbsp;</strong> {{ selectedVariant.stockQuantity | number }}</p>
-         <p><strong>{{ 'VARIANT.PRICE_ADJ' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedVariant.priceAdjustment | number }} VND</span></p>
          <p><strong>{{ 'VARIANT.COLOR' | transloco }}:&nbsp;</strong> {{ selectedVariant.color || ('CATEGORY.ROOT' | transloco) }}</p>
          <p><strong>{{ 'VARIANT.SIZE' | transloco }}:&nbsp;</strong> {{ selectedVariant.size || ('CATEGORY.ROOT' | transloco) }}</p>
          <p><strong>{{ 'VARIANT.WEIGHT' | transloco }}:&nbsp;</strong> {{ selectedVariant.weight || ('CATEGORY.ROOT' | transloco) }}</p>
          <p><strong>Kích thước:&nbsp;</strong> {{ selectedVariant.length }} x {{ selectedVariant.width }} x {{ selectedVariant.height }} cm</p>
          <p><strong>Giá nhập:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.costPrice | number }} VND</span></p>
          <p><strong>Giá bán riêng:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.price ? (selectedVariant.price | number) : 'Theo giá gốc' }} VND</span></p>
-         <p><strong>Giá giảm riêng:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedVariant.discountPrice | number }} VND</span></p>
+         
          <p><strong>Mã vạch:&nbsp;</strong> {{ selectedVariant.barcode || 'N/A' }}</p>
          <p><strong>Trạng thái:&nbsp;</strong> {{ selectedVariant.status === 'ACTIVE' ? '✅ Kích hoạt' : '❌ Ngừng bán' }}</p>
          

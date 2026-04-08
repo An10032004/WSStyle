@@ -372,7 +372,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   onSave(): void {
-    const numericPrice = 0;
+    const numericPrice = this.getNumericValue(this.formData.basePrice);
     
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields in Multi-lingual mode

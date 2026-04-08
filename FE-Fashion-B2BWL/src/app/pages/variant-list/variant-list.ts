@@ -49,7 +49,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
     sku: '',
     productId: null as number | null,
     stockQuantity: 0,
-    priceAdjustment: 0,
     imageUrl: '',
     imageUrls: [] as string[],
     color: '',
@@ -60,10 +59,13 @@ export class VariantListComponent implements OnInit, OnDestroy {
     height: 0,
     costPrice: 0,
     price: 0,
-    discountPrice: 0,
     status: 'ACTIVE',
     barcode: '',
   };
+
+  // Simple preset options for selection UI; can be expanded later or loaded from API
+  colorOptions: string[] = ['Red', 'Blue', 'Black', 'White', 'Green', 'Yellow'];
+  sizeOptions: string[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
   currentLanguage: string = 'vi';
   langSub!: Subscription;
@@ -160,6 +162,22 @@ export class VariantListComponent implements OnInit, OnDestroy {
     return this.getProductDisplay(context?.$implicit);
   };
 
+  selectColor(c: string): void {
+    this.formData.color = c;
+  }
+
+  isColorSelected(c: string): boolean {
+    return this.formData.color === c;
+  }
+
+  selectSize(s: string): void {
+    this.formData.size = s;
+  }
+
+  isSizeSelected(s: string): boolean {
+    return this.formData.size === s;
+  }
+
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
   }
@@ -211,38 +229,13 @@ export class VariantListComponent implements OnInit, OnDestroy {
         valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : ''
       },
       { 
-        headerName: this.transloco.translate('VARIANT.PRICE_ADJ'), 
-        field: 'priceAdjustment', 
-        width: 150, 
-        sortable: true,
-        valueFormatter: (params) => {
-          if (params.value == null) return '';
-          const isEn = this.currentLanguage === 'en';
-          const exchangeRate = 25450;
-          
-          if (isEn) {
-            const usdValue = params.value / exchangeRate;
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usdValue);
-          } else {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(params.value);
-          }
-        },
-        cellStyle: { fontWeight: '500', color: 'var(--tui-status-positive)' },
-      },
-      { 
         headerName: 'Giá bán riêng', 
         field: 'price', 
         width: 140, 
         sortable: true,
         valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : 'Theo giá gốc'
       },
-      { 
-        headerName: 'Giá giảm riêng', 
-        field: 'discountPrice', 
-        width: 140, 
-        sortable: true,
-        valueFormatter: (params) => params.value ? `${Number(params.value).toLocaleString()} ${this.transloco.translate('GLOBAL.CURRENCY_SUFFIX')}` : '-'
-      },
+      // Removed variant-specific price adjustment and discount columns per product management simplification
       { headerName: this.transloco.translate('VARIANT.COLOR'), field: 'color', width: 120 },
       { headerName: this.transloco.translate('VARIANT.SIZE'), field: 'size', width: 120 },
       { headerName: this.transloco.translate('VARIANT.WEIGHT'), field: 'weight', width: 120 },
@@ -307,7 +300,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
       sku: '', 
       productId: null,  
       stockQuantity: 0, 
-      priceAdjustment: 0, 
       imageUrl: '', 
       imageUrls: [],
       color: '', 
@@ -318,7 +310,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
       height: 0,
       costPrice: 0,
       price: 0,
-      discountPrice: 0,
       status: 'ACTIVE',
       barcode: '',
     };
@@ -367,7 +358,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
       sku: v.sku,
       productId: v.productId,
       stockQuantity: v.stockQuantity,
-      priceAdjustment: v.priceAdjustment,
       imageUrl: v.imageUrl ?? '',
       imageUrls: this.parseImageUrls(v.imageUrls),
       color: v.color ?? '',
@@ -378,7 +368,6 @@ export class VariantListComponent implements OnInit, OnDestroy {
       height: v.height ?? 0,
       costPrice: v.costPrice ?? 0,
       price: v.price ?? 0,
-      discountPrice: v.discountPrice ?? 0,
       status: v.status ?? 'ACTIVE',
       barcode: v.barcode ?? '',
     };
@@ -423,10 +412,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   onSave(): void {
     const numericStock = this.getNumericValue(this.formData.stockQuantity);
-    const numericAdjustment = this.getNumericValue(this.formData.priceAdjustment);
     const numericCost = this.getNumericValue(this.formData.costPrice);
     const numericPrice = this.getNumericValue(this.formData.price);
-    const numericDiscount = this.getNumericValue(this.formData.discountPrice);
     const numericLength = this.getNumericValue(this.formData.length);
     const numericWidth = this.getNumericValue(this.formData.width);
     const numericHeight = this.getNumericValue(this.formData.height);
@@ -434,10 +421,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
     const body: any = { 
       ...this.formData, 
       stockQuantity: numericStock, 
-      priceAdjustment: numericAdjustment,
       costPrice: numericCost,
       price: numericPrice,
-      discountPrice: numericDiscount,
       length: numericLength,
       width: numericWidth,
       height: numericHeight,

@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.ArrayList;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 @Service
 @RequiredArgsConstructor
@@ -78,7 +81,7 @@ public class ProductVariantService {
                 .discountPrice(request.getDiscountPrice())
                 .status(request.getStatus())
                 .barcode(request.getBarcode())
-                .imageUrls(request.getImageUrls())
+            .imageUrls(normalizeImageUrls(request.getImageUrls()))
                 .shopId(1)
                 .build();
 
@@ -110,7 +113,7 @@ public class ProductVariantService {
         variant.setDiscountPrice(request.getDiscountPrice());
         variant.setStatus(request.getStatus());
         variant.setBarcode(request.getBarcode());
-        variant.setImageUrls(request.getImageUrls());
+        variant.setImageUrls(normalizeImageUrls(request.getImageUrls()));
 
         return productVariantRepository.save(variant);
     }
@@ -121,5 +124,36 @@ public class ProductVariantService {
     public void deleteVariant(Integer id) {
         ProductVariant variant = getVariantById(id);
         productVariantRepository.delete(variant);
+    }
+
+    private String normalizeImageUrls(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+        ObjectMapper om = new ObjectMapper();
+        try {
+            if (s.startsWith("[") || s.startsWith("{")) {
+                // validate JSON
+                om.readTree(s);
+                return s;
+            } else {
+                String[] parts = s.split(",");
+                List<String> arr = new ArrayList<>();
+                for (String p : parts) {
+                    String t = p.trim();
+                    if (!t.isEmpty()) arr.add(t);
+                }
+                if (arr.isEmpty()) return null;
+                return om.writeValueAsString(arr);
+            }
+        } catch (Exception e) {
+            try {
+                List<String> arr = new ArrayList<>();
+                arr.add(s);
+                return om.writeValueAsString(arr);
+            } catch (JsonProcessingException ex) {
+                return null;
+            }
+        }
     }
 }
