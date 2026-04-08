@@ -21,6 +21,7 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.name" [placeholder]="'PRODUCT.NAME' | transloco" />
           </tui-textfield>
+          <div *ngIf="formErrors['name']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['name'] }}</div>
         </label>
         
         <label tuiLabel class="form-field">
@@ -28,6 +29,7 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.productCode" placeholder="VD: SP001" />
           </tui-textfield>
+          <div *ngIf="formErrors['productCode']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['productCode'] }}</div>
         </label>
 
         <label tuiLabel class="form-field">
@@ -46,12 +48,14 @@
           <ng-template #categoryContent let-id>
             {{ getCategoryName(id) }}
           </ng-template>
+          <div *ngIf="formErrors['categoryId']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['categoryId'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'PRODUCT.BRAND' | transloco }} *
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.brand" [placeholder]="'PRODUCT.BRAND' | transloco" />
           </tui-textfield>
+          <div *ngIf="formErrors['brand']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['brand'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           Material

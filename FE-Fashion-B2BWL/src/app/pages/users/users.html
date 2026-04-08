@@ -16,6 +16,7 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.email" />
         </tui-textfield>
+        <div *ngIf="formErrors['email']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['email'] }}</div>
       </label>
 
       <label tuiLabel class="form-field">
@@ -30,6 +31,7 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.fullName" />
         </tui-textfield>
+        <div *ngIf="formErrors['fullName']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['fullName'] }}</div>
       </label>
 
       <label tuiLabel class="form-field">
@@ -37,6 +39,7 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.phone" />
         </tui-textfield>
+        <div *ngIf="formErrors['phone']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['phone'] }}</div>
       </label>
 
       <label tuiLabel class="form-field full-width">
@@ -121,6 +124,33 @@
   <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
     <button tuiButton size="m" appearance="outline" (click)="observer.next(false); observer.complete()">Hủy</button>
     <button tuiButton size="m" appearance="accent" (click)="observer.next(true); observer.complete()">Xác nhận xóa</button>
+  </div>
+</ng-template>
+
+<ng-template #deleteErrorDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>
+    <div>
+      <h3 style="margin:0 0 8px 0;">Thao tác thất bại</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Không thể hoàn tất thao tác. Chi tiết lỗi:</p>
+      <pre style="background:#f7f7f7; padding:8px; border-radius:4px; white-space:pre-wrap; color:#222">{{ deleteErrorMessage }}</pre>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #duplicateEmailDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>
+    <div>
+      <h3 style="margin:0 0 8px 0;">Email đã tồn tại</h3>
+      <p style="margin:0 0 12px 0; color:#444;">{{ duplicateEmailMessage }}</p>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
   </div>
 </ng-template>
 

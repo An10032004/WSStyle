@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -48,6 +49,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 export class UsersComponent implements OnInit, OnDestroy {
   @ViewChild('deleteDialog') deleteDialogTemplate!: TemplateRef<any>;
   @ViewChild('viewDialog') viewDialogTemplate!: TemplateRef<any>;
+  @ViewChild('deleteErrorDialog') deleteErrorDialogTemplate!: TemplateRef<any>;
+  @ViewChild('duplicateEmailDialog') duplicateEmailDialogTemplate!: TemplateRef<any>;
   deleteTargetName: string = '';
   selectedUser: User | null = null;
 
@@ -69,6 +72,10 @@ export class UsersComponent implements OnInit, OnDestroy {
     companyName: '',
     taxCode: ''
   };
+
+  formErrors: Record<string, string> = {};
+  deleteErrorMessage: string | null = null;
+  duplicateEmailMessage: string | null = null;
 
   roleOptions = ['RETAIL', 'WHOLESALE', 'GUEST'];
   statusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -109,6 +116,7 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
+
 
   loadData(): void {
     // Only fetch users with customer/retail roles
@@ -174,6 +182,33 @@ export class UsersComponent implements OnInit, OnDestroy {
     ];
   }
 
+  clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private handleApiError(err: any): void {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 400 && err.error && err.error.data) {
+        this.formErrors = err.error.data;
+        this.alerts.open('Dữ liệu không hợp lệ. Vui lòng kiểm tra các trường.', { appearance: 'warning' }).subscribe();
+        return;
+      }
+      if (err.status === 409 && err.error && err.error.message) {
+        const msg = String(err.error.message).toLowerCase();
+        if (msg.includes('email')) {
+          this.duplicateEmailMessage = 'Email này đã được đăng ký. Vui lòng sử dụng email khác.';
+          this.dialogs.open(this.duplicateEmailDialogTemplate, { size: 'm' }).subscribe();
+          return;
+        }
+        this.deleteErrorMessage = err.error.message;
+        this.dialogs.open(this.deleteErrorDialogTemplate, { size: 'm' }).subscribe();
+        return;
+      }
+    }
+    const message = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    this.alerts.open(message, { appearance: 'error' }).subscribe();
+  }
+
   onView(user: User): void {
     this.selectedUser = user;
     this.dialogs.open(this.viewDialogTemplate, { size: 'm', label: this.transloco.translate('MEMBER.USER_DETAIL') })
@@ -211,10 +246,10 @@ export class UsersComponent implements OnInit, OnDestroy {
     this.dialogs.open<boolean>(this.deleteDialogTemplate, { size: 'm' })
       .subscribe(response => {
         if (response) {
-          this.api.deleteUser(user.id).subscribe(() => {
+          this.api.deleteUser(user.id).subscribe({ next: () => {
             this.alerts.open(this.transloco.translate('GLOBAL.RECORD_DELETED'), { appearance: 'success' }).subscribe();
             this.loadData();
-          });
+          }, error: (err) => this.handleApiError(err) });
         }
       });
   }
@@ -223,13 +258,30 @@ export class UsersComponent implements OnInit, OnDestroy {
     const action = this.editingId 
       ? this.api.updateUser(this.editingId, this.formData)
       : this.api.createUser(this.formData);
+    this.clearFormErrors();
+    // Client-side required checks for new user
+    if (!this.editingId) {
+      const missing: string[] = [];
+      if (!this.formData.fullName || !String(this.formData.fullName).trim()) {
+        this.formErrors['fullName'] = 'Họ tên không được để trống';
+        missing.push('Họ tên');
+      }
+      if (!this.formData.phone || !String(this.formData.phone).trim()) {
+        this.formErrors['phone'] = 'Số điện thoại không được để trống';
+        missing.push('Số điện thoại');
+      }
+      if (missing.length) {
+        this.alerts.open(`Vui lòng nhập: ${missing.join(', ')}`, { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
 
-    action.subscribe(() => {
+    action.subscribe({ next: () => {
       const msg = this.editingId ? 'GLOBAL.UPDATE_SUCCESS' : 'GLOBAL.CREATE_SUCCESS';
       this.alerts.open(this.transloco.translate(msg), { appearance: 'success' }).subscribe();
       this.showForm = false;
       this.loadData();
-    });
+    }, error: (err) => this.handleApiError(err) });
   }
 
   cancel(): void { this.showForm = false; }

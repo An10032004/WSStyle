@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef, OnDestroy } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -62,6 +63,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
     status: 'ACTIVE',
     barcode: '',
   };
+
+  formErrors: Record<string, string> = {};
 
   // Simple preset options for selection UI; can be expanded later or loaded from API
   colorOptions: string[] = ['Red', 'Blue', 'Black', 'White', 'Green', 'Yellow'];
@@ -156,6 +159,26 @@ export class VariantListComponent implements OnInit, OnDestroy {
     }
     
     return `${name} (${p.productCode})`;
+  }
+
+  clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private handleApiError(err: any): void {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 400 && err.error && err.error.data) {
+        this.formErrors = err.error.data;
+        this.alerts.open('Dữ liệu không hợp lệ. Vui lòng kiểm tra các trường.', { appearance: 'warning' }).subscribe();
+        return;
+      }
+      if (err.status === 409 && err.error && err.error.message) {
+        this.alerts.open(err.error.message, { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
+    const msg = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    this.alerts.open(msg, { appearance: 'error' }).subscribe();
   }
 
   readonly renderProduct = (context: any): string => {
@@ -411,6 +434,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   onSave(): void {
+    this.clearFormErrors();
     const numericStock = this.getNumericValue(this.formData.stockQuantity);
     const numericCost = this.getNumericValue(this.formData.costPrice);
     const numericPrice = this.getNumericValue(this.formData.price);
@@ -431,35 +455,36 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields
-      this.api.updateProductVariant(this.editingId, body).subscribe(() => {
-        // 2. Save Translation
-        const req: TranslationRequest = {
-          resourceId: this.editingId!,
-          resourceType: 'PRODUCT_VARIANT',
-          languageCode: this.currentLanguage,
-          translatedName: this.formData.color,
-          translatedDescription: this.formData.size
-        };
-        
-        this.api.saveTranslation(req).subscribe(() => {
-           this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
-           this.showForm = false;
-           this.loadData();
-        });
+      this.api.updateProductVariant(this.editingId, body).subscribe({
+        next: () => {
+          // 2. Save Translation
+          const req: TranslationRequest = {
+            resourceId: this.editingId!,
+            resourceType: 'PRODUCT_VARIANT',
+            languageCode: this.currentLanguage,
+            translatedName: this.formData.color,
+            translatedDescription: this.formData.size
+          };
+          this.api.saveTranslation(req).subscribe({ next: () => {
+             this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
+             this.showForm = false;
+             this.loadData();
+          }, error: (err) => this.handleApiError(err) });
+        }, error: (err) => this.handleApiError(err)
       });
     } else {
       if (this.editingId) {
-        this.api.updateProductVariant(this.editingId, body).subscribe(() => {
+        this.api.updateProductVariant(this.editingId, body).subscribe({ next: () => {
           this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       } else {
-        this.api.createProductVariant(body).subscribe(() => {
+        this.api.createProductVariant(body).subscribe({ next: () => {
           this.alerts.open('Tạo biến thể thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       }
     }
   }

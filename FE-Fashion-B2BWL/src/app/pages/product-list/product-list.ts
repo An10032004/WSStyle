@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef, OnDestroy } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -55,6 +56,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     imageUrl: '',
     imageUrls: [] as string[],
   };
+
+  formErrors: Record<string, string> = {};
 
   currentLanguage: string = 'vi';
   langSub!: Subscription;
@@ -243,6 +246,26 @@ export class ProductListComponent implements OnInit, OnDestroy {
     return this.categories.find(c => c.id === id)?.name || '';
   }
 
+  clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private handleApiError(err: any): void {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 400 && err.error && err.error.data) {
+        this.formErrors = err.error.data;
+        this.alerts.open('Dữ liệu không hợp lệ. Vui lòng kiểm tra các trường.', { appearance: 'warning' }).subscribe();
+        return;
+      }
+      if (err.status === 409 && err.error && err.error.message) {
+        this.alerts.open(err.error.message, { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
+    const msg = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    this.alerts.open(msg, { appearance: 'error' }).subscribe();
+  }
+
   readonly renderCategory = (context: any): string => {
     return this.getCategoryName(context?.$implicit);
   };
@@ -372,6 +395,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   onSave(): void {
+    this.clearFormErrors();
     const numericPrice = this.getNumericValue(this.formData.basePrice);
     
     if (this.currentLanguage !== 'vi' && this.editingId) {
@@ -385,20 +409,25 @@ export class ProductListComponent implements OnInit, OnDestroy {
         imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
       };
       
-      this.api.updateProduct(this.editingId, globalUpdate).subscribe(() => {
-        // 2. Save Translation for Name & Specifications
-        const req: TranslationRequest = {
-           resourceId: this.editingId!,
-           resourceType: 'PRODUCT',
-           languageCode: this.currentLanguage,
-           translatedName: this.formData.name,
-        };
-        
-        this.api.saveTranslation(req).subscribe(() => {
-           this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
-           this.showForm = false;
-           this.loadData();
-        });
+      this.api.updateProduct(this.editingId, globalUpdate).subscribe({
+        next: () => {
+          // 2. Save Translation for Name & Specifications
+          const req: TranslationRequest = {
+             resourceId: this.editingId!,
+             resourceType: 'PRODUCT',
+             languageCode: this.currentLanguage,
+             translatedName: this.formData.name,
+          };
+          this.api.saveTranslation(req).subscribe({
+            next: () => {
+              this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
+              this.showForm = false;
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err)
+          });
+        },
+        error: (err) => this.handleApiError(err)
       });
     } else {
     // Primary Language (vi) or New Product
@@ -410,17 +439,17 @@ export class ProductListComponent implements OnInit, OnDestroy {
     };
       
       if (this.editingId) {
-        this.api.updateProduct(this.editingId, body).subscribe(() => {
+        this.api.updateProduct(this.editingId, body).subscribe({ next: () => {
           this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       } else {
-        this.api.createProduct(body).subscribe(() => {
+        this.api.createProduct(body).subscribe({ next: () => {
           this.alerts.open('Tạo sản phẩm thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       }
     }
   }

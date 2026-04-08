@@ -21,6 +21,7 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.sku" placeholder="VD: SP001-RED-M" />
           </tui-textfield>
+          <div *ngIf="formErrors['sku']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['sku'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.STATUS' | transloco }} *
@@ -54,12 +55,14 @@
           <ng-template #productContent let-id>
             {{ getProductDisplay(id) }}
           </ng-template>
+          <div *ngIf="formErrors['productId']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['productId'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'VARIANT.STOCK' | transloco }} *
           <tui-textfield>
             <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.stockQuantity" placeholder="0" maxlength="13" />
           </tui-textfield>
+          <div *ngIf="formErrors['stockQuantity']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['stockQuantity'] }}</div>
         </label>
         <label tuiLabel class="form-field">
         </label>
