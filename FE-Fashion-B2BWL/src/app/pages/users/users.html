@@ -141,6 +141,19 @@
   </div>
 </ng-template>
 
+<ng-template #adminDeleteDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <tui-icon icon="@tui.lock" style="font-size:24px; color:#ef4444"></tui-icon>
+    <div>
+      <h3 style="margin:0 0 8px 0;">Không thể xóa Admin</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Tài khoản Admin là vai trò hệ thống và không được phép xóa. Nếu cần, hãy thay đổi vai trò hoặc vô hiệu hóa tài khoản.</p>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
 <ng-template #duplicateEmailDialog let-observer>
   <div style="display:flex; gap:12px;">
     <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>

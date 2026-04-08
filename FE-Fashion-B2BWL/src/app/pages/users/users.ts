@@ -51,6 +51,7 @@ export class UsersComponent implements OnInit, OnDestroy {
   @ViewChild('viewDialog') viewDialogTemplate!: TemplateRef<any>;
   @ViewChild('deleteErrorDialog') deleteErrorDialogTemplate!: TemplateRef<any>;
   @ViewChild('duplicateEmailDialog') duplicateEmailDialogTemplate!: TemplateRef<any>;
+  @ViewChild('adminDeleteDialog') adminDeleteDialogTemplate!: TemplateRef<any>;
   deleteTargetName: string = '';
   selectedUser: User | null = null;
 
@@ -242,6 +243,12 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   onDelete(user: User): void {
+    // Prevent deleting Admin: show explanatory popup
+    if (user.role && user.role.toUpperCase() === 'ADMIN') {
+      this.dialogs.open(this.adminDeleteDialogTemplate, { size: 's' }).subscribe();
+      return;
+    }
+
     this.deleteTargetName = user.fullName || user.email;
     this.dialogs.open<boolean>(this.deleteDialogTemplate, { size: 'm' })
       .subscribe(response => {

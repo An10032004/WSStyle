@@ -48,6 +48,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 export class StaffComponent implements OnInit, OnDestroy {
   @ViewChild('deleteDialog') deleteDialogTemplate!: TemplateRef<any>;
   @ViewChild('viewDialog') viewDialogTemplate!: TemplateRef<any>;
+  @ViewChild('adminDeleteDialog') adminDeleteDialogTemplate!: TemplateRef<any>;
   deleteTargetName: string = '';
   selectedUser: User | null = null;
 
@@ -67,11 +68,10 @@ export class StaffComponent implements OnInit, OnDestroy {
     phone: '',
     role: 'STAFF',
     registrationStatus: 'APPROVED',
-    customerGroup: null
+    // customerGroup removed for staff management
   };
 
   roleOptions = ['ADMIN', 'STAFF', 'CUSTOMER'];
-  customerGroups: any[] = [];
 
   private langSub?: Subscription;
 
@@ -87,7 +87,7 @@ export class StaffComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
-    this.loadCustomerGroups();
+    // customer groups no longer loaded for staff management
 
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
@@ -111,10 +111,7 @@ export class StaffComponent implements OnInit, OnDestroy {
   }
 
   loadCustomerGroups(): void {
-    this.api.getCustomerGroups().subscribe(groups => {
-      this.customerGroups = groups;
-      this.cdr.detectChanges();
-    });
+    // removed: staff should not manage customer groups
   }
 
   updateColumnDefs(): void {
@@ -137,12 +134,6 @@ export class StaffComponent implements OnInit, OnDestroy {
           const color = role === 'ADMIN' ? 'primary' : (role === 'STAFF' ? 'neutral' : 'accent');
           return `<span class="tui-badge tui-badge_${color}">${this.transloco.translate('ENUMS.' + role)}</span>`;
         }
-      },
-      { 
-        field: 'customerGroup.name', 
-        headerValueGetter: () => this.transloco.translate('MEMBER.GROUP'), 
-        width: 150,
-        valueFormatter: (params: any) => params.value || '-'
       },
       { field: 'phone', headerValueGetter: () => this.transloco.translate('MEMBER.PHONE'), width: 130 },
       { 
@@ -172,7 +163,7 @@ export class StaffComponent implements OnInit, OnDestroy {
     this.editingId = null;
     this.formData = {
       email: '', password: '', fullName: '', phone: '', role: 'CUSTOMER',
-      registrationStatus: 'APPROVED', customerGroup: null
+      registrationStatus: 'APPROVED'
     };
     this.showForm = true;
     this.cdr.detectChanges();
@@ -183,13 +174,19 @@ export class StaffComponent implements OnInit, OnDestroy {
     this.formData = { 
       ...user, 
       password: '', // Don't show password hash
-      customerGroup: user.customerGroup ? user.customerGroup : null
+      // customerGroup intentionally omitted for staff
     };
     this.showForm = true;
     this.cdr.detectChanges();
   }
 
   onDelete(user: User): void {
+    // Prevent deleting Admin users: show popup
+    if (user.role && user.role.toUpperCase() === 'ADMIN') {
+      this.dialogs.open(this.adminDeleteDialogTemplate, { size: 's' }).subscribe();
+      return;
+    }
+
     this.deleteTargetName = user.fullName || user.email;
     this.dialogs.open<boolean>(this.deleteDialogTemplate, { size: 'm' })
       .subscribe(response => {
