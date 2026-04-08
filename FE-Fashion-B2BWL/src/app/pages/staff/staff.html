@@ -85,10 +85,24 @@
 
         <label tuiLabel>
           {{ 'MEMBER.ROLE' | transloco }}
-          <tui-select [(ngModel)]="formData.role">
+          <tui-select [(ngModel)]="formData.role" (ngModelChange)="onPrimaryRoleChange($event)">
             <tui-data-list-wrapper
               *tuiDataList
-              [items]="roleOptions"
+              [items]="primaryRoleOptions"
+              [itemContent]="roleContent"
+            />
+            <ng-template #roleContent let-item>
+              {{ 'ENUMS.' + item | transloco }}
+            </ng-template>
+          </tui-select>
+        </label>
+
+        <label tuiLabel>
+          {{ 'MEMBER.ASSIGNED_ROLE' | transloco }}
+          <tui-select [(ngModel)]="formData.assignedRole">
+            <tui-data-list-wrapper
+              *tuiDataList
+              [items]="assignedRoleOptions"
               [itemContent]="roleContent"
             />
             <ng-template #roleContent let-item>
@@ -154,6 +168,10 @@
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
       <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}:</span>
+      <span class="value">{{ selectedUser.assignedRole ? (('ENUMS.' + selectedUser.assignedRole) | transloco) : '-' }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>

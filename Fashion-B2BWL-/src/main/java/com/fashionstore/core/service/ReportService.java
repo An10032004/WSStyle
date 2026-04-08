@@ -5,6 +5,7 @@ import com.fashionstore.core.dto.response.VariantReportResponse;
 import com.fashionstore.core.dto.response.VatReportResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.model.OrderItem;
+import com.fashionstore.core.model.ProductVariant;
 import com.fashionstore.core.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

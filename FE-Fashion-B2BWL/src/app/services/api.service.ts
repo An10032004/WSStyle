@@ -267,6 +267,8 @@ export interface User {
   roles?: string[];
   // Human-friendly joined roles for display in templates (e.g. "ADMIN / WHOLESALE")
   displayRoles?: string;
+  // Optional separate assigned permission role (stored in user.tags.assignedRole)
+  assignedRole?: string;
   customerGroup?: CustomerGroup;
   tags?: string;
   registrationStatus?: string;

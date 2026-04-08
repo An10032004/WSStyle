@@ -19,8 +19,15 @@ public class RoleService {
     }
 
     public Role getRoleByName(String name) {
-        return roleRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + name));
+        var byName = roleRepository.findByName(name);
+        if (byName.isPresent()) return byName.get();
+        var byNameIgnore = roleRepository.findByNameIgnoreCase(name);
+        if (byNameIgnore.isPresent()) return byNameIgnore.get();
+        // Final fallback: brute-force case-insensitive search through all roles
+        return roleRepository.findAll().stream()
+            .filter(r -> r.getName() != null && r.getName().equalsIgnoreCase(name))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Role not found: " + name));
     }
 
     @Transactional

@@ -302,9 +302,22 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
-    const action = this.editingId 
-      ? this.api.updateUser(this.editingId, this.formData)
-      : this.api.createUser(this.formData);
+    // Prevent Users page from assigning permission roles via tags.assignedRole
+    const payload: any = { ...this.formData };
+    if (payload.tags) {
+      try {
+        const t = JSON.parse(payload.tags as string) || {};
+        if (t.assignedRole) delete t.assignedRole;
+        payload.tags = Object.keys(t).length ? JSON.stringify(t) : null;
+      } catch (e) {
+        // If tags isn't valid JSON, drop assignedRole by not including tags
+        payload.tags = null;
+      }
+    }
+
+    const action = this.editingId
+      ? this.api.updateUser(this.editingId, payload)
+      : this.api.createUser(payload);
     this.clearFormErrors();
     // Client-side required checks for new user
     if (!this.editingId) {

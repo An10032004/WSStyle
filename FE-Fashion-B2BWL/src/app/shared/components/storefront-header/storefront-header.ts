@@ -137,4 +137,21 @@ export class StorefrontHeaderComponent implements OnInit {
     this.auth.logout();
     this.router.navigate(['/login']);
   }
+
+  hasAdminAccess(): boolean {
+    const u = this.auth.currentUserValue;
+    if (!u) return false;
+    const role = (u.role || '').toString().toUpperCase();
+    if (role === 'ADMIN' || role === 'ADMINISTRATOR' || role === 'SUPER_ADMIN') return true;
+    try {
+      let perms: string[] = [];
+      if (typeof u.permissions === 'string') perms = JSON.parse(u.permissions);
+      else if (Array.isArray(u.permissions)) perms = u.permissions;
+      if (perms.includes('ALL')) return true;
+      if (perms.includes('Quản lý report')) return true; // dashboard access mapping
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
 }

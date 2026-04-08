@@ -107,7 +107,7 @@
         <ng-template #userMenu>
           <tui-data-list>
             <button tuiOption routerLink="/profile">Profile</button>
-            <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">Admin Dashboard</button>
+            <button *ngIf="hasAdminAccess()" tuiOption routerLink="/dashboard">Admin Dashboard</button>
             <button tuiOption (click)="logout()">Logout</button>
           </tui-data-list>
         </ng-template>

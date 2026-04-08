@@ -109,10 +109,7 @@ export class LayoutComponent {
       }
     }
 
-    // 3. Role-based Legacy Mapping
-    if (role === 'STAFF') {
-      return this.allowedModules.has(module);
-    }
+    // NOTE: legacy STAFF fallback removed — rely on role permissions for access
     
     return false;
   }

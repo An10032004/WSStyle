@@ -66,6 +66,17 @@ export class AuthService {
       // Compute composite roles (primary + secondary from tags) before storing
       const u = authRes.user;
       (u as any).roles = this.computeRoles(u);
+      // expose assignedRole (if any) at top-level for templates
+      try {
+        if (u.tags) {
+          const t = JSON.parse(u.tags as string);
+          (u as any).assignedRole = t?.assignedRole ?? null;
+        } else {
+          (u as any).assignedRole = null;
+        }
+      } catch (e) {
+        (u as any).assignedRole = null;
+      }
       localStorage.setItem('auth_user', JSON.stringify(u));
       this.userSubject.next(u);
     }
@@ -92,6 +103,16 @@ export class AuthService {
   updateStoredUser(user: User): void {
     // Ensure roles are computed when updating stored user
     (user as any).roles = this.computeRoles(user);
+    try {
+      if (user.tags) {
+        const t = JSON.parse(user.tags as string);
+        (user as any).assignedRole = t?.assignedRole ?? null;
+      } else {
+        (user as any).assignedRole = null;
+      }
+    } catch (e) {
+      (user as any).assignedRole = null;
+    }
     localStorage.setItem('auth_user', JSON.stringify(user));
     this.userSubject.next(user);
   }

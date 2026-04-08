@@ -25,7 +25,8 @@ import {
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, User } from '../../services/api.service';
+import { ApiService, User, Role } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
@@ -67,11 +68,18 @@ export class StaffComponent implements OnInit, OnDestroy {
     fullName: '',
     phone: '',
     role: 'STAFF',
+    assignedRole: null,
     registrationStatus: 'APPROVED',
     // customerGroup removed for staff management
   };
 
-  roleOptions = ['ADMIN', 'STAFF', 'CUSTOMER'];
+  // Primary account role selector remains simple (ADMIN/STAFF)
+  primaryRoleOptions: string[] = ['ADMIN', 'STAFF'];
+
+  // Assigned permission roles loaded from backend and filtered by primary role
+  assignedRoleOptions: string[] = [];
+  allRoles: Role[] = [];
+  currentIsAdmin = false;
 
   private langSub?: Subscription;
 
@@ -81,14 +89,29 @@ export class StaffComponent implements OnInit, OnDestroy {
     private dialogs: TuiDialogService,
     private cdr: ChangeDetectorRef, 
     private transloco: TranslocoService, 
-    private languageService: LanguageService
+    private languageService: LanguageService,
+    private auth: AuthService
   ) {}
 
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
     // customer groups no longer loaded for staff management
+    // Load roles and compute selectable assignedRole options based on current user's privileges
+    this.api.getRoles().subscribe((roles: Role[]) => {
+      this.allRoles = roles || [];
 
+      const currentUser = this.auth.currentUserValue;
+      this.currentIsAdmin = false;
+      if (currentUser && currentUser.role) {
+        const myRole = this.allRoles.find(r => r.name && r.name.toUpperCase() === (currentUser.role || '').toUpperCase());
+        this.currentIsAdmin = !!(myRole && myRole.isAdmin) || ['ADMIN', 'ADMINISTRATOR', 'SUPER_ADMIN'].includes((currentUser.role || '').toUpperCase());
+      }
+
+      // Initialize assignedRoleOptions according to current formData.role
+      this.updateAssignedRoleOptions();
+      this.cdr.detectChanges();
+    });
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
       if (this.gridApi) {
@@ -116,6 +139,10 @@ export class StaffComponent implements OnInit, OnDestroy {
               for (const r of arr) {
                 if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
               }
+            }
+            // also capture assignedRole if present in tags (separate from primary role)
+            if (t && t.assignedRole) {
+              (u as any).assignedRole = t.assignedRole;
             }
           } catch (e) { }
         }
@@ -153,6 +180,15 @@ export class StaffComponent implements OnInit, OnDestroy {
             const cls = i === 0 ? 'tui-badge_primary' : 'tui-badge_outline';
             return `<span class="tui-badge ${cls}" style="margin-right:6px">${this.transloco.translate('ENUMS.' + r)}</span>`;
           }).join(' ');
+        }
+      },
+      {
+        field: 'assignedRole',
+        headerValueGetter: () => this.transloco.translate('MEMBER.ASSIGNED_ROLE'),
+        width: 200,
+        cellRenderer: (params: any) => {
+          const v = params.value || (params.data && params.data.assignedRole) || '';
+          return v ? this.transloco.translate('ENUMS.' + v) : '';
         }
       },
       { field: 'phone', headerValueGetter: () => this.transloco.translate('MEMBER.PHONE'), width: 130 },
@@ -194,10 +230,37 @@ export class StaffComponent implements OnInit, OnDestroy {
     this.gridApi = params.api;
   }
 
+  onPrimaryRoleChange(newRole: string) {
+    this.formData.role = newRole;
+    this.updateAssignedRoleOptions();
+    // reset assignedRole when primary role changes to avoid stale selection
+    this.formData.assignedRole = null;
+  }
+
+  private updateAssignedRoleOptions() {
+    if (!this.allRoles) { this.assignedRoleOptions = []; return; }
+
+    const primary = (this.formData && this.formData.role) ? this.formData.role.toString().toUpperCase() : 'STAFF';
+    let options: Role[] = [];
+
+    if (primary === 'ADMIN' || primary === 'ADMINISTRATOR' || primary === 'SUPER_ADMIN') {
+      options = this.allRoles.filter(r => !!r.isAdmin);
+    } else {
+      // staff or others -> non-admin roles
+      options = this.allRoles.filter(r => !r.isAdmin);
+    }
+
+    // If current user is not admin, ensure admin roles are not selectable
+    if (!this.currentIsAdmin) options = options.filter(r => !r.isAdmin);
+
+    this.assignedRoleOptions = options.map(r => r.name);
+  }
+
   onAdd(): void {
     this.editingId = null;
     this.formData = {
-      email: '', password: '', fullName: '', phone: '', role: 'CUSTOMER',
+      email: '', password: '', fullName: '', phone: '', role: 'STAFF',
+      assignedRole: null,
       registrationStatus: 'APPROVED'
     };
     this.showForm = true;
@@ -206,11 +269,30 @@ export class StaffComponent implements OnInit, OnDestroy {
 
   onEdit(user: User): void {
     this.editingId = user.id;
+    // read assignedRole from tags if present
+    let assignedFromTags: string | null = null;
+    if (user.tags) {
+      try {
+        const t = JSON.parse(user.tags);
+        assignedFromTags = t?.assignedRole ?? null;
+      } catch (e) {
+        assignedFromTags = null;
+      }
+    }
+
     this.formData = { 
       ...user, 
       password: '', // Don't show password hash
+      assignedRole: assignedFromTags ?? null
       // customerGroup intentionally omitted for staff
     };
+
+    // Refresh assignedRoleOptions according to the user's primary role
+    this.updateAssignedRoleOptions();
+    // Ensure the user's assigned role is visible in dropdown even if it wouldn't normally be selectable
+    if (assignedFromTags && !this.assignedRoleOptions.includes(assignedFromTags)) {
+      this.assignedRoleOptions = [...this.assignedRoleOptions, assignedFromTags];
+    }
     this.showForm = true;
     this.cdr.detectChanges();
   }
@@ -235,9 +317,19 @@ export class StaffComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
-    const action = this.editingId 
-      ? this.api.updateUser(this.editingId, this.formData)
-      : this.api.createUser(this.formData);
+    // Merge assignedRole into tags JSON so primary `role` is not overwritten
+    const payload: any = { ...this.formData };
+    // Start with existing tags if editing
+    let tagsObj: any = {};
+    if (this.editingId && payload.tags) {
+      try { tagsObj = JSON.parse(payload.tags) || {}; } catch (e) { tagsObj = {}; }
+    }
+    if (payload.assignedRole) tagsObj.assignedRole = payload.assignedRole; else if (tagsObj.assignedRole) delete tagsObj.assignedRole;
+    payload.tags = Object.keys(tagsObj).length ? JSON.stringify(tagsObj) : null;
+
+    const action = this.editingId
+      ? this.api.updateUser(this.editingId, payload)
+      : this.api.createUser(payload);
 
     action.subscribe(() => {
       const msg = this.editingId ? 'GLOBAL.UPDATE_SUCCESS' : 'GLOBAL.CREATE_SUCCESS';

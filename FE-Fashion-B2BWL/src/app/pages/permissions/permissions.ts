@@ -35,6 +35,10 @@ import { ApiService, Role } from '../../services/api.service';
               <input tuiTextfield [(ngModel)]="newRoleDescription" placeholder="Description of the role..." />
               Description
             </tui-textfield>
+            <label tuiLabel style="display:flex; align-items:center; gap:8px;">
+              <input tuiCheckbox type="checkbox" [(ngModel)]="newRoleIsAdmin" />
+              <span>Is Admin (Super User)</span>
+            </label>
           </div>
           <div style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px;">
             <button tuiButton type="button" size="m" appearance="flat" (click)="observer.complete()">Cancel</button>
@@ -55,6 +59,10 @@ import { ApiService, Role } from '../../services/api.service';
               <input tuiTextfield [(ngModel)]="editingRoleDescription" placeholder="Role Description" />
               Description
             </tui-textfield>
+            <label tuiLabel style="display:flex; align-items:center; gap:8px;">
+              <input tuiCheckbox type="checkbox" [(ngModel)]="editingRoleIsAdmin" />
+              <span>Is Admin (Super User)</span>
+            </label>
           </div>
           <h3 class="tui-text_h6" style="margin-bottom: 12px;">Permissions</h3>
           <div class="permissions-grid">
@@ -327,9 +335,11 @@ export class PermissionsComponent {
   
   newRoleName = '';
   newRoleDescription = '';
+  newRoleIsAdmin = false;
   editingRoleOriginalName = '';
   editingRoleName = '';
   editingRoleDescription = '';
+  editingRoleIsAdmin = false;
   selectedPermissions: Record<string, boolean> = {};
 
   readonly allPermissions = [
@@ -345,6 +355,7 @@ export class PermissionsComponent {
   showAddRoleDialog() {
     this.newRoleName = '';
     this.newRoleDescription = '';
+    this.newRoleIsAdmin = false;
     this.dialogs.open<boolean>(this.addRoleDialogTemplate, { size: 's' }).subscribe({
       next: (res) => {
         if (res && this.newRoleName) this.addRole();
@@ -356,6 +367,7 @@ export class PermissionsComponent {
     this.editingRoleOriginalName = role.name;
     this.editingRoleName = role.name;
     this.editingRoleDescription = role.description;
+    this.editingRoleIsAdmin = !!role.isAdmin;
     this.selectedPermissions = {};
     this.allPermissions.forEach(p => {
       this.selectedPermissions[p] = role.permissions.includes(p);
@@ -371,7 +383,7 @@ export class PermissionsComponent {
   addRole() {
     const newRole: Role = {
        name: this.newRoleName,
-       isAdmin: false,
+       isAdmin: !!this.newRoleIsAdmin,
        description: this.newRoleDescription || 'New role created by admin',
        permissionsJson: '[]'
     };
@@ -387,7 +399,8 @@ export class PermissionsComponent {
       ...targetRole,
       name: this.editingRoleName,
       description: this.editingRoleDescription,
-      permissionsJson: JSON.stringify(newPerms)
+      permissionsJson: JSON.stringify(newPerms),
+      isAdmin: !!this.editingRoleIsAdmin
     };
 
     this.api.saveRole(updatedRole).subscribe(() => this.loadRoles());

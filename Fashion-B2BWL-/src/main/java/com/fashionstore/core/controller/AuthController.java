@@ -105,31 +105,52 @@ public class AuthController {
     private UserResponse mapToUserResponse(User user) {
         String permissions = "[]";
         String userRole = user.getRole();
-        
-        // Special Handling for Administrator (Super User)
-        if ("Administrator".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole)) {
-            // Return all permissions for any admin type role
-            String[] allPerms = {
-                "Quản lý nhân viên", "Quản lý report", "Quản lý coupon", "Quản lý ví điện tử",
-                "Quản lý chiến dịch sale", "Quản lý hồ sơ đại lý", "Quản lý sản phẩm",
-                "Quản lý danh mục", "Quản lý đơn hàng", "Quản lý nhóm khách hàng",
-                "Quản lý ẩn giá", "Quản lý AI", "Quản lý banner", "Quản lý chiết khấu",
-                "Quản lý người dùng", "Quản lý biến thể", "Quản lý giới hạn đặt hàng",
-                "Quản lý phí vận chuyển", "Hỗ trợ khách hàng", "Point of sale",
-                "Quản lý công nợ", "Quản lý giá thuê"
-            };
+
+        // Prefer assignedRole from tags if present (this is the separate permission role)
+        String permissionRole = userRole;
+        if (user.getTags() != null && !user.getTags().isBlank()) {
             try {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> t = new ObjectMapper().readValue(user.getTags(), java.util.Map.class);
+                if (t != null && t.containsKey("assignedRole") && t.get("assignedRole") != null) {
+                    String ar = String.valueOf(t.get("assignedRole"));
+                    if (ar != null && !ar.isBlank()) permissionRole = ar;
+                }
+            } catch (Exception ex) {
+                log.debug("Unable to parse tags for user {}: {}", user.getId(), ex.getMessage());
+            }
+        }
+
+        // Special Handling for Administrator / super-user: grant all permissions
+        String[] allPerms = {
+            "Quản lý nhân viên", "Quản lý report", "Quản lý coupon", "Quản lý ví điện tử",
+            "Quản lý chiến dịch sale", "Quản lý hồ sơ đại lý", "Quản lý sản phẩm",
+            "Quản lý danh mục", "Quản lý đơn hàng", "Quản lý nhóm khách hàng",
+            "Quản lý ẩn giá", "Quản lý AI", "Quản lý banner", "Quản lý chiết khấu",
+            "Quản lý người dùng", "Quản lý biến thể", "Quản lý giới hạn đặt hàng",
+            "Quản lý phí vận chuyển", "Hỗ trợ khách hàng", "Point of sale",
+            "Quản lý công nợ", "Quản lý giá thuê"
+        };
+
+        try {
+            // If the permissionRole is an explicit Administrator alias, or the Role entity is marked isAdmin,
+            // grant full permissions. Otherwise load permissionsJson from the Role entity.
+            if ("Administrator".equalsIgnoreCase(permissionRole) || "ADMIN".equalsIgnoreCase(permissionRole) || "SUPER_ADMIN".equalsIgnoreCase(permissionRole)) {
                 permissions = new ObjectMapper().writeValueAsString(allPerms);
-            } catch (Exception e) {
-                permissions = "[\"ALL\"]";
+            } else {
+                try {
+                    var role = roleService.getRoleByName(permissionRole);
+                    if (role != null && Boolean.TRUE.equals(role.getIsAdmin())) {
+                        permissions = new ObjectMapper().writeValueAsString(allPerms);
+                    } else {
+                        permissions = role.getPermissionsJson();
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not find permissions for role: {}. Defaulting to empty.", permissionRole);
+                }
             }
-        } else {
-            // Standard lookup for other roles (Manager, Content Editor, Customer, etc.)
-            try {
-                permissions = roleService.getRoleByName(userRole).getPermissionsJson();
-            } catch (Exception e) {
-                log.warn("Could not find permissions for role: {}. Defaulting to empty.", userRole);
-            }
+        } catch (Exception e) {
+            permissions = "[\"ALL\"]";
         }
 
         return UserResponse.builder()
