@@ -102,10 +102,28 @@ export class StaffComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { this.langSub?.unsubscribe(); }
 
   loadData(): void {
-    // Only fetch users with administrative/staff roles
+    // Fetch all users and filter those that have STAFF membership (primary or secondary)
     const adminRoles = ['ADMIN', 'Administrator', 'STAFF'];
-    this.api.getUsersByRoles(adminRoles).subscribe(data => {
-      this.rowData = data;
+    this.api.getUsers().subscribe(data => {
+      const processed = data.map(u => {
+        const roles: string[] = [];
+        if (u.role) roles.push(u.role);
+        if (u.tags) {
+          try {
+            const t = JSON.parse(u.tags);
+            const arr = t?.secondaryRoles ?? t?.roles;
+            if (Array.isArray(arr)) {
+              for (const r of arr) {
+                if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
+              }
+            }
+          } catch (e) { }
+        }
+        (u as any).roles = roles;
+        return u;
+      }).filter(u => (u as any).roles.some((r: string) => adminRoles.includes(r)));
+
+      this.rowData = processed;
       this.cdr.detectChanges();
     });
   }
@@ -128,11 +146,13 @@ export class StaffComponent implements OnInit, OnDestroy {
       { 
         field: 'role', 
         headerValueGetter: () => this.transloco.translate('MEMBER.ROLE'), 
-        width: 150,
+        width: 180,
         cellRenderer: (params: any) => {
-          const role = params.value;
-          const color = role === 'ADMIN' ? 'primary' : (role === 'STAFF' ? 'neutral' : 'accent');
-          return `<span class="tui-badge tui-badge_${color}">${this.transloco.translate('ENUMS.' + role)}</span>`;
+          const roles: string[] = params.data?.roles ?? (params.value ? [params.value] : []);
+          return roles.map((r: string, i: number) => {
+            const cls = i === 0 ? 'tui-badge_primary' : 'tui-badge_outline';
+            return `<span class="tui-badge ${cls}" style="margin-right:6px">${this.transloco.translate('ENUMS.' + r)}</span>`;
+          }).join(' ');
         }
       },
       { field: 'phone', headerValueGetter: () => this.transloco.translate('MEMBER.PHONE'), width: 130 },
@@ -150,6 +170,21 @@ export class StaffComponent implements OnInit, OnDestroy {
   }
 
   onView(user: User): void {
+    if (!(user as any).roles) {
+      const roles: string[] = [];
+      if (user.role) roles.push(user.role);
+      if (user.tags) {
+        try {
+          const t = JSON.parse(user.tags);
+          const arr = t?.secondaryRoles ?? t?.roles;
+          if (Array.isArray(arr)) {
+            for (const r of arr) if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
+          }
+        } catch (e) { }
+      }
+      (user as any).roles = roles;
+    }
+    (user as any).displayRoles = (user as any).roles.map((r: string) => this.transloco.translate('ENUMS.' + r)).join(' / ');
     this.selectedUser = user;
     this.dialogs.open(this.viewDialogTemplate, { size: 'm', label: this.transloco.translate('MEMBER.USER_DETAIL') })
       .subscribe();

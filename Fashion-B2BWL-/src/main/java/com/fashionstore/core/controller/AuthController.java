@@ -141,7 +141,8 @@ public class AuthController {
                 .companyName(user.getCompanyName())
                 .taxCode(user.getTaxCode())
                 .registrationStatus(user.getRegistrationStatus())
-                .customerGroup(toCustomerGroupSummary(user.getCustomerGroup()))
+            .customerGroup(toCustomerGroupSummary(user.getCustomerGroup()))
+            .tags(user.getTags())
                 .permissions(permissions)
                 .build();
     }

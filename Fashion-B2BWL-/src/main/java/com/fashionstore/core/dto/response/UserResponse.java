@@ -17,4 +17,5 @@ public class UserResponse {
     private String permissions;
     /** Nhóm khách (pricing rules GROUP) — có thể null nếu admin chưa gán */
     private CustomerGroupSummaryDTO customerGroup;
+    private String tags;
 }

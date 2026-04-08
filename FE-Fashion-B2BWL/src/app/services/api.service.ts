@@ -263,6 +263,10 @@ export interface User {
   fullName?: string;
   phone?: string;
   role: string;
+  // Computed roles: primary (`role`) + secondary roles parsed from `tags` (if any)
+  roles?: string[];
+  // Human-friendly joined roles for display in templates (e.g. "ADMIN / WHOLESALE")
+  displayRoles?: string;
   customerGroup?: CustomerGroup;
   tags?: string;
   registrationStatus?: string;

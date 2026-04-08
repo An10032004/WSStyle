@@ -63,8 +63,11 @@ export class AuthService {
 
   private setSession(authRes: AuthResponse) {
     if (authRes.user) {
-      localStorage.setItem('auth_user', JSON.stringify(authRes.user));
-      this.userSubject.next(authRes.user);
+      // Compute composite roles (primary + secondary from tags) before storing
+      const u = authRes.user;
+      (u as any).roles = this.computeRoles(u);
+      localStorage.setItem('auth_user', JSON.stringify(u));
+      this.userSubject.next(u);
     }
     
     if (authRes.accessToken) {
@@ -87,7 +90,30 @@ export class AuthService {
 
   /** Cập nhật session sau khi backend đổi hồ sơ (vd. đăng ký đại lý). */
   updateStoredUser(user: User): void {
+    // Ensure roles are computed when updating stored user
+    (user as any).roles = this.computeRoles(user);
     localStorage.setItem('auth_user', JSON.stringify(user));
     this.userSubject.next(user);
+  }
+
+  private computeRoles(user: User): string[] {
+    const roles: string[] = [];
+    if (user?.role) {
+      roles.push(user.role);
+    }
+    if (user?.tags) {
+      try {
+        const t = JSON.parse(user.tags);
+        const arr = t?.secondaryRoles ?? t?.roles;
+        if (Array.isArray(arr)) {
+          for (const r of arr) {
+            if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
+          }
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+    return roles;
   }
 }

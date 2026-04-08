@@ -7,6 +7,7 @@ import com.fashionstore.core.repository.B2BRegistrationFormRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -58,9 +59,8 @@ public class B2BRegistrationFormService {
                 }
             }
 
-            user.setRole("WHOLESALE");
-            // customerGroup: không đụng — để null hoặc giữ nguyên giá trị admin đã gán trước đó
-            // Nếu user chưa có nhóm, vẫn null cho tới khi admin gán (rule GROUP mới áp dụng)
+            // Do NOT override the user's primary `role` (keeps ADMIN/STAFF safe).
+            // Instead add a secondary role marker inside `tags.secondaryRoles`.
 
             ObjectNode root;
             if (user.getTags() != null && !user.getTags().isBlank()) {
@@ -69,6 +69,25 @@ public class B2BRegistrationFormService {
             } else {
                 root = objectMapper.createObjectNode();
             }
+
+            // Ensure secondaryRoles array contains WHOLESALE
+            ArrayNode secRoles;
+            if (root.has("secondaryRoles") && root.get("secondaryRoles").isArray()) {
+                secRoles = (ArrayNode) root.get("secondaryRoles");
+            } else {
+                secRoles = objectMapper.createArrayNode();
+            }
+            boolean hasWholesale = false;
+            for (JsonNode r : secRoles) {
+                if (r != null && "WHOLESALE".equalsIgnoreCase(r.asText())) {
+                    hasWholesale = true;
+                    break;
+                }
+            }
+            if (!hasWholesale) {
+                secRoles.add("WHOLESALE");
+            }
+            root.set("secondaryRoles", secRoles);
 
             ObjectNode extra = objectMapper.createObjectNode();
             if (node.has("address")) {

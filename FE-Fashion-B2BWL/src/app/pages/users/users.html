@@ -187,7 +187,7 @@
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
-      <span class="value">{{ 'ENUMS.' + selectedUser.role | transloco }}</span>
+      <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>

@@ -120,10 +120,28 @@ export class UsersComponent implements OnInit, OnDestroy {
 
 
   loadData(): void {
-    // Only fetch users with customer/retail roles
+    // Fetch all users and compute composite roles (primary + secondary)
     const customerRoles = ['RETAIL', 'WHOLESALE', 'GUEST', 'CUSTOMER'];
-    this.api.getUsersByRoles(customerRoles).subscribe(data => {
-      this.rowData = data;
+    this.api.getUsers().subscribe(data => {
+      const processed = data.map(u => {
+        const roles: string[] = [];
+        if (u.role) roles.push(u.role);
+        if (u.tags) {
+          try {
+            const t = JSON.parse(u.tags);
+            const arr = t?.secondaryRoles ?? t?.roles;
+            if (Array.isArray(arr)) {
+              for (const r of arr) {
+                if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
+              }
+            }
+          } catch (e) { /* ignore tags parse errors */ }
+        }
+        (u as any).roles = roles;
+        return u;
+      }).filter(u => (u as any).roles.some((r: string) => customerRoles.includes(r)));
+
+      this.rowData = processed;
       this.cdr.detectChanges();
     });
   }
@@ -142,8 +160,14 @@ export class UsersComponent implements OnInit, OnDestroy {
       { 
         field: 'role', 
         headerValueGetter: () => this.transloco.translate('MEMBER.ROLE'), 
-        width: 120,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value)
+        width: 180,
+        cellRenderer: (params: any) => {
+          const roles: string[] = params.data?.roles ?? (params.value ? [params.value] : []);
+          return roles.map((r: string, i: number) => {
+            const cls = i === 0 ? 'tui-badge_primary' : 'tui-badge_outline';
+            return `<span class="tui-badge ${cls}" style="margin-right:6px">${this.transloco.translate('ENUMS.' + r)}</span>`;
+          }).join(' ');
+        }
       },
       { 
         field: 'customerGroup.name', 
@@ -211,6 +235,22 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   onView(user: User): void {
+    // Ensure roles/display string available for the detail view
+    if (!(user as any).roles) {
+      const roles: string[] = [];
+      if (user.role) roles.push(user.role);
+      if (user.tags) {
+        try {
+          const t = JSON.parse(user.tags);
+          const arr = t?.secondaryRoles ?? t?.roles;
+          if (Array.isArray(arr)) {
+            for (const r of arr) if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
+          }
+        } catch (e) { }
+      }
+      (user as any).roles = roles;
+    }
+    (user as any).displayRoles = (user as any).roles.map((r: string) => this.transloco.translate('ENUMS.' + r)).join(' / ');
     this.selectedUser = user;
     this.dialogs.open(this.viewDialogTemplate, { size: 'm', label: this.transloco.translate('MEMBER.USER_DETAIL') })
       .subscribe();
