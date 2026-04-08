@@ -1,6 +1,7 @@
 package com.fashionstore.core.service;
 
 import com.fashionstore.core.dto.response.SalesReportResponse;
+import com.fashionstore.core.dto.response.VariantReportResponse;
 import com.fashionstore.core.dto.response.VatReportResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.model.OrderItem;
@@ -98,6 +99,47 @@ public class ReportService {
                 .bestSellers(bestSellers)
                 .revenueByDate(revenueByDate)
                 .build();
+    }
+
+    public VariantReportResponse getVariantSalesReport(String startDateStr, String endDateStr) {
+        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
+        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
+
+        List<Order> orders = orderRepository.findByCreatedAtBetween(start, end);
+
+        Map<Integer, VariantReportResponse.Row> map = new HashMap<>();
+        for (Order order : orders) {
+            if (order.getItems() == null) continue;
+            for (OrderItem item : order.getItems()) {
+                if (item.getProductVariant() == null) continue;
+                ProductVariant v = item.getProductVariant();
+                int qty = item.getQuantity() != null ? item.getQuantity() : 0;
+                java.math.BigDecimal itemRevenue = item.getUnitPrice() != null ? item.getUnitPrice().multiply(new java.math.BigDecimal(qty)) : java.math.BigDecimal.ZERO;
+
+                VariantReportResponse.Row row = map.get(v.getId());
+                if (row == null) {
+                    row = VariantReportResponse.Row.builder()
+                            .variantId(v.getId())
+                            .sku(v.getSku())
+                            .productName(v.getProduct() != null ? v.getProduct().getName() : null)
+                            .soldQuantity(0)
+                            .revenue(java.math.BigDecimal.ZERO)
+                            .currentStock(v.getStockQuantity() != null ? v.getStockQuantity() : 0)
+                            .build();
+                }
+
+                row.setSoldQuantity(row.getSoldQuantity() + qty);
+                if ("PAID".equals(order.getPaymentStatus())) {
+                    row.setRevenue(row.getRevenue().add(itemRevenue));
+                }
+
+                map.put(v.getId(), row);
+            }
+        }
+
+        List<VariantReportResponse.Row> rows = new ArrayList<>(map.values());
+        rows.sort((a, b) -> Integer.compare(b.getSoldQuantity(), a.getSoldQuantity()));
+        return VariantReportResponse.builder().items(rows).build();
     }
 
     public VatReportResponse getVatReport(String startDateStr, String endDateStr) {

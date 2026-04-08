@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton } from '@taiga-ui/core';
-import { ApiService, DebtOrderReportRow, SalesReport } from '../../services/api.service';
+import { ApiService, DebtOrderReportRow, SalesReport, VariantReportRow } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
@@ -82,6 +82,30 @@ import { firstValueFrom } from 'rxjs';
              </tbody>
            </table>
         </div>
+        
+        <div class="table-container" style="margin-top:28px;">
+           <h2 class="tui-text_h6">Variant Sales & Inventory</h2>
+           <table class="tui-table">
+             <thead>
+               <tr class="tui-table__tr">
+                 <th class="tui-table__th">SKU</th>
+                 <th class="tui-table__th">Product</th>
+                 <th class="tui-table__th">Sold Quantity</th>
+                 <th class="tui-table__th">Revenue</th>
+                 <th class="tui-table__th">Current Stock</th>
+               </tr>
+             </thead>
+             <tbody>
+               <tr *ngFor="let v of variantRows()" class="tui-table__tr">
+                 <td class="tui-table__td">{{ v.sku || '-' }}</td>
+                 <td class="tui-table__td">{{ v.productName || '-' }}</td>
+                 <td class="tui-table__td">{{ v.soldQuantity || 0 }}</td>
+                 <td class="tui-table__td">{{ v.revenue | number }}đ</td>
+                 <td class="tui-table__td">{{ v.currentStock || 0 }}</td>
+               </tr>
+             </tbody>
+           </table>
+        </div>
       </div>
     </div>
   `,
@@ -104,6 +128,7 @@ export class AdvancedReportsComponent {
   private readonly api = inject(ApiService);
   readonly report = signal<SalesReport | null>(null);
   readonly debtRows = signal<DebtOrderReportRow[]>([]);
+  readonly variantRows = signal<VariantReportRow[]>([]);
   
   startDate = '';
   endDate = '';
@@ -117,6 +142,8 @@ export class AdvancedReportsComponent {
     this.report.set(data);
     const debt = await firstValueFrom(this.api.getDebtReport(this.startDate, this.endDate));
     this.debtRows.set(debt || []);
+    const variants = await firstValueFrom(this.api.getVariantReport(this.startDate, this.endDate));
+    this.variantRows.set(variants?.items || []);
   }
 
   setRange(type: '7days' | '30days') {

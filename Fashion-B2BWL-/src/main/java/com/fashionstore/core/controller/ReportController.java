@@ -3,6 +3,7 @@ package com.fashionstore.core.controller;
 import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.dto.response.SalesReportResponse;
 import com.fashionstore.core.dto.response.VatReportResponse;
+import com.fashionstore.core.dto.response.VariantReportResponse;
 import com.fashionstore.core.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -26,5 +27,12 @@ public class ReportController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         return ApiResponse.success(reportService.getVatReport(startDate, endDate));
+    }
+
+    @GetMapping("/variants")
+    public ApiResponse<VariantReportResponse> getVariantReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return ApiResponse.success(reportService.getVariantSalesReport(startDate, endDate));
     }
 }

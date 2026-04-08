@@ -139,6 +139,20 @@ public class OrderService {
             order.setDueDate(null);
         }
 
+        // Decrease stock quantities for each order item at creation (reserve stock)
+        if (items != null) {
+            for (OrderItem item : items) {
+                ProductVariant variant = item.getProductVariant();
+                if (variant == null) continue;
+                Integer currentQty = variant.getStockQuantity() != null ? variant.getStockQuantity() : 0;
+                int deduct = item.getQuantity() != null ? item.getQuantity() : 0;
+                int newQty = currentQty - deduct;
+                if (newQty < 0) newQty = 0;
+                variant.setStockQuantity(newQty);
+                productVariantRepository.save(variant);
+            }
+        }
+
         return orderRepository.save(order);
     }
 
@@ -174,19 +188,7 @@ public class OrderService {
             order.setPaidAmount(order.getTotalAmount());
             order.setDebtAmount(BigDecimal.ZERO);
             order.setStatus("APPROVED");
-            // Decrease stock quantities for each order item when order is paid
-            if (order.getItems() != null) {
-                for (OrderItem item : order.getItems()) {
-                    ProductVariant variant = item.getProductVariant();
-                    if (variant == null) continue;
-                    Integer currentQty = variant.getStockQuantity() != null ? variant.getStockQuantity() : 0;
-                    int deduct = item.getQuantity() != null ? item.getQuantity() : 0;
-                    int newQty = currentQty - deduct;
-                    if (newQty < 0) newQty = 0;
-                    variant.setStockQuantity(newQty);
-                    productVariantRepository.save(variant);
-                }
-            }
+            // Stock already reserved on order creation; no double-decrement here.
         }
         return orderRepository.save(order);
     }

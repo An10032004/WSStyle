@@ -346,6 +346,19 @@ export interface SalesReport {
   revenueByDate: { date: string; amount: number }[];
 }
 
+export interface VariantReportRow {
+  variantId: number;
+  sku?: string;
+  productName?: string;
+  soldQuantity?: number;
+  revenue?: number;
+  currentStock?: number;
+}
+
+export interface VariantReport {
+  items: VariantReportRow[];
+}
+
 export interface Expense {
   id: number;
   category: 'INVENTORY' | 'SHIPPING' | 'MARKETING' | 'SALARY' | 'OPERATIONS' | 'OTHER';
@@ -778,6 +791,10 @@ export class ApiService {
   // ─── Reports & Analytics ──────────────────────────────
   getSalesReport(startDate?: string, endDate?: string): Observable<SalesReport> {
     return this.http.get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
+  }
+
+  getVariantReport(startDate?: string, endDate?: string): Observable<VariantReport> {
+    return this.http.get<ApiResponse<VariantReport>>(`${this.base}/reports/variants`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
   }
 
   getExpenses(): Observable<Expense[]> {
