@@ -29,13 +29,7 @@
             <input tuiTextfield [(ngModel)]="formData.productCode" placeholder="VD: SP001" />
           </tui-textfield>
         </label>
-        <label tuiLabel class="form-field">
-          {{ 'PRODUCT.PRICE' | transloco }} *
-          <tui-textfield>
-            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.basePrice" placeholder="0" maxlength="13" />
-            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
-          </tui-textfield>
-        </label>
+
         <label tuiLabel class="form-field">
           {{ 'PRODUCT.CATEGORY' | transloco }} *
           <tui-select
@@ -111,7 +105,7 @@
          <p><strong>ID:&nbsp;</strong> {{ selectedProduct.id }}</p>
          <p><strong>{{ 'PRODUCT.CODE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedProduct.productCode }}</span></p>
          <p><strong>{{ 'PRODUCT.NAME' | transloco }}:&nbsp;</strong> {{ selectedProduct.name }}</p>
-         <p><strong>{{ 'PRODUCT.PRICE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedProduct.basePrice | number }} VND</span></p>
+
          <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
          <p><strong>{{ 'PRODUCT.BRAND' | transloco }}:&nbsp;</strong> {{ selectedProduct.brand }}</p>
          <p><strong>Material:&nbsp;</strong> {{ selectedProduct.material }}</p>

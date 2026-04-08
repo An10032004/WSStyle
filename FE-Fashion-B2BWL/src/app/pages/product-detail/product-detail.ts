@@ -136,29 +136,10 @@ export class ProductDetailComponent implements OnInit {
   get currentPrice(): number {
     if (!this.product) return 0;
     
-    // 0. Wait for variants to load to prevent initial price jump (167k -> 190k flash)
-    if (!this.isVariantsLoaded) {
-      return this.product.basePrice;
+    let base = 0;
+    if (this.selectedVariant && this.selectedVariant.price) {
+        base = this.selectedVariant.price;
     }
-    
-    // 1. Determine Base Price (Prioritize Variant-specific price as Absolute Override)
-    if (this.selectedVariant) {
-      if (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0) {
-        return this.selectedVariant.discountPrice;
-      }
-      if (this.selectedVariant.price != null && this.selectedVariant.price > 0) {
-        return this.selectedVariant.price;
-      }
-    }
-
-    // 2. If Selection is Incomplete for a product with variants, SHOW RAW BASE PRICE ONLY
-    // We suppress all B2B/QB rules to prevent "Price Dipping" (167k vs 190k)
-    if (this.isSelectionIncomplete) {
-      return this.product.basePrice;
-    }
-
-    let base = this.product.basePrice;
-    base += (this.selectedVariant?.priceAdjustment || 0);
 
     // 3. Apply B2B Pricing Rule (Wholesale)
     if (this.b2bRule) {
@@ -188,17 +169,11 @@ export class ProductDetailComponent implements OnInit {
   }
 
   get isVariantPriceApplied(): boolean {
-    return !!(this.selectedVariant && (
-      (this.selectedVariant.price != null && this.selectedVariant.price > 0) ||
-      (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0)
-    ));
+    return false; // Deprecated conceptually as variant price is the base now
   }
 
   get isB2BApplied(): boolean {
     if (!this.isVariantsLoaded) return false;
-    if (this.isVariantPriceApplied) return false;
-    
-    // Suppress B2B badges if selection is incomplete for a variant product
     if (this.isSelectionIncomplete) return false;
 
     return !!this.b2bRule;
@@ -206,9 +181,6 @@ export class ProductDetailComponent implements OnInit {
 
   get isQBApplied(): boolean {
     if (!this.isVariantsLoaded) return false;
-    if (this.isVariantPriceApplied) return false;
-    
-    // Suppress QB banners if selection is incomplete for a variant product
     if (this.isSelectionIncomplete) return false;
 
     return this.quantityBreaks && this.quantityBreaks.length > 0;
@@ -516,7 +488,10 @@ export class ProductDetailComponent implements OnInit {
       });
       this.availableColors = Array.from(colors);
 
-      // No auto-selection: let the user pick
+      // Auto-select the first variant if available
+      if (this.variants.length > 0) {
+        this.selectVariant(this.variants[0]);
+      }
       
       // Collect all possible images (Product images + All Variant images)
       const allVariantImages: string[] = [];
@@ -557,21 +532,33 @@ export class ProductDetailComponent implements OnInit {
       .filter(s => !!s);
     
     this.availableSizes = Array.from(new Set(sizes as string[]));
-    
-    // No auto-selection of size: find variant if current selection is complete
+    if (this.availableSizes.length > 0 && (!this.selectedSize || !this.availableSizes.includes(this.selectedSize))) {
+      this.selectedSize = this.availableSizes[0];
+    } else if (this.availableSizes.length === 0) {
+      this.selectedSize = undefined;
+    }
+
+    this.updateWeights();
     this.findMatchingVariant();
   }
 
-  selectSize(size: string) {
-    this.selectedSize = size;
+  updateWeights() {
     const weights = this.variants
-      .filter(v => v.color === this.selectedColor && v.size === size)
+      .filter(v => (!v.color || v.color === this.selectedColor) && (!v.size || v.size === this.selectedSize))
       .map(v => v.weight)
       .filter(w => !!w);
     
     this.availableWeights = Array.from(new Set(weights as string[]));
+    if (this.availableWeights.length > 0 && (!this.selectedWeight || !this.availableWeights.includes(this.selectedWeight))) {
+      this.selectedWeight = this.availableWeights[0];
+    } else if (this.availableWeights.length === 0) {
+      this.selectedWeight = undefined;
+    }
+  }
 
-    // No auto-selection of weight: find variant if current selection is complete
+  selectSize(size: string) {
+    this.selectedSize = size;
+    this.updateWeights();
     this.findMatchingVariant();
   }
 
@@ -605,8 +592,21 @@ export class ProductDetailComponent implements OnInit {
 
   selectVariant(v: ProductVariant) {
     this.selectedColor = v.color;
+    
+    const sizes = this.variants
+      .filter(va => !va.color || va.color === v.color)
+      .map(va => va.size)
+      .filter(s => !!s);
+    this.availableSizes = Array.from(new Set(sizes as string[]));
     this.selectedSize = v.size;
+
+    const weights = this.variants
+      .filter(va => (!va.color || va.color === v.color) && (!va.size || va.size === v.size))
+      .map(va => va.weight)
+      .filter(w => !!w);
+    this.availableWeights = Array.from(new Set(weights as string[]));
     this.selectedWeight = v.weight;
+
     this.applyVariant(v);
   }
 

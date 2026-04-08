@@ -40,34 +40,13 @@
             {{ b2bRule.ruleName }}{{ b2bRule.parsedConfig?.discountValue ? ' (-' + b2bRule.parsedConfig.discountValue + '%)' : '' }}
           </div>
           <div class="main-price" *ngIf="!product.hidePrice; else hiddenPrice">
-            <!-- BOTH PRICES MODE -->
-            <ng-container *ngIf="product.taxDisplayLabel === 'BOTH_PRICES'; else singlePrice">
-               <div class="combined-prices">
-                 <div class="price-row">
-                    <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
-                    <span class="tag incl" *ngIf="!isVariantPriceApplied">(Đã bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
-                 </div>
-                 <div class="price-row excl" *ngIf="isB2BApplied || isQBApplied">
-                    <span class="val">{{ currentPrice / 1.1 | number:'1.0-0' }} ₫</span>
-                    <span class="tag">(Chưa bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
-                 </div>
-               </div>
-            </ng-container>
-
-            <!-- SINGLE PRICE MODE -->
-            <ng-template #singlePrice>
                <span class="current">
                  {{ currentPrice | number:'1.0-0' }} ₫
                </span>
                
-               <span class="original" *ngIf="isVariantPriceApplied && (selectedVariant?.price || 0) > currentPrice">
+               <span class="original" *ngIf="(selectedVariant?.price || 0) > currentPrice">
                  {{ selectedVariant?.price | number:'1.0-0' }} ₫
                </span>
-               
-               <span class="tax-info" *ngIf="!isVariantPriceApplied && product.taxDisplayLabel && product.taxDisplayLabel !== 'BOTH_PRICES'">
-                 ({{ product.taxDisplayLabel === 'EXCLUDE_TAX_ONLY' ? 'Chưa bao gồm ' : 'Đã bao gồm ' }}{{ product.taxDisplayType || 'thuế' }})
-               </span>
-            </ng-template>
           </div>
           <ng-template #hiddenPrice>
             <div class="main-price">
@@ -146,7 +125,6 @@
           class="price-notif"
         >
           <strong>Giá đã thay đổi:</strong> Bạn đang chọn một biến thể có mức giá riêng. 
-          Giá gốc là {{ product?.basePrice | number:'1.0-0' }} ₫.
         </tui-notification>
 
         <!-- QUANTITY BREAK TABLE -->
@@ -168,7 +146,7 @@
                   <tr *ngFor="let b of quantityBreaks">
                     <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
                     <td class="price-val">
-                      {{ ((product.calculatedPrice || product.basePrice) * (1 - b.discount/100)) | number:'1.0-0' }} ₫
+                      {{ (currentPrice * (1 - b.discount/100)) | number:'1.0-0' }} ₫
                     </td>
                     <td class="discount-val">-{{ b.discount }}%</td>
                   </tr>

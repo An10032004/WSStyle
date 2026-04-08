@@ -170,33 +170,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
           return `${img}<span>${params.value || ''}</span>`;
         }
       },
-      {
-        headerName: this.transloco.translate('PRODUCT.PRICE'),
-        field: 'basePrice',
-        width: 150,
-        sortable: true,
-        valueFormatter: (p: any) => {
-          if (p.value == null) return '';
-          const isEn = this.currentLanguage === 'en';
-          const exchangeRate = 25450; // Standard rate for demonstration
-          
-          if (isEn) {
-            const usdValue = p.value / exchangeRate;
-            return new Intl.NumberFormat('en-US', { 
-                style: 'currency', 
-                currency: 'USD',
-                maximumFractionDigits: 2 
-            }).format(usdValue);
-          } else {
-            return new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND',
-                maximumFractionDigits: 0 
-            }).format(p.value);
-          }
-        },
-        cellStyle: { fontWeight: '500', color: 'var(--tui-status-positive)' },
-      },
+
       { 
         headerName: this.transloco.translate('PRODUCT.CATEGORY'), 
         field: 'categoryId', 
@@ -398,7 +372,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   onSave(): void {
-    const numericPrice = this.getNumericValue(this.formData.basePrice);
+    const numericPrice = 0;
     
     if (this.currentLanguage !== 'vi' && this.editingId) {
       // 1. Update Global Fields in Multi-lingual mode
