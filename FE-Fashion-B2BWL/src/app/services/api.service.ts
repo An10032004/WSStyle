@@ -641,6 +641,12 @@ export class ApiService {
   deleteTaxDisplayRule(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/tax-display-rules/${id}`).pipe(map(r => r.data));
   }
+  quoteTax(body: { userId?: number | null; orderAmount: number }): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/tax-display-rules/quote`, {
+      userId: body.userId ?? null,
+      orderAmount: body.orderAmount
+    }).pipe(map(r => r.data));
+  }
 
   // ─── Hide Price Rules ───────────────────────────────────
   getHidePriceRules(): Observable<HidePriceRule[]> {

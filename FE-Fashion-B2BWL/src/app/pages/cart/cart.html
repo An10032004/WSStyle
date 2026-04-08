@@ -105,6 +105,11 @@
                 <strong *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
               </ng-container>
             </div>
+
+            <div class="summary-row" *ngIf="(taxQuote$ | async) as taxQuote">
+              <span *ngIf="taxQuote.applied">Tax ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
+              <strong *ngIf="taxQuote.applied">{{ taxQuote.taxAmount | number:'1.0-0' }} ₫</strong>
+            </div>
             
             <div class="summary-row total">
               <span>Grand Total</span>

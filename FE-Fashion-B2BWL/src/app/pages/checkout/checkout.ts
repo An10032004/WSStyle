@@ -99,8 +99,26 @@ export class CheckoutComponent implements OnInit {
 
   shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
 
-  totalPrice$ = combineLatest([this.subtotal$, this.shippingFee$]).pipe(
-    map(([sub, fee]) => sub + fee),
+  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+    debounceTime(200),
+    switchMap(([items, user]) => {
+      const selected = items.filter(i => i.selected !== false);
+      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      if (selected.length === 0) {
+        return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
+      }
+      return this.apiService.quoteTax({
+        userId: user?.id,
+        orderAmount: subtotal
+      });
+    }),
+    shareReplay(1),
+  );
+
+  taxFee$ = this.taxQuote$.pipe(map(q => q?.taxAmount ?? 0));
+
+  totalPrice$ = combineLatest([this.subtotal$, this.shippingFee$, this.taxFee$]).pipe(
+    map(([sub, fee, tax]) => sub + fee + tax),
   );
 
   debtSummary$ = this.auth.user$.pipe(

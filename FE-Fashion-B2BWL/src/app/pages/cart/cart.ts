@@ -59,6 +59,24 @@ export class CartComponent implements OnInit {
 
   shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
 
+  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+    debounceTime(200),
+    switchMap(([items, user]) => {
+      const selected = items.filter(i => i.selected !== false);
+      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      if (selected.length === 0) {
+        return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
+      }
+      return this.api.quoteTax({
+        userId: user?.id,
+        orderAmount: subtotal
+      });
+    }),
+    shareReplay(1),
+  );
+
+  taxFee$ = this.taxQuote$.pipe(map(q => q?.taxAmount ?? 0));
+
   debtSummary$ = this.auth.user$.pipe(
     switchMap(user => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary)),
     startWith({ blocked: false, overdueCount: 0, items: [] } as DebtSummary),
@@ -130,9 +148,9 @@ export class CartComponent implements OnInit {
     shareReplay(1),
   );
 
-  /** Tổng thanh toán ước tính = tạm tính + phí ship. */
-  readonly grandTotal$ = combineLatest([this.totalPrice$, this.shippingFee$]).pipe(
-    map(([sub, fee]) => sub + fee),
+  /** Tổng thanh toán ước tính = tạm tính + phí ship + thuế. */
+  readonly grandTotal$ = combineLatest([this.totalPrice$, this.shippingFee$, this.taxFee$]).pipe(
+    map(([sub, fee, tax]) => sub + fee + tax),
   );
 
   toggleItem(item: CartItem, selected: boolean) {

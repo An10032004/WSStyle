@@ -60,7 +60,7 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
                 </tui-textfield>
               </label>
 
-              <label tuiLabel>Phần trăm giảm giá (%)
+              <label tuiLabel>Mức thuế (%)
                 <tui-textfield>
                   <input tuiTextfield type="number" [(ngModel)]="data.discountRate" min="0" max="100" />
                 </tui-textfield>
@@ -74,6 +74,8 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
               </div>
             </div>
           </div>
+
+
 
           <!-- TARGETING: CUSTOMERS -->
           <div class="section-card">
@@ -94,122 +96,6 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
             </div>
           </div>
 
-          <!-- TARGETING: PRODUCTS -->
-          <div class="section-card">
-            <h4 class="section-title">Loại sản phẩm áp dụng</h4>
-            <div class="field-grid">
-               <label tuiLabel>Loại áp dụng
-                  <tui-select [(ngModel)]="data.applyProductType" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
-                  </tui-select>
-               </label>
-
-               <label tuiLabel *ngIf="data.applyProductType === 'CATEGORY'">Chọn danh mục
-                  <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
-                    <ng-template #catContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
-
-               <label tuiLabel *ngIf="data.applyProductType === 'SPECIFIC'">Chọn sản phẩm cụ thể
-                  <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
-                    <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
-            </div>
-          </div>
-
-          <!-- DESIGN CONFIG -->
-          <div class="section-card">
-            <h4 class="section-title">Cấu hình hiển thị (Thiết kế)</h4>
-            <div class="field-grid-2">
-               <label tuiLabel>{{ 'TAX_DISPLAY.TAX_TYPE' | transloco }}
-                 <tui-select [(ngModel)]="data.taxDisplayType" [tuiTextfieldCleaner]="false">
-                    <tui-data-list-wrapper *tuiDataList [items]="['VAT', 'GST']"></tui-data-list-wrapper>
-                 </tui-select>
-               </label>
-
-               <label tuiLabel>{{ 'TAX_DISPLAY.DISPLAY_TYPE' | transloco }}
-                 <tui-select [(ngModel)]="data.displayType" [tuiTextfieldCleaner]="false">
-                    <tui-data-list-wrapper *tuiDataList [items]="['BOTH_PRICES', 'EXCLUDE_TAX_ONLY', 'INCLUDE_TAX_ONLY']"></tui-data-list-wrapper>
-                 </tui-select>
-               </label>
-            </div>
-            
-            <div class="style-container">
-               <div class="style-row">
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_COLOR' | transloco }}</label>
-                     <div class="color-picker-row">
-                       <input type="color" [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                       <tui-textfield size="s">
-                         <input tuiTextfield [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                       </tui-textfield>
-                     </div>
-                  </div>
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_SIZE' | transloco }}</label>
-                     <tui-textfield size="s">
-                        <input tuiTextfield type="number" [(ngModel)]="design.exclSize" (ngModelChange)="updateDesign()" />
-                     </tui-textfield>
-                  </div>
-               </div>
-
-               <div class="style-row">
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_COLOR' | transloco }}</label>
-                     <div class="color-picker-row">
-                       <input type="color" [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                       <tui-textfield size="s">
-                         <input tuiTextfield [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                       </tui-textfield>
-                     </div>
-                  </div>
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_SIZE' | transloco }}</label>
-                     <tui-textfield size="s">
-                        <input tuiTextfield type="number" [(ngModel)]="design.incSize" (ngModelChange)="updateDesign()" />
-                     </tui-textfield>
-                  </div>
-               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PREVIEW PANEL -->
-      <div class="preview-panel">
-        <h4 class="preview-title">{{ 'TAX_DISPLAY.PREVIEW' | transloco }}</h4>
-        <div class="preview-card">
-           <div class="device-mockup">
-              <div class="product-preview">
-                 <div class="product-image">
-                    <tui-icon icon="@tui.gift"></tui-icon>
-                 </div>
-                 <div class="product-info">
-                    <span class="product-name">Sản phẩm mẫu</span>
-                    <span class="base-price">100.000 đ</span>
-                    
-                    <div class="tax-labels" [ngSwitch]="data.displayType">
-                       <ng-container *ngSwitchCase="'BOTH_PRICES'">
-                          <div class="tax-line">
-                             <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
-                             <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
-                          </div>
-                       </ng-container>
-                       <ng-container *ngSwitchCase="'EXCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
-                       </ng-container>
-                       <ng-container *ngSwitchCase="'INCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
-                       </ng-container>
-                    </div>
-                    
-                    <button tuiButton appearance="secondary" size="s" class="add-to-cart">Thêm vào giỏ hàng</button>
-                 </div>
-              </div>
-           </div>
         </div>
       </div>
     </div>
@@ -307,15 +193,6 @@ export class TaxDisplayEditorComponent {
     } else {
       this.data.applyCustomerValue = '{}';
     }
-
-    // Sync Products
-    if (this.data.applyProductType === 'CATEGORY') {
-      this.data.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
-    } else if (this.data.applyProductType === 'SPECIFIC') {
-      this.data.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
-    } else {
-      this.data.applyProductValue = '{}';
-    }
   }
 
   parseTargeting() {
@@ -327,23 +204,6 @@ export class TaxDisplayEditorComponent {
         this.selectedGroups = this.customerGroups.filter(g => ids.includes(g.id));
       } catch { this.selectedGroups = []; }
     } else { this.selectedGroups = []; }
-
-    // Parse Products
-    if (this.data.applyProductType === 'CATEGORY' && this.data.applyProductValue) {
-      try {
-        const val = JSON.parse(this.data.applyProductValue);
-        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
-        this.selectedCategories = this.categories.filter(c => ids.includes(c.id));
-      } catch { this.selectedCategories = []; }
-    } else { this.selectedCategories = []; }
-
-    if (this.data.applyProductType === 'SPECIFIC' && this.data.applyProductValue) {
-      try {
-        const val = JSON.parse(this.data.applyProductValue);
-        const ids = val.productIds || (val.productId ? [val.productId] : []);
-        this.selectedProducts = this.products.filter(p => ids.includes(p.id));
-      } catch { this.selectedProducts = []; }
-    } else { this.selectedProducts = []; }
   }
 
   updateDesign() {
