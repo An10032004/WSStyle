@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiDropdownService } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService } from '@taiga-ui/core';
 import { TuiInputNumber, TuiDataListWrapper, TuiPagination } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, Product, ProductVariant, Category } from '../../services/api.service';
@@ -12,9 +12,14 @@ import { StorefrontHeaderComponent } from '../../shared/components/storefront-he
 
 interface QuickOrderItem {
   product: Product;
-  variants: (ProductVariant & { selectedQuantity: number })[];
+  variants: (ProductVariant & { 
+    selectedQuantity: number;
+    calculatedPrice?: number;
+    appliedRulesText?: string;
+  })[];
   isExpanded: boolean;
   totalSelected: number;
+  minPrice?: number;
 }
 
 @Component({
@@ -41,6 +46,7 @@ interface QuickOrderItem {
 export class QuickOrderFormComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly cart = inject(CartService);
+  private readonly alerts = inject(TuiAlertService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
 
@@ -56,6 +62,8 @@ export class QuickOrderFormComponent implements OnInit {
   // Pagination
   readonly pageSize = 10;
   index = 0;
+
+  appliedOrderLimits: any[] = [];
   
   readonly stringifyCategory = (category: Category | string): string => 
     typeof category === 'string' ? category : category.name;
@@ -73,7 +81,7 @@ export class QuickOrderFormComponent implements OnInit {
 
   get totalAmount(): number {
     return this.products.reduce((acc, p) => {
-      const productTotal = p.variants.reduce((vAcc, v) => vAcc + (v.price || p.product.basePrice) * v.selectedQuantity, 0);
+      const productTotal = p.variants.reduce((vAcc, v) => vAcc + (v.calculatedPrice || v.price || p.product.basePrice) * v.selectedQuantity, 0);
       return acc + productTotal;
     }, 0);
   }
@@ -88,24 +96,57 @@ export class QuickOrderFormComponent implements OnInit {
     this.api.getProducts().subscribe(prods => {
       prods.forEach(p => {
         this.api.getProductVariantsByProduct(p.id).subscribe(variants => {
-          this.products.push({
+          const item: QuickOrderItem = {
             product: p,
-            variants: variants.map(v => ({ ...v, selectedQuantity: 0 })),
+            variants: variants.map(v => ({ 
+              ...v, 
+              selectedQuantity: 0,
+              calculatedPrice: v.price || p.basePrice 
+            })),
             isExpanded: false,
             totalSelected: 0
-          });
+          };
+          // Initial calculation
+          item.variants.forEach(v => this.updateVariantPricing(item.product, v));
+          item.minPrice = Math.min(...item.variants.map(v => v.calculatedPrice || 0).filter(p => p > 0));
+          
+          this.products.push(item);
           this.filterProducts();
           this.loading = false;
           this.cdr.detectChanges();
         });
       });
     });
+
+    // Also load order limits for the user profile to display them
+    this.cart.orderLimits$.subscribe(limits => {
+      this.appliedOrderLimits = limits;
+      this.cdr.detectChanges();
+    });
+  }
+
+  updateVariantPricing(product: Product, variant: any) {
+    const qty = variant.selectedQuantity || 1; // Default to 1 to show what price would be
+    const result = this.cart.calculatePrice(
+      product.id, 
+      product.categoryId, 
+      variant.price || product.basePrice, 
+      qty, 
+      product.quantityBreaksJson
+    );
+
+    variant.calculatedPrice = result.finalPrice;
+    
+    const rules = [];
+    if (result.appliedB2BRule) rules.push(`B2B: ${result.appliedB2BRule.name}`);
+    if (result.appliedQBBreak) rules.push(`Sỉ: -${result.appliedQBBreak.discount}%`);
+    
+    variant.appliedRulesText = rules.join(' | ');
   }
 
   loadCategories(): void {
     this.api.getCategories().subscribe(cats => {
       this.categories = cats;
-      this.cdr.markForCheck();
       this.cdr.detectChanges();
     });
   }
@@ -114,8 +155,10 @@ export class QuickOrderFormComponent implements OnInit {
     item.isExpanded = !item.isExpanded;
   }
 
-  onQuantityChange(item: QuickOrderItem): void {
+  onQuantityChange(item: QuickOrderItem, variant: any): void {
     item.totalSelected = item.variants.reduce((acc, v) => acc + v.selectedQuantity, 0);
+    this.updateVariantPricing(item.product, variant);
+    item.minPrice = Math.min(...item.variants.map(v => v.calculatedPrice || 0).filter(p => p > 0));
   }
 
   filterProducts(): void {
@@ -129,25 +172,79 @@ export class QuickOrderFormComponent implements OnInit {
   }
 
   addToCart(): void {
-    let count = 0;
-    this.products.forEach(p => {
-      p.variants.forEach(v => {
-        if (v.selectedQuantity > 0) {
-          this.cart.addToCart(p.product, v, v.selectedQuantity);
-          count++;
-        }
-      });
+    const itemsToBuy = this.getPreparedItems();
+    if (itemsToBuy.length === 0) {
+      this.alerts.open('Vui lòng chọn số lượng cho ít nhất một phân loại.', { label: 'Chưa có sản phẩm', appearance: 'info' }).subscribe();
+      return;
+    }
+
+    const validationResults = this.cart.validateClientSide(itemsToBuy);
+    const errors = validationResults.filter(r => !r.success);
+    
+    if (errors.length > 0) {
+       errors.forEach((e: any) => {
+         this.alerts.open(e.message, { label: 'Chưa đủ điều kiện đặt hàng', appearance: 'warning' }).subscribe();
+       });
+       return; // BLOCK ACTION
+    }
+
+    itemsToBuy.forEach(item => {
+       const parent = this.products.find(p => p.product.id === item.productId);
+       if (parent) {
+         const variant = parent.variants.find(v => v.id === item.variantId);
+         if (variant) {
+            this.cart.addToCart(parent.product, variant, item.quantity);
+         }
+       }
     });
 
-    if (count > 0) {
-      // Reset quantities after adding to cart? User preference.
-      // this.products.forEach(p => p.variants.forEach(v => v.selectedQuantity = 0));
-      // this.products.forEach(p => p.totalSelected = 0);
-    }
+    // Optional: Reset only if you want to clear the form after success
+    this.products.forEach(p => {
+      p.variants.forEach(v => v.selectedQuantity = 0);
+      p.totalSelected = 0;
+    });
+    this.cdr.detectChanges();
   }
 
   checkout(): void {
+    const itemsToBuy = this.getPreparedItems();
+    if (itemsToBuy.length === 0) {
+      this.alerts.open('Vui lòng chọn sản phẩm trước khi thanh toán.', { label: 'Giỏ hàng trống', appearance: 'info' }).subscribe();
+      return;
+    }
+
+    // Double validation (Cart handles its own too, but better UX to block here)
+    const validationResults = this.cart.validateClientSide(itemsToBuy);
+    const errors = validationResults.filter(r => !r.success);
+    if (errors.length > 0) {
+      errors.forEach((e: any) => {
+        this.alerts.open(e.message, { label: 'Chưa đủ điều kiện thanh toán', appearance: 'warning' }).subscribe();
+      });
+      return;
+    }
+
     this.addToCart();
     this.router.navigate(['/checkout']);
+  }
+
+  private getPreparedItems(): any[] {
+    const items: any[] = [];
+    this.products.forEach(p => {
+      p.variants.forEach(v => {
+        if (v.selectedQuantity > 0) {
+          items.push({
+            productId: p.product.id,
+            variantId: v.id,
+            name: p.product.name,
+            price: v.calculatedPrice || v.price || p.product.basePrice,
+            quantity: v.selectedQuantity,
+            categoryId: p.product.categoryId,
+            basePrice: v.price || p.product.basePrice,
+            quantityBreaksJson: p.product.quantityBreaksJson
+          });
+        }
+      });
+    });
+    return items;
   }
 }

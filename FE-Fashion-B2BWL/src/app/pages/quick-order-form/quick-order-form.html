@@ -18,6 +18,26 @@
     </div>
   </div>
 
+  <div class="active-rules-info" *ngIf="appliedOrderLimits.length > 0">
+    <div class="rule-box">
+      <tui-icon icon="@tui.info" class="rule-icon"></tui-icon>
+      <div class="rule-content">
+        <div class="rule-title">Chính sách đặt hàng áp dụng:</div>
+        <div class="rule-list">
+          <span class="rule-tag" *ngFor="let limit of appliedOrderLimits">
+            {{ limit.name }}: 
+            <ng-container [ngSwitch]="limit.limitType">
+              <span *ngSwitchCase="'MIN_ORDER_QTY'">Tối thiểu {{ limit.limitValue }} sp</span>
+              <span *ngSwitchCase="'MIN_ORDER_VAL'">Tối thiểu {{ limit.limitValue | number }}đ</span>
+              <span *ngSwitchDefault>{{ limit.limitValue }} ({{ limit.limitType }})</span>
+            </ng-container>
+            ({{ limit.limitLevel === 'PER_ORDER' ? 'Cả đơn' : 'Từng dòng' }})
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="filter-section">
     <div class="filter-group">
       <label tuiLabel="Product Category">
@@ -32,10 +52,12 @@
             *tuiDataList
             [items]="categories"
             [itemContent]="catContent"
-          ></tui-data-list-wrapper>
+          >
+            <button tuiOption [value]="null">Tất cả danh mục</button>
+          </tui-data-list-wrapper>
           
           <ng-template #catContent let-item>
-            {{ item?.name || 'All Categories' }}
+            {{ item?.name || 'Tất cả danh mục' }}
           </ng-template>
         </tui-select>
       </label>
@@ -65,7 +87,7 @@
           <th width="80">Image</th>
           <th>Product name</th>
           <th width="100">Stock</th>
-          <th width="150">Price</th>
+          <th width="220">Price</th>
           <th width="150">Product SKU</th>
           <th width="150">Quantity</th>
         </tr>
@@ -75,13 +97,15 @@
           <tr [class.expanded]="item.isExpanded">
             <td>
               <button
-                tuiButton
+                tuiIconButton
                 type="button"
-                size="xs"
+                size="s"
                 appearance="flat"
                 (click)="toggleExpand(item)"
+                class="expand-btn"
+                [class.rotated]="item.isExpanded"
+                icon="@tui.chevron-down"
               >
-                <tui-icon [icon]="item.isExpanded ? '@tui.chevron-up' : '@tui.chevron-down'"></tui-icon>
               </button>
             </td>
             <td>
@@ -91,20 +115,24 @@
               <span class="prod-name">{{ item.product.name }}</span>
               <span class="prod-code">{{ item.product.productCode }}</span>
             </td>
-            <td>{{ item.product.basePrice === 0 ? 'N/A' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
-            <td>{{ item.product.basePrice | number }}đ</td>
-            <td>{{ item.product.productCode }}</td>
+            <td>{{ item.product.basePrice === 0 ? 'Hết hàng' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
             <td>
-              <div class="variant-btn-container" *ngIf="!item.isExpanded">
-                <button tuiButton type="button" size="s" appearance="outline" (click)="toggleExpand(item)">
-                  Choose variant
-                </button>
-                <div class="selection-badge" *ngIf="item.totalSelected > 0">
-                  {{ item.totalSelected }} variant(s) selected
-                </div>
+              <div class="price-cell">
+                <div class="final-price">Từ {{ item.minPrice | number }}đ</div>
+                <div class="original-price" *ngIf="item.product.basePrice > (item.minPrice || 0)">{{ item.product.basePrice | number }}đ</div>
               </div>
-              <div *ngIf="item.isExpanded" class="qty-status-tag" [class.active]="item.totalSelected > 0">
-                {{ item.totalSelected }} variant(s) selected
+            </td>
+            <td><code>{{ item.product.productCode }}</code></td>
+            <td>
+              <div class="selection-toggle" (click)="toggleExpand(item)">
+                <span class="selection-text" [class.active]="item.totalSelected > 0">
+                  {{ item.totalSelected }} variant(s) selected
+                </span>
+                <tui-icon 
+                  [icon]="'@tui.chevron-down'" 
+                  class="chevron-animated" 
+                  [class.rotated]="item.isExpanded">
+                </tui-icon>
               </div>
             </td>
           </tr>
@@ -115,17 +143,19 @@
               <div class="variants-container">
                 <table class="variants-table">
                   <thead>
-                    <tr>
-                      <th width="60">Image</th>
+                    <tr class="v-header">
+                      <th width="30"></th>
+                      <th width="80">Image</th>
                       <th>Variant</th>
                       <th width="100">Stock</th>
-                      <th width="120">Price</th>
+                      <th width="220">Price</th>
                       <th width="150">SKU</th>
-                      <th width="180">Quantity</th>
+                      <th width="150">Quantity</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let v of item.variants">
+                      <td></td>
                       <td>
                         <img [src]="v.imageUrl || item.product.imageUrl || 'assets/placeholder-product.png'" class="variant-thumb">
                       </td>
@@ -133,18 +163,26 @@
                         <strong>{{ v.color }} / {{ v.size }}</strong>
                       </td>
                       <td>{{ v.stockQuantity | number }}</td>
-                      <td>{{ (v.price || item.product.basePrice) | number }}đ</td>
+                      <td class="price-cell">
+                        <div class="final-price">{{ (v.calculatedPrice || v.price || item.product.basePrice) | number }}đ</div>
+                        <div class="original-price" *ngIf="v.calculatedPrice && v.calculatedPrice < (v.price || item.product.basePrice)">
+                          {{ (v.price || item.product.basePrice) | number }}đ
+                        </div>
+                        <div class="rule-desc" *ngIf="v.appliedRulesText">
+                          {{ v.appliedRulesText }}
+                        </div>
+                      </td>
                       <td><code>{{ v.sku }}</code></td>
                       <td>
-                        <div class="quantity-input-container">
-                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item)">
-                             <tui-icon icon="@tui.minus"></tui-icon>
-                           </button>
-                           <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item)" class="qty-input">
-                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item)">
-                             <tui-icon icon="@tui.plus"></tui-icon>
-                           </button>
-                        </div>
+                         <div class="quantity-input-container">
+                            <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item, v)">
+                              <tui-icon icon="@tui.minus"></tui-icon>
+                            </button>
+                            <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item, v)" class="qty-input">
+                            <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item, v)">
+                              <tui-icon icon="@tui.plus"></tui-icon>
+                            </button>
+                         </div>
                       </td>
                     </tr>
                   </tbody>

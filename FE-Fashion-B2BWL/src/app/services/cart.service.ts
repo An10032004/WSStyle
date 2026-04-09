@@ -24,6 +24,13 @@ export interface CartItem {
   isFixedPrice?: boolean; // New flag to skip recalculations
 }
 
+export interface PriceCalculationResult {
+  finalPrice: number;
+  basePrice: number;
+  appliedB2BRule: any | null;
+  appliedQBBreak: any | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -282,7 +289,7 @@ export class CartService {
     );
   }
 
-  private validateClientSide(items: CartItem[]): any[] {
+  public validateClientSide(items: CartItem[]): any[] {
     const results: any[] = [];
     const user = this.auth.currentUserValue;
     const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -403,62 +410,85 @@ export class CartService {
   }
 
   private recalculateItemPrice(item: CartItem) {
-    if (!item.basePrice) return;
-    
-    let base = item.basePrice;
+    if (item.basePrice == null) return;
+    const result = this.calculatePrice(
+      item.productId,
+      item.categoryId,
+      item.basePrice,
+      item.quantity,
+      item.quantityBreaksJson
+    );
+    item.price = result.finalPrice;
+  }
+
+  calculatePrice(
+    productId: number,
+    categoryId: number | null | undefined,
+    basePrice: number,
+    quantity: number,
+    quantityBreaksJson?: string
+  ): PriceCalculationResult {
+    let finalPrice = basePrice;
+    let appliedB2BRule = null;
+    let appliedQBBreak = null;
     const user = this.auth.currentUserValue;
 
     // 1. Apply B2B Pricing Rule
     if (this.pricingRules.length > 0) {
-      const b2bRule = this.findBestPricingRule(item.productId, item.categoryId || null, user);
-      if (b2bRule) {
-        let discountValue = b2bRule.discountValue;
-        let discountType = b2bRule.discountType;
+      appliedB2BRule = this.findBestPricingRule(productId, categoryId || null, user);
+      if (appliedB2BRule) {
+        let discountValue = appliedB2BRule.discountValue;
+        let discountType = appliedB2BRule.discountType;
         
-        // Try parsing nested config if missing top-level
-        if (discountValue == null && b2bRule.actionConfig) {
+        if (discountValue == null && appliedB2BRule.actionConfig) {
           try {
-             const config = JSON.parse(b2bRule.actionConfig);
+             const config = JSON.parse(appliedB2BRule.actionConfig);
              discountValue = config.discountValue;
              discountType = config.discountType;
           } catch(e) {}
         }
 
         if (discountType === 'PERCENTAGE' && discountValue != null) {
-          base = base * (1 - discountValue / 100);
+          finalPrice = finalPrice * (1 - discountValue / 100);
         } else if ((discountType === 'FIXED' || discountType === 'FIXED_AMOUNT') && discountValue != null) {
-          base = Math.max(0, base - discountValue);
+          finalPrice = Math.max(0, finalPrice - discountValue);
         }
       }
     }
 
     // 2. Apply Quantity Break Pricing Rule
-    if (item.quantityBreaksJson) {
+    if (quantityBreaksJson) {
       try {
-        const breaks = JSON.parse(item.quantityBreaksJson);
-        const qty = item.quantity;
-        const matchedBreak = breaks.find((b: any) => {
+        const breaks = JSON.parse(quantityBreaksJson);
+        appliedQBBreak = breaks.find((b: any) => {
           const min = b.min ?? 1;
           const max = b.max ?? 999999999;
-          return qty >= min && qty <= max;
+          return quantity >= min && quantity <= max;
         });
-        if (matchedBreak && matchedBreak.discount != null) {
-          base = base * (1 - matchedBreak.discount / 100);
+        if (appliedQBBreak && appliedQBBreak.discount != null) {
+          finalPrice = finalPrice * (1 - appliedQBBreak.discount / 100);
+        } else {
+          appliedQBBreak = null; // Reset if not matching
         }
       } catch (e) {}
     }
 
-    item.price = base;
+    return {
+      finalPrice,
+      basePrice,
+      appliedB2BRule,
+      appliedQBBreak
+    };
   }
 
-  private findBestPricingRule(productId: number, categoryId: number | null, user: any): any | null {
+  public findBestPricingRule(productId: number, categoryId: number | null, user: any): any | null {
     return this.pricingRules
       .filter(r => this.isCustomerMatch(r, user))
       .filter(r => this.isProductMatch(r, productId, categoryId))
       .sort((a, b) => a.priority - b.priority)[0] || null;
   }
 
-  private isCustomerMatch(rule: any, user: any): boolean {
+  public isCustomerMatch(rule: any, user: any): boolean {
     if (!rule.applyCustomerType || rule.applyCustomerType === 'ALL') return true;
     if (rule.applyCustomerType === 'GUEST') return !user;
     if (rule.applyCustomerType === 'LOGGED_IN') return !!user;
@@ -473,7 +503,7 @@ export class CartService {
     return false;
   }
 
-  private isProductMatch(rule: any, productId: number, categoryId: number | null): boolean {
+  public isProductMatch(rule: any, productId: number, categoryId: number | null): boolean {
     if (!rule.applyProductType || rule.applyProductType === 'ALL') return true;
     if (!rule.applyProductValue) return false;
     try {
