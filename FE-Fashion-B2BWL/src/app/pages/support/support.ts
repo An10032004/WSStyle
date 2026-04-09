@@ -73,9 +73,9 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
               </div>
               <div class="card-content">
                 <h3>Chat trực tuyến</h3>
-                <p>Zalo / Messenger</p>
+                <p>Zalo / Messenger / Direct</p>
                 <span>Phản hồi cực nhanh trong 5p</span>
-                <button tuiButton appearance="secondary" size="s" class="action-btn">Bắt đầu chat</button>
+                <button tuiButton appearance="secondary" size="s" class="action-btn" (click)="openChat()">Bắt đầu chat</button>
               </div>
             </div>
           </div>
@@ -412,4 +412,10 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SupportComponent {}
+export class SupportComponent {
+  openChat() {
+    if ((window as any).openSupportChat) {
+      (window as any).openSupportChat();
+    }
+  }
+}

@@ -465,6 +465,15 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface Conversation {
+  otherUserId: number;
+  otherUserName: string;
+  otherUserAvatar?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  hasUnread: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private base = '/api';
@@ -887,11 +896,19 @@ export class ApiService {
 
   // ─── Messaging ─────────────────────────────────────────
   getChat(user1: number, user2: number): Observable<ChatMessage[]> {
-    return this.http.get<ChatMessage[]>(`${this.base}/messages/chat/${user1}/${user2}`);
+    return this.http.get<ApiResponse<ChatMessage[]>>(`${this.base}/messages/chat/${user1}/${user2}`).pipe(map(r => r.data));
   }
 
   sendMessage(message: Partial<ChatMessage>): Observable<ChatMessage> {
-    return this.http.post<ChatMessage>(`${this.base}/messages`, message);
+    return this.http.post<ApiResponse<ChatMessage>>(`${this.base}/messages`, message).pipe(map(r => r.data));
+  }
+
+  getConversations(): Observable<Conversation[]> {
+    return this.http.get<ApiResponse<Conversation[]>>(`${this.base}/messages/conversations`).pipe(map(r => r.data));
+  }
+
+  markMessagesAsRead(senderId: number, receiverId: number): Observable<void> {
+    return this.http.post<ApiResponse<void>>(`${this.base}/messages/read-all/${senderId}/${receiverId}`, {}).pipe(map(r => r.data));
   }
 
   // ─── RBAC / Roles ──────────────────────────────────────
