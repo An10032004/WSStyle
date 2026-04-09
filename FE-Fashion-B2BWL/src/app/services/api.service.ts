@@ -446,12 +446,14 @@ export interface WalletTransaction {
 export interface ProductReview {
   id: number;
   productId: number;
-  userId: number;
+  userName?: string;
+  productName?: string;
+  productImage?: string;
   rating: number;
-  comment?: string;
+  comment: string;
   replyMessage?: string;
-  isPinned: boolean;
-  createdAt: string;
+  isPinned?: boolean;
+  createdAt?: string;
 }
 
 export interface ChatMessage {
@@ -750,12 +752,12 @@ export class ApiService {
     }).pipe(map(r => r.data));
   }
 
-  getReviewsByProduct(productId: number): Observable<any[]> {
-    return this.http.get<ApiResponse<any[]>>(`${this.base}/reviews/product/${productId}`).pipe(map(r => r.data));
+  getReviewsByProduct(productId: number): Observable<ProductReview[]> {
+    return this.http.get<ApiResponse<ProductReview[]>>(`${this.base}/reviews/product/${productId}`).pipe(map(r => r.data));
   }
 
-  submitReview(review: any): Observable<any> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/reviews`, review).pipe(map(r => r.data));
+  submitReview(review: any): Observable<ProductReview> {
+    return this.http.post<ApiResponse<ProductReview>>(`${this.base}/reviews`, review).pipe(map(r => r.data));
   }
 
   updateReview(id: number, review: any): Observable<any> {
@@ -876,11 +878,11 @@ export class ApiService {
 
   // ─── Reviews ───────────────────────────────────────────
   getReviews(): Observable<ProductReview[]> {
-    return this.http.get<ProductReview[]>(`${this.base}/reviews`);
+    return this.http.get<ApiResponse<ProductReview[]>>(`${this.base}/reviews`).pipe(map(r => r.data));
   }
 
   replyToReview(reviewId: number, message: string): Observable<ProductReview> {
-    return this.http.post<ProductReview>(`${this.base}/reviews/${reviewId}/reply`, message);
+    return this.http.post<ApiResponse<ProductReview>>(`${this.base}/reviews/${reviewId}/reply`, message).pipe(map(r => r.data));
   }
 
   // ─── Messaging ─────────────────────────────────────────
