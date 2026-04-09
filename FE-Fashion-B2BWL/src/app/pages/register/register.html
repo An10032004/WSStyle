@@ -16,6 +16,7 @@
         <label tuiLabel>FULL NAME</label>
         <tui-textfield
           tuiTextfieldSize="m"
+          tuiHintContent="Nhập tên thật để thuận tiện cho việc giao hàng."
         >
           <input
             tuiTextfield
@@ -24,16 +25,16 @@
             placeholder="Your Name"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="fullName"
-          [error]="[] | tuiFieldError | async"
-        ></tui-error>
+        <div *ngIf="registerForm.get('fullName')?.errors?.['required'] && registerForm.get('fullName')?.touched" class="field-error">
+          Họ và tên không được để trống.
+        </div>
       </div>
 
       <div class="form-field">
         <label tuiLabel>EMAIL ADDRESS</label>
         <tui-textfield
           tuiTextfieldSize="m"
+          tuiHintContent="Lưu ý: Email không được trùng với tài khoản khác."
         >
           <input
             tuiTextfield
@@ -42,16 +43,22 @@
             placeholder="example@mail.com"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="email"
-          [error]="[] | tuiFieldError | async"
-        ></tui-error>
+        <div *ngIf="registerForm.get('email')?.errors?.['required'] && registerForm.get('email')?.touched" class="field-error">
+          Email không được để trống.
+        </div>
+        <div *ngIf="registerForm.get('email')?.errors?.['email'] && registerForm.get('email')?.touched" class="field-error">
+          Định dạng email chưa đúng (VD: example@mail.com).
+        </div>
+        <div *ngIf="registerForm.get('email')?.hasError('emailExists') && registerForm.get('email')?.touched" class="field-error">
+          Email này đã được đăng ký. Vui lòng sử dụng email khác.
+        </div>
       </div>
 
       <div class="form-field">
         <label tuiLabel>PHONE NUMBER</label>
         <tui-textfield
           tuiTextfieldSize="m"
+          tuiHintContent="Nhập 10 chữ số, bắt đầu bằng số 0. Ví dụ: 0906880960"
         >
           <input
             tuiTextfield
@@ -60,10 +67,15 @@
             placeholder="0123 456 789"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="phone"
-          [error]="[] | tuiFieldError | async"
-        ></tui-error>
+        <div *ngIf="registerForm.get('phone')?.errors?.['required'] && registerForm.get('phone')?.touched" class="field-error">
+          Số điện thoại không được để trống.
+        </div>
+        <div *ngIf="registerForm.get('phone')?.errors?.['pattern'] && registerForm.get('phone')?.touched" class="field-error">
+          SĐT phải có 10 chữ số và bắt đầu bằng số 0 (VD: 0912345678).
+        </div>
+        <div *ngIf="registerForm.get('phone')?.hasError('phoneExists') && registerForm.get('phone')?.touched" class="field-error">
+          Số điện thoại này đã được sử dụng. Vui lòng kiểm tra lại.
+        </div>
       </div>
 
       <div class="form-field">
@@ -71,6 +83,7 @@
         <tui-textfield
           tuiTextfieldSize="m"
           tuiPassword
+          tuiHintContent="Tối thiểu 6 ký tự. KHÔNG ĐƯỢC trùng với Email hoặc Số điện thoại."
         >
           <input
             tuiTextfield
@@ -79,10 +92,15 @@
             placeholder="Minimum 6 characters"
           />
         </tui-textfield>
-        <tui-error
-          formControlName="password"
-          [error]="[] | tuiFieldError | async"
-        ></tui-error>
+        <div *ngIf="registerForm.get('password')?.errors?.['required'] && registerForm.get('password')?.touched" class="field-error">
+          Mật khẩu không được để trống.
+        </div>
+        <div *ngIf="registerForm.get('password')?.errors?.['minlength'] && registerForm.get('password')?.touched" class="field-error">
+          Mật khẩu phải dài ít nhất 6 ký tự.
+        </div>
+        <div *ngIf="registerForm.hasError('passwordPolicy') && registerForm.get('password')?.touched" class="field-error">
+          BẢO MẬT: Mật khẩu không được giống Email hoặc Số điện thoại.
+        </div>
       </div>
 
       <div class="actions">

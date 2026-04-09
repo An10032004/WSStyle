@@ -125,6 +125,14 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public boolean existsByEmail(String email) {
+        return userRepository.findByEmail(email).isPresent();
+    }
+
+    public boolean existsByPhone(String phone) {
+        return userRepository.findByPhone(phone).isPresent();
+    }
+
     @Transactional
     public void deleteUser(Integer id) {
         userRepository.deleteById(id);

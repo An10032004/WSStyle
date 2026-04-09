@@ -501,6 +501,15 @@ export class ApiService {
     return this.http.delete<ApiResponse<void>>(`${this.base}/categories/${id}`).pipe(map(r => r.data));
   }
 
+  // ─── Auth ─────────────────────────────────────────────
+  checkEmail(email: string): Observable<boolean> {
+    return this.http.get<boolean>(`${this.base}/auth/check-email`, { params: { email } });
+  }
+
+  checkPhone(phone: string): Observable<boolean> {
+    return this.http.get<boolean>(`${this.base}/auth/check-phone`, { params: { phone } });
+  }
+
   // ─── Products ──────────────────────────────────────────
   getProducts(userId?: number): Observable<Product[]> {
     const url = userId ? `${this.apiUrl}/products?userId=${userId}` : `${this.apiUrl}/products`;

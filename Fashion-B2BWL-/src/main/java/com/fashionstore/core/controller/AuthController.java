@@ -70,6 +70,16 @@ public class AuthController {
                         .build()));
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<Boolean> checkEmail(@RequestParam String email) {
+        return ResponseEntity.ok(userService.existsByEmail(email));
+    }
+
+    @GetMapping("/check-phone")
+    public ResponseEntity<Boolean> checkPhone(@RequestParam String phone) {
+        return ResponseEntity.ok(userService.existsByPhone(phone));
+    }
+
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
