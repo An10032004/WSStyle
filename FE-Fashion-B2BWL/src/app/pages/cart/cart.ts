@@ -154,8 +154,9 @@ export class CartComponent implements OnInit {
   }
 
   updateQuantity(item: CartItem, newQty: number) {
-    this.cartService.updateQuantity(item.productId, item.variantId, newQty);
-    this.revalidate();
+    this.cartService.updateQuantity(item.productId, item.variantId, newQty).subscribe(() => {
+      this.revalidate();
+    });
   }
 
   removeItem(item: CartItem) {

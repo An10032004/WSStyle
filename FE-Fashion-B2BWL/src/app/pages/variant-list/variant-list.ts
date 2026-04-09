@@ -67,8 +67,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
   formErrors: Record<string, string> = {};
 
   // Simple preset options for selection UI; can be expanded later or loaded from API
-  colorOptions: string[] = ['Red', 'Blue', 'Black', 'White', 'Green', 'Yellow'];
-  sizeOptions: string[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  colorOptions: string[] = ['Đỏ', 'Xanh dương', 'Đen', 'Trắng', 'Xanh lá', 'Vàng', 'Hồng', 'Xám', 'Cam', 'Tím', 'Be', 'Nâu', 'Navy', 'Kem'];
+  sizeOptions: string[] = ['FREE','XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35'];
 
   currentLanguage: string = 'vi';
   langSub!: Subscription;

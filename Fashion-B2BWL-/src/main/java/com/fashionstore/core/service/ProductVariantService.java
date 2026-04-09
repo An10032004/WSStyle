@@ -68,7 +68,6 @@ public class ProductVariantService {
                 .product(product)
                 .sku(request.getSku())
                 .stockQuantity(request.getStockQuantity())
-                .priceAdjustment(request.getPriceAdjustment())
                 .imageUrl(request.getImageUrl())
                 .color(request.getColor())
                 .size(request.getSize())
@@ -78,7 +77,6 @@ public class ProductVariantService {
                 .height(request.getHeight())
                 .costPrice(request.getCostPrice())
                 .price(request.getPrice())
-                .discountPrice(request.getDiscountPrice())
                 .status(request.getStatus())
                 .barcode(request.getBarcode())
             .imageUrls(normalizeImageUrls(request.getImageUrls()))
@@ -100,7 +98,6 @@ public class ProductVariantService {
         variant.setProduct(product);
         variant.setSku(request.getSku());
         variant.setStockQuantity(request.getStockQuantity());
-        variant.setPriceAdjustment(request.getPriceAdjustment());
         variant.setImageUrl(request.getImageUrl());
         variant.setColor(request.getColor());
         variant.setSize(request.getSize());
@@ -110,7 +107,6 @@ public class ProductVariantService {
         variant.setHeight(request.getHeight());
         variant.setCostPrice(request.getCostPrice());
         variant.setPrice(request.getPrice());
-        variant.setDiscountPrice(request.getDiscountPrice());
         variant.setStatus(request.getStatus());
         variant.setBarcode(request.getBarcode());
         variant.setImageUrls(normalizeImageUrls(request.getImageUrls()));

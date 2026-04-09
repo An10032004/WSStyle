@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { ApiService, Product, ProductVariant } from './api.service';
 import { AuthService } from './auth.service';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { map, startWith, switchMap } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { TuiAlertService } from '@taiga-ui/core';
 
@@ -38,10 +38,42 @@ export class CartService {
   private appliedCouponSubject = new BehaviorSubject<any | null>(null);
   appliedCoupon$ = this.appliedCouponSubject.asObservable();
 
+  private pricingRulesSubject = new BehaviorSubject<any[]>([]);
+  pricingRules$ = this.pricingRulesSubject.asObservable();
+
+  private orderLimitsSubject = new BehaviorSubject<any[]>([]);
+  orderLimits$ = this.orderLimitsSubject.asObservable();
+
   private currentUserId: number | null = null;
   
   get appliedCoupon(): any | null {
     return this.appliedCouponSubject.value;
+  }
+
+  private loadPricingRules() {
+    this.api.getPricingRules().subscribe(rules => {
+      const active = rules.filter(r => r.status === 'ACTIVE');
+      this.pricingRulesSubject.next(active);
+      this.refreshCartPrices();
+    });
+    this.api.getOrderLimits().subscribe(limits => {
+      const active = limits.filter(l => l.status === 'ACTIVE');
+      this.orderLimitsSubject.next(active);
+    });
+  }
+
+  get pricingRules(): any[] {
+    return this.pricingRulesSubject.value;
+  }
+
+  get orderLimits(): any[] {
+    return this.orderLimitsSubject.value;
+  }
+
+  private refreshCartPrices() {
+    const items = this.currentItems;
+    items.forEach(i => this.recalculateItemPrice(i));
+    this.saveCart(items);
   }
 
   applyCoupon(code: string) {
@@ -73,6 +105,7 @@ export class CartService {
         // User becomes Guest or User Switch
         this.cartSubject.next(this.loadCart(this.currentUserId));
       }
+      this.loadPricingRules();
     });
   }
 
@@ -191,23 +224,25 @@ export class CartService {
       items[existingIndex].quantity += quantity;
       this.recalculateItemPrice(items[existingIndex]);
     } else {
-      items.push({
+      const newItem: CartItem = {
         productId: product.id,
         variantId: variant.id,
         name: product.name,
         color: variant?.color,
         size: variant?.size,
-        price: price,
+        price: price, // Initial, will be recalculated
         quantity: quantity,
         imageUrl: variant?.imageUrl || product.imageUrl,
         categoryId: product.categoryId || undefined,
         selected: true,
         isNetTermEligible: product.isNetTermEligible,
         netTermDays: product.netTermDays,
-        basePrice: hasVariantPrice ? (variant?.discountPrice || variant?.price) : product.basePrice,
+        basePrice: variant?.price || product.basePrice,
         quantityBreaksJson: product.quantityBreaksJson,
-        isFixedPrice: hasVariantPrice
-      });
+        isFixedPrice: false // Always allow recalculation from base
+      };
+      this.recalculateItemPrice(newItem);
+      items.push(newItem);
     }
 
     this.saveCart(items);
@@ -225,58 +260,180 @@ export class CartService {
 
   /** Chỉ kiểm tra các dòng được chọn (đồng bộ với tổng tiền checkout). */
   validate(): Observable<any[]> {
-    const items = this.cartSubject.value
-      .filter(i => i.selected !== false)
-      .map(i => ({
+    const selectedItems = this.cartSubject.value.filter(i => i.selected !== false);
+    if (selectedItems.length === 0) return of([]);
+
+    const clientResults = this.validateClientSide(selectedItems);
+    
+    // Still call server-side as backup, but return client results immediately if any failures found there
+    return this.auth.user$.pipe(
+      switchMap(user => this.api.validateCart(user?.id, selectedItems.map(i => ({
         productId: i.productId,
         categoryId: i.categoryId,
         quantity: i.quantity,
         price: i.price
-      }));
-
-    if (items.length === 0) return of([]);
-
-    return this.auth.user$.pipe(
-      switchMap(user => this.api.validateCart(user?.id, items))
+      })))),
+      map(serverResults => {
+          // Merge results if needed, but usually server matches client
+          return serverResults; 
+      }),
+      // Default to client results if server is slow or failed (optional)
+      startWith(clientResults)
     );
   }
 
-  updateQuantity(productId: number, variantId: number | undefined, quantity: number) {
+  private validateClientSide(items: CartItem[]): any[] {
+    const results: any[] = [];
+    const user = this.auth.currentUserValue;
+    const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+
+    // Filter and sort active rules by priority (lower is higher priority)
+    const activeLimits = this.orderLimits
+      .filter(l => l.status === 'ACTIVE')
+      .sort((a, b) => (a.priority || 999) - (b.priority || 999));
+
+    // Helper to check if a rule is already overridden by a higher priority rule for the same "axis" (QTY/AMT)
+    const axisWinners: Set<string> = new Set();
+
+    // 1. Check Order-Level (PER_ORDER)
+    const orderLimits = activeLimits.filter(l => l.limitLevel === 'PER_ORDER' && this.isCustomerMatch(l, user));
+    
+    for (const rule of orderLimits) {
+      const isQty = rule.limitType === 'MIN_ORDER_QUANTITY' || rule.limitType === 'MIN_ORDER_QTY' || rule.limitType === 'MAX_ORDER_QUANTITY' || rule.limitType === 'MAX_ORDER_QTY';
+      const isAmt = rule.limitType === 'MIN_ORDER_VALUE' || rule.limitType === 'MIN_ORDER_VAL' || rule.limitType === 'MIN_ORDER_AMOUNT' || rule.limitType === 'MAX_ORDER_AMOUNT';
+      
+      const axisKey = isQty ? 'ORDER_QTY' : (isAmt ? 'ORDER_AMT' : null);
+      if (!axisKey || axisWinners.has(axisKey)) continue;
+
+      // Handle MIN
+      if (rule.limitType.startsWith('MIN')) {
+          if (isQty && totalQuantity < rule.limitValue) {
+            results.push({ success: false, message: `Tổng số lượng sản phẩm tối thiểu là ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")` });
+          } else if (isAmt && totalAmount < rule.limitValue) {
+            results.push({ success: false, message: `Giá trị đơn hàng tối thiểu là ${rule.limitValue.toLocaleString()} ₫. Hiện tại: ${totalAmount.toLocaleString()} ₫ (theo "${rule.name}")` });
+          }
+      }
+      // Handle MAX
+      if (rule.limitType.startsWith('MAX')) {
+          if (isQty && totalQuantity > rule.limitValue) {
+            results.push({ success: false, message: `Tổng số lượng vượt tối đa ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")` });
+          } else if (isAmt && totalAmount > rule.limitValue) {
+            results.push({ success: false, message: `Giá trị đơn hàng vượt tối đa ${rule.limitValue.toLocaleString()} ₫. (theo "${rule.name}")` });
+          }
+      }
+      
+      // If we applied a rule for this axis, assume it's the winner for PER_ORDER (simplified)
+      axisWinners.add(axisKey);
+    }
+
+    // 2. Check Line-Level (PER_PRODUCT / PER_VARIANT)
+    items.forEach(item => {
+        const itemWinners = new Set<string>();
+        const productLimits = activeLimits.filter(l => 
+            (l.limitLevel === 'PER_PRODUCT' || l.limitLevel === 'PER_VARIANT') && 
+            this.isCustomerMatch(l, user) && 
+            this.isProductMatch(l, item.productId, item.categoryId || null)
+        );
+
+        for (const rule of productLimits) {
+            const isQty = rule.limitType.includes('QTY') || rule.limitType.includes('QUANTITY');
+            const isAmt = rule.limitType.includes('VAL') || rule.limitType.includes('VALUE') || rule.limitType.includes('AMOUNT');
+            const axisKey = isQty ? 'ITEM_QTY' : (isAmt ? 'ITEM_AMT' : null);
+            
+            if (!axisKey || itemWinners.has(axisKey)) continue;
+
+            if (rule.limitType.startsWith('MIN')) {
+                if (isQty && item.quantity < rule.limitValue) {
+                    results.push({ success: false, message: `Sản phẩm "${item.name}" cần tối thiểu ${rule.limitValue} chiếc.` });
+                } else if (isAmt && (item.price * item.quantity) < rule.limitValue) {
+                    results.push({ success: false, message: `Sản phẩm "${item.name}" cần giá trị tối thiểu ${rule.limitValue.toLocaleString()} ₫.` });
+                }
+            } else if (rule.limitType.startsWith('MAX')) {
+                if (isQty && item.quantity > rule.limitValue) {
+                    results.push({ success: false, message: `Sản phẩm "${item.name}" tối đa chỉ được mua ${rule.limitValue} chiếc.` });
+                } else if (isAmt && (item.price * item.quantity) > rule.limitValue) {
+                    results.push({ success: false, message: `Sản phẩm "${item.name}" tối đa chỉ được mua giá trị ${rule.limitValue.toLocaleString()} ₫.` });
+                }
+            }
+            itemWinners.add(axisKey);
+        }
+    });
+
+    return results;
+  }
+
+  updateQuantity(productId: number, variantId: number | undefined, quantity: number): Observable<void> {
     if (quantity < 1) {
       this.removeItem(productId, variantId);
-      return;
+      return of(undefined);
     }
-    (async () => {
-      // If variant known, validate against current stock before updating
-      if (variantId != null) {
-        try {
-          const variants = await firstValueFrom(this.api.getProductVariantsByProduct(productId));
-          const variant = (variants || []).find((v: any) => v.id === variantId);
-          if (variant && variant.stockQuantity != null) {
-            if (variant.stockQuantity < quantity) {
-              this.alerts.open(`Chỉ còn ${variant.stockQuantity} chiếc khả dụng cho biến thể này.`, { label: 'Số lượng vượt quá', appearance: 'warning' }).subscribe();
-              return;
+    
+    // Create an observable for the update process
+    return new Observable<void>(observer => {
+      (async () => {
+        // If variant known, validate against current stock before updating
+        if (variantId != null) {
+          try {
+            const variants = await firstValueFrom(this.api.getProductVariantsByProduct(productId));
+            const variant = (variants || []).find((v: any) => v.id === variantId);
+            if (variant && variant.stockQuantity != null) {
+              if (variant.stockQuantity < quantity) {
+                this.alerts.open(`Chỉ còn ${variant.stockQuantity} chiếc khả dụng cho biến thể này.`, { label: 'Số lượng vượt quá', appearance: 'warning' }).subscribe();
+                observer.complete();
+                return;
+              }
             }
+          } catch (e) {
+            // ignore API errors and allow update as fallback
           }
-        } catch (e) {
-          // ignore API errors and allow update as fallback
         }
-      }
 
-      const items = this.currentItems;
-      const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
-      if (idx > -1) {
-        items[idx].quantity = quantity;
-        this.recalculateItemPrice(items[idx]); // Update unit price for bulk
-        this.saveCart(items);
-      }
-    })();
+        const items = this.currentItems;
+        const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
+        if (idx > -1) {
+          items[idx].quantity = quantity;
+          this.recalculateItemPrice(items[idx]); // Update unit price for bulk
+          this.saveCart(items);
+        }
+        observer.next();
+        observer.complete();
+      })();
+    });
   }
 
   private recalculateItemPrice(item: CartItem) {
-    if (item.isFixedPrice) return; // Skip recalculation for fixed variant prices
+    if (!item.basePrice) return;
     
-    if (item.quantityBreaksJson && item.basePrice) {
+    let base = item.basePrice;
+    const user = this.auth.currentUserValue;
+
+    // 1. Apply B2B Pricing Rule
+    if (this.pricingRules.length > 0) {
+      const b2bRule = this.findBestPricingRule(item.productId, item.categoryId || null, user);
+      if (b2bRule) {
+        let discountValue = b2bRule.discountValue;
+        let discountType = b2bRule.discountType;
+        
+        // Try parsing nested config if missing top-level
+        if (discountValue == null && b2bRule.actionConfig) {
+          try {
+             const config = JSON.parse(b2bRule.actionConfig);
+             discountValue = config.discountValue;
+             discountType = config.discountType;
+          } catch(e) {}
+        }
+
+        if (discountType === 'PERCENTAGE' && discountValue != null) {
+          base = base * (1 - discountValue / 100);
+        } else if ((discountType === 'FIXED' || discountType === 'FIXED_AMOUNT') && discountValue != null) {
+          base = Math.max(0, base - discountValue);
+        }
+      }
+    }
+
+    // 2. Apply Quantity Break Pricing Rule
+    if (item.quantityBreaksJson) {
       try {
         const breaks = JSON.parse(item.quantityBreaksJson);
         const qty = item.quantity;
@@ -286,14 +443,51 @@ export class CartService {
           return qty >= min && qty <= max;
         });
         if (matchedBreak && matchedBreak.discount != null) {
-          item.price = item.basePrice * (1 - matchedBreak.discount / 100);
-        } else {
-          item.price = item.basePrice;
+          base = base * (1 - matchedBreak.discount / 100);
         }
-      } catch (e) {
-        item.price = item.basePrice;
-      }
+      } catch (e) {}
     }
+
+    item.price = base;
+  }
+
+  private findBestPricingRule(productId: number, categoryId: number | null, user: any): any | null {
+    return this.pricingRules
+      .filter(r => this.isCustomerMatch(r, user))
+      .filter(r => this.isProductMatch(r, productId, categoryId))
+      .sort((a, b) => a.priority - b.priority)[0] || null;
+  }
+
+  private isCustomerMatch(rule: any, user: any): boolean {
+    if (!rule.applyCustomerType || rule.applyCustomerType === 'ALL') return true;
+    if (rule.applyCustomerType === 'GUEST') return !user;
+    if (rule.applyCustomerType === 'LOGGED_IN') return !!user;
+    if (rule.applyCustomerType === 'GROUP' && rule.applyCustomerValue) {
+      if (!user || !user.customerGroup) return false;
+      try {
+        const val = JSON.parse(rule.applyCustomerValue);
+        const groupIds = val.groupIds || [];
+        return groupIds.includes(user.customerGroup.id);
+      } catch (e) { return false; }
+    }
+    return false;
+  }
+
+  private isProductMatch(rule: any, productId: number, categoryId: number | null): boolean {
+    if (!rule.applyProductType || rule.applyProductType === 'ALL') return true;
+    if (!rule.applyProductValue) return false;
+    try {
+      const val = JSON.parse(rule.applyProductValue);
+      if (rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP') {
+        const categoryIds = val.categoryIds || [];
+        return categoryId !== null && categoryIds.includes(categoryId);
+      }
+      if (rule.applyProductType === 'SPECIFIC') {
+        const productIds = val.productIds || [];
+        return productIds.includes(productId);
+      }
+    } catch (e) { return false; }
+    return false;
   }
 
   removeItem(productId: number, variantId: number | undefined) {

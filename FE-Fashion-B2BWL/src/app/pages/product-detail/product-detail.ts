@@ -284,8 +284,7 @@ export class ProductDetailComponent implements OnInit {
   }
 
   loadOrderLimits(productId: number, categoryId: number | null | undefined) {
-    this.api.getOrderLimits().subscribe(rules => {
-      const activeRules = rules.filter(r => r.status === 'ACTIVE');
+      const activeRules = this.cart.orderLimits;
       const user = this.auth.currentUserValue;
 
       const matchedRules = activeRules.filter((r) =>
@@ -325,7 +324,6 @@ export class ProductDetailComponent implements OnInit {
       this.quantity = Math.max(1, q);
 
       this.cdr.detectChanges();
-    });
   }
 
   loadReviews(productId: number) {
@@ -441,15 +439,20 @@ export class ProductDetailComponent implements OnInit {
         this.brandName = p.brand || 'NO BRAND';
         this.cdr.detectChanges();
         this.loadVariants(id);
-        this.loadPricingRules(id, p.categoryId);
-        this.loadOrderLimits(p.id, p.categoryId);
+        
+        // Use CartService rules if already loaded, or they will update automatically via subscription
+        this.cart.pricingRules$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+           this.loadPricingRules(id, p.categoryId);
+        });
+        this.cart.orderLimits$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+           this.loadOrderLimits(id, p.categoryId);
+        });
       });
     }
   }
 
   loadPricingRules(productId: number, categoryId: number | null | undefined) {
-    this.api.getPricingRules().subscribe(rules => {
-      const activeRules = rules.filter(r => r.status === 'ACTIVE');
+      const activeRules = this.cart.pricingRules;
       const user = this.auth.currentUserValue;
 
       this.qbRules = activeRules.filter((r) => {
@@ -480,7 +483,6 @@ export class ProductDetailComponent implements OnInit {
       }
 
       this.cdr.detectChanges();
-    });
   }
 
   loadVariants(productId: number) {

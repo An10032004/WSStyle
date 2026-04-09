@@ -21,8 +21,6 @@ public class ProductRequest {
     @NotBlank(message = "Tên sản phẩm không được để trống")
     private String name;
 
-    @NotNull(message = "Giá gốc không được để trống")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Giá gốc phải lớn hơn hoặc bằng 0")
     private BigDecimal basePrice;
 
     private String material;

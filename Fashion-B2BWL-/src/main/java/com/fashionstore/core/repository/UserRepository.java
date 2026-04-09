@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findByEmail(String email);
+    Optional<User> findByPhone(String phone);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.customerGroup WHERE u.id = :id")
     Optional<User> findByIdWithCustomerGroup(@Param("id") Integer id);

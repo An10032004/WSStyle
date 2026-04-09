@@ -41,7 +41,7 @@ public class Product {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "base_price", nullable = false, precision = 15, scale = 2)
+    @Column(name = "base_price", nullable = true, precision = 15, scale = 2)
     private BigDecimal basePrice;
 
     @Column(name = "image_url")

@@ -52,7 +52,8 @@ public class UserService {
                 .role(request.getRole() != null ? request.getRole() : "RETAIL")
                 .customerGroup(group)
                 .tags(request.getTags())
-                .registrationStatus(request.getRegistrationStatus() != null ? request.getRegistrationStatus() : "APPROVED")
+                .registrationStatus(
+                        request.getRegistrationStatus() != null ? request.getRegistrationStatus() : "APPROVED")
                 .companyName(request.getCompanyName())
                 .taxCode(request.getTaxCode())
                 .build();
@@ -62,29 +63,29 @@ public class UserService {
     @Transactional
     public User updateUser(Integer id, UserRequest request) {
         User user = getUserById(id);
-        
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
+
+        if (request.getEmail() != null)
+            user.setEmail(request.getEmail());
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
         user.setFullName(request.getFullName());
         user.setPhone(request.getPhone());
         user.setRole(request.getRole());
-        
+
         if (request.getCustomerGroupId() != null) {
             user.setCustomerGroup(customerGroupService.getGroupById(request.getCustomerGroupId()));
         } else {
             user.setCustomerGroup(null);
         }
-        
+
         user.setTags(request.getTags());
         user.setRegistrationStatus(request.getRegistrationStatus());
         user.setCompanyName(request.getCompanyName());
         user.setTaxCode(request.getTaxCode());
-        
+
         return userRepository.save(user);
     }
-
 
     @Transactional
     public User register(RegisterRequest request) {
@@ -107,7 +108,7 @@ public class UserService {
 
     public Optional<User> authenticate(LoginRequest request) {
         log.debug("Authenticating user: {}", request.getEmail());
-        
+
         return userRepository.findByEmailWithCustomerGroup(request.getEmail())
                 .filter(user -> {
                     boolean matches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());

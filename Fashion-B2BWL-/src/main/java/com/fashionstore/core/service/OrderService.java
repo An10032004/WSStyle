@@ -159,7 +159,18 @@ public class OrderService {
             order.setDueDate(null);
         }
 
-        // Decrease stock quantities for each order item at creation (reserve stock)
+        // Only deduct stock immediately if order is already APPROVED (e.g. NET_TERMS)
+        if ("APPROVED".equals(order.getStatus())) {
+            deductStock(order);
+        }
+
+        return orderRepository.save(order);
+    }
+
+    private void deductStock(Order order) {
+        if (order.getStockReduced() != null && order.getStockReduced()) return;
+        
+        List<OrderItem> items = order.getItems();
         if (items != null) {
             for (OrderItem item : items) {
                 ProductVariant variant = item.getProductVariant();
@@ -172,8 +183,7 @@ public class OrderService {
                 productVariantRepository.save(variant);
             }
         }
-
-        return orderRepository.save(order);
+        order.setStockReduced(true);
     }
 
     public List<Order> getAllOrders() {
@@ -197,6 +207,9 @@ public class OrderService {
     public Order updateOrderStatus(Integer id, String status) {
         Order order = getOrderById(id);
         order.setStatus(status);
+        if ("APPROVED".equals(status)) {
+            deductStock(order);
+        }
         return orderRepository.save(order);
     }
 
@@ -208,7 +221,7 @@ public class OrderService {
             order.setPaidAmount(order.getTotalAmount());
             order.setDebtAmount(BigDecimal.ZERO);
             order.setStatus("APPROVED");
-            // Stock already reserved on order creation; no double-decrement here.
+            deductStock(order);
         }
         return orderRepository.save(order);
     }
