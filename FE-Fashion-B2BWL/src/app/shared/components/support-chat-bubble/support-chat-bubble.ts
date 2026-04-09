@@ -5,14 +5,14 @@ import { TuiButton, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
 import { ApiService, ChatMessage } from '../../../services/api.service';
 import { AuthService } from '../../../services/auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { interval, Subscription, startWith, switchMap } from 'rxjs';
+import { interval, Subscription, startWith, switchMap, map } from 'rxjs';
 
 @Component({
   selector: 'app-support-chat-bubble',
   standalone: true,
   imports: [CommonModule, FormsModule, TuiButton, TuiIcon, TuiScrollbar],
   template: `
-    <div class="support-chat-container" [class.is-open]="isOpen">
+    <div class="support-chat-container" [class.is-open]="isOpen" *ngIf="isLoggedIn$ | async">
       <!-- CHAT WINDOW -->
       <div class="chat-window luxe-glass" *ngIf="isOpen" [@slideInOut]>
         <div class="chat-header">
@@ -286,6 +286,7 @@ export class SupportChatBubbleComponent implements OnInit, OnDestroy, AfterViewC
   currentUserId: number | null = null;
   adminId = 1;
   unreadCount = 0;
+  isLoggedIn$ = this.auth.user$.pipe(map(u => !!u));
   
   private pollingSub?: Subscription;
 

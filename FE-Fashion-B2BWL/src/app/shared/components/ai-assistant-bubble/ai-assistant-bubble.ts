@@ -1,9 +1,11 @@
-import { Component, inject, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TuiButton, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
 import { ApiService, Product, AIResponse } from '../../../services/api.service';
+import { AuthService } from '../../../services/auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
+import { map } from 'rxjs';
 
 interface Message {
   text: string;
@@ -31,12 +33,14 @@ interface Message {
     ])
   ]
 })
-export class AiAssistantBubbleComponent implements AfterViewChecked {
+export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
   private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
   
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
+  isLoggedIn$ = this.auth.user$.pipe(map(u => !!u));
   isOpen = false;
   isLoading = false;
   userInput = '';
@@ -48,6 +52,10 @@ export class AiAssistantBubbleComponent implements AfterViewChecked {
       time: new Date()
     }
   ];
+
+  ngOnInit() {
+    // Initial load check if needed
+  }
 
   ngAfterViewChecked() {
     this.scrollToBottom();
