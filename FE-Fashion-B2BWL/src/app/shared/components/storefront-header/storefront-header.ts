@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { TuiButton, TuiIcon, TuiDropdown, TuiDataList } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar } from '@taiga-ui/core';
 import { AuthService } from '../../../services/auth.service';
 import { ApiService, Category, Product } from '../../../services/api.service';
 import { CartService } from '../../../services/cart.service';
@@ -12,7 +12,7 @@ import { Observable, map, distinctUntilChanged, switchMap } from 'rxjs';
 @Component({
   selector: 'app-storefront-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList],
+  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar],
   templateUrl: './storefront-header.html',
   styleUrls: ['./storefront-header.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,22 +35,35 @@ export class StorefrontHeaderComponent implements OnInit {
   dropdownOpen = false;
   cartDropdownOpen = false;
   isMegaMenuOpen = false;
+  namOpen = false;
+  nuOpen = false;
+  phuKienOpen = false;
+  brandOpen = false;
 
   categoryTree: Category[] = [];
   navigationItems: { label: string; link: string }[] = [
-    { label: 'Nam', link: '/shop' },
-    { label: 'Nữ', link: '/shop' },
-    { label: 'Phụ kiện', link: '/shop' },
-    { label: 'Thương hiệu', link: '/shop' },
     { label: 'Xếp hạng', link: '/shop' },
     { label: 'Đánh giá', link: '/customer-reviews' },
-    { label: 'Thông tin', link: '/shop' },
     { label: 'Hỗ trợ', link: '/support' }
   ];
 
   allProducts: Product[] = [];
   suggestions: Product[] = [];
   showSuggestions = false;
+  brands: string[] = [];
+  saleProducts: Product[] = [];
+
+  get namCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase() === 'nam');
+  }
+
+  get nuCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase() === 'nữ');
+  }
+
+  get phuKienCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase().includes('phụ kiện'));
+  }
 
   ngOnInit() {
     this.auth.user$
@@ -84,6 +97,19 @@ export class StorefrontHeaderComponent implements OnInit {
       this.categoryTree = roots;
       this.cdr.markForCheck();
       this.cdr.detectChanges();
+    });
+
+    this.api.getProductBrands().subscribe(brands => {
+      this.brands = brands;
+      this.cdr.markForCheck();
+    });
+
+    this.api.searchProducts({}).subscribe(res => {
+      this.saleProducts = res.content.filter(p => (p.calculatedPrice || p.basePrice) < p.basePrice).slice(0, 6);
+      if (this.saleProducts.length === 0) {
+        this.saleProducts = res.content.slice(0, 6); // Fallback to newest if no discounts found
+      }
+      this.cdr.markForCheck();
     });
   }
 

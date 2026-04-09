@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef }
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { ApiService, Product, Category } from '../../services/api.service';
+import { Observable, map, combineLatest } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -87,16 +88,20 @@ export class ShopComponent implements OnInit {
         this.cdr.detectChanges();
     });
 
-    this.route.params.subscribe(params => {
+    combineLatest([this.route.params, this.route.queryParams]).subscribe(([params, queryParams]) => {
         if (params['id']) {
             this.selectedCategoryId = +params['id'];
+        } else {
+            this.selectedCategoryId = null;
         }
-        // applyFilters handles loadProducts and resetting page to 0
-        this.applyFilters();
-    });
 
-    this.route.queryParams.subscribe(params => {
-        this.urlSearchQuery = params['search'] || '';
+        this.urlSearchQuery = queryParams['search'] || '';
+        const brand = queryParams['brand'];
+        if (brand) {
+            this.selectedBrands.clear();
+            this.selectedBrands.add(brand);
+        }
+        
         this.applyFilters();
     });
   }

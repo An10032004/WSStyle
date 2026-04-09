@@ -142,9 +142,10 @@
 }
 
 .category-list, .brand-list {
-  max-height: 220px;
+  max-height: 400px; // Increased from 220px to allow more visibility
   overflow-y: auto;
   padding-right: 5px;
+  touch-action: pan-y; // Ensure touch devices can scroll
 }
 
 .meta-list {
