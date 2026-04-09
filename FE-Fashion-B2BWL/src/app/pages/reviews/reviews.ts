@@ -307,7 +307,7 @@ export class ReviewsComponent {
   private readonly router = inject(Router);
   
   readonly reviews = signal<ProductReview[]>([]);
-  readonly isAdmin = computed(() => this.router.url.startsWith('/reviews'));
+  readonly isAdmin = computed(() => this.router.url.includes('/admin/'));
 
   readonly averageRating = computed(() => {
     const list = this.reviews();

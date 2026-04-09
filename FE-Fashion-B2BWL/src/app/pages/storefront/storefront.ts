@@ -2,8 +2,8 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject, 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
-import { TuiButton, TuiIcon, TuiLabel, TuiDropdown } from '@taiga-ui/core';
-import { TuiBadge, TuiCarousel } from '@taiga-ui/kit';
+import { TuiButton, TuiIcon, TuiDropdown } from '@taiga-ui/core';
+import { TuiCarousel } from '@taiga-ui/kit';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -19,8 +19,6 @@ import { distinctUntilChanged, map, switchMap } from 'rxjs';
     RouterModule, 
     TuiButton, 
     TuiIcon, 
-    TuiLabel, 
-    TuiBadge, 
     TuiCarousel, 
     TranslocoModule, 
     TuiDropdown,

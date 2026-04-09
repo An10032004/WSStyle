@@ -1,106 +1,150 @@
 .login-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #ffffff;
-  padding: 20px;
+  background-color: #fcfcfc;
+  padding: 40px;
+  position: relative;
+  font-family: 'Outfit', sans-serif;
+
+  .top-nav-header {
+    position: absolute;
+    top: 30px;
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+    
+    .nav-extra-link {
+      color: #888;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.3s;
+      
+      &:hover {
+        color: #000;
+      }
+
+      tui-icon {
+        font-size: 16px;
+      }
+    }
+  }
 
   .login-box {
     background: #ffffff;
-    padding: 60px 40px;
+    padding: 60px 50px;
     width: 100%;
-    max-width: 440px;
-    border: 1px solid #eeeeee;
-    border-radius: 4px; // Align with SnapB2B radius
+    max-width: 480px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+    animation: fadeIn 0.8s ease;
 
     .logo-wrapper {
       text-align: center;
       margin-bottom: 40px;
 
       .logo {
-        font-family: var(--font-family);
-        font-weight: 800;
+        font-weight: 900;
         font-size: 28px;
-        color: var(--text-main);
+        color: #000;
         text-decoration: none;
-        letter-spacing: -1.5px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
 
         span {
           font-weight: 300;
           color: #999;
-          font-size: 20px;
+          font-size: 16px;
+          margin-left: 4px;
         }
       }
     }
 
     h3 {
-      font-family: var(--font-family);
-      font-weight: 700;
-      font-size: 24px;
-      margin-bottom: 12px;
+      font-weight: 800;
+      font-size: 26px;
+      margin-bottom: 8px;
       text-align: center;
-      letter-spacing: 0;
-      color: var(--text-main);
+      color: #000;
     }
 
     .subtitle {
       color: #888;
       text-align: center;
       margin-bottom: 40px;
-      font-size: 13px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-size: 14px;
+      font-weight: 400;
     }
 
     .error-alert {
-      background-color: #000;
-      color: #fff; // High contrast for error
-      padding: 12px;
-      margin-bottom: 25px;
-      font-size: 13px;
-      font-weight: 700;
+      background: #fff3f3;
+      border: 1px solid #ffebeb;
+      color: #d32f2f;
+      padding: 14px;
+      margin-bottom: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 12px;
       text-align: center;
-      text-transform: uppercase;
     }
 
     .form-field {
       margin-bottom: 24px;
 
       label[tuiLabel] {
-        font-weight: 800;
+        font-weight: 700;
         font-size: 11px;
-        color: #000;
+        color: #1a1a1a;
         margin-bottom: 8px;
         display: block;
+        text-transform: uppercase;
         letter-spacing: 1.5px;
       }
 
       tui-textfield {
-        border-radius: 0 !important;
-        --tui-field-background: transparent;
-        --tui-field-border: #cccccc;
-        --tui-field-border-hover: #000000;
-        --tui-field-border-active: #000000;
+        --tui-field-background: #fcfcfc;
+        --tui-field-border: #eeeeee;
+        --tui-field-border-hover: #dddddd;
+        --tui-field-border-active: #000;
+        border-radius: 12px !important;
         
         input {
+          color: #000 !important;
           font-weight: 500;
           font-size: 14px;
-          height: 48px;
+          height: 52px;
+          
+          &::placeholder {
+            color: #ccc;
+          }
         }
 
         &[data-state='focused'] {
-          --tui-field-border: #000;
+           background: #fff;
+           box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
       }
       
       tui-error {
-        margin-top: 4px;
+        margin-top: 6px;
         font-size: 11px;
-        font-weight: 700;
-        color: #000;
-        text-transform: uppercase;
+        font-weight: 600;
+        color: #d32f2f;
+      }
+
+      .field-error {
+        color: #d32f2f;
+        font-size: 11px;
+        margin-top: 6px;
       }
     }
 
@@ -110,46 +154,45 @@
       .submit-btn {
         width: 100%;
         height: 54px;
-        background-color: var(--primary) !important;
+        background: #000 !important;
         color: #fff !important;
-        font-weight: 700;
-        font-size: 14px;
+        font-weight: 800;
+        font-size: 15px;
         letter-spacing: 1px;
-        border-radius: 4px;
+        border-radius: 12px;
         transition: all 0.3s;
-        text-transform: uppercase;
 
         &:hover {
-          background-color: var(--primary-hover) !important;
-          transform: translateY(-1px);
+          background-color: #333 !important;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         }
 
         &[disabled] {
-          background-color: #ccc !important;
-          color: #666 !important;
-          cursor: not-allowed;
+          background-color: #eee !important;
+          color: #bbb !important;
         }
       }
     }
 
     .footer-links {
-      margin-top: 30px;
+      margin-top: 35px;
       text-align: center;
-      font-size: 13px;
-      color: #888;
-      font-weight: 500;
+      font-size: 14px;
+      color: #666;
 
       a {
         color: #000;
         font-weight: 800;
-        text-decoration: underline;
-        margin-left: 5px;
-        text-transform: uppercase;
-
-        &:hover {
-          color: #666;
-        }
+        text-decoration: none;
+        margin-left: 6px;
+        &:hover { text-decoration: underline; }
       }
     }
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

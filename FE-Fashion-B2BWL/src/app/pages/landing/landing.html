@@ -1,0 +1,189 @@
+<div class="landing-page" [class.white-theme]="true">
+  <!-- TOP NAVIGATION -->
+  <header class="luxury-nav" [class.scrolled]="isScrolled">
+    <div class="nav-container">
+      <div class="logo">WSSTYLE <span>LUXE</span></div>
+      <div class="nav-links">
+        <a routerLink="/login" class="nav-auth-btn">ĐĂNG NHẬP</a>
+        <a routerLink="/register" class="nav-auth-btn highlight">THÀNH VIÊN</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero-split">
+    <div class="hero-content">
+      <div class="reveal-box">
+        <h1 class="glitch-title">WSSTYLE</h1>
+      </div>
+      <p class="hero-subtitle">KHÁM PHÁ GIAO THOA GIỮA SANG TRỌNG VÀ ĐƯỜNG PHỐ</p>
+      
+      <div class="cta-actions">
+        <button tuiButton appearance="primary" size="xl" routerLink="/storefront" class="main-cta black-btn">
+          MUA SẮM NGAY
+        </button>
+        <div class="member-hint">Chuẩn mực mới cho thời trang B2B cao cấp.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURED SHOWCASE -->
+  <section class="featured-showcase">
+    <div class="container">
+      <div class="section-title-wrap" data-aos="fade-up">
+        <span class="sub-title">BỘ SƯU TẬP MỚI</span>
+        <h2 class="main-title">SẢN PHẨM NỔI BẬT</h2>
+      </div>
+      
+      <div class="product-mini-grid">
+        <div class="product-item" data-aos="fade-up" data-aos-delay="100">
+           <div class="img-box">
+             <img src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop" alt="P1" />
+           </div>
+           <div class="info">
+             <h4>ÁO KHOÁC OVERSIZE LUXURY</h4>
+             <span class="price">1,250,000đ</span>
+           </div>
+        </div>
+        <div class="product-item" data-aos="fade-up" data-aos-delay="200">
+           <div class="img-box">
+             <img src="https://images.unsplash.com/photo-1551028150-64b9f398f678?q=80&w=800&auto=format&fit=crop" alt="P2" />
+           </div>
+           <div class="info">
+             <h4>QUẦN CARGO PHONG CÁCH Ý</h4>
+             <span class="price">980,000đ</span>
+           </div>
+        </div>
+        <div class="product-item" data-aos="fade-up" data-aos-delay="300">
+           <div class="img-box">
+             <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop" alt="P3" />
+           </div>
+           <div class="info">
+             <h4>ÁO THUN WS EXCLUSIVE</h4>
+             <span class="price">550,000đ</span>
+           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHOLESALE MARKETING -->
+  <section class="wholesale-section">
+    <div class="container">
+      <div class="split-content">
+        <div class="text-side" data-aos="fade-right">
+          <span class="badge">ĐỐI TÁC B2B</span>
+          <h2>GIẢI PHÁP TOÀN DIỆN CHO KHÁCH SỈ</h2>
+          <p>WSSTYLE mang đến hệ sinh thái vận hành tối ưu cho các đại lý. Từ quản lý công nợ đến theo dõi đơn hàng thời gian thực.</p>
+          <ul class="benefits">
+            <li><tui-icon icon="@tui.check" /> <strong>Chiết khấu phân tầng:</strong> Tự động áp dụng giá sỉ dựa trên nhóm khách hàng và số lượng.</li>
+            <li><tui-icon icon="@tui.check" /> <strong>Quản lý công nợ:</strong> Theo dõi hạn mức nợ và thanh toán trực tiếp qua hệ thống Ví điện tử.</li>
+            <li><tui-icon icon="@tui.check" /> <strong>Phân tích báo cáo:</strong> Xem biểu đồ tăng trưởng doanh số và các sản phẩm bán chạy nhất.</li>
+          </ul>
+          <button tuiButton appearance="primary" routerLink="/register" class="cta-wholesale black-btn">ĐĂNG KÝ ĐẠI LÝ</button>
+        </div>
+        <div class="image-side" data-aos="fade-left">
+           <div class="admin-preview-wrap">
+             <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1000&auto=format&fit=crop" alt="Dashboard Preview" class="dash-img" />
+             <div class="floating-badge">HỆ THỐNG QUẢN TRỊ</div>
+           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN FEATURES GRID -->
+  <section class="admin-features-showcase">
+    <div class="container">
+      <div class="section-title-wrap">
+        <h2 class="main-title">QUY TRÌNH VẬN HÀNH CHUYÊN NGHIỆP</h2>
+        <p class="sub-desc">Công cụ quản lý mạnh mẽ giúp bạn tiết kiệm 80% thời gian vận hành</p>
+      </div>
+
+      <div class="features-columns">
+        <div class="f-col" data-aos="fade-up">
+           <div class="f-icon-box"><tui-icon icon="@tui.layout-grid" /></div>
+           <h4>Bảng điều chỉnh thông minh</h4>
+           <p>Theo dõi mọi chỉ số kinh doanh tại một nơi duy nhất với biểu đồ Real-time.</p>
+        </div>
+        <div class="f-col" data-aos="fade-up" data-aos-delay="100">
+           <div class="f-icon-box"><tui-icon icon="@tui.bot" /></div>
+           <h4>Trợ lý AI (RAG)</h4>
+           <p>Tư vấn nhập hàng và giải đáp thắc mắc kỹ thuật thông qua trí tuệ nhân tạo tích hợp.</p>
+        </div>
+        <div class="f-col" data-aos="fade-up" data-aos-delay="200">
+           <div class="f-icon-box"><tui-icon icon="@tui.wallet" /></div>
+           <h4>Hệ thống Ví & Thanh toán</h4>
+           <p>Thanh toán nhanh chóng, tích điểm và quản lý lịch sử giao dịch minh bạch.</p>
+        </div>
+        <div class="f-col" data-aos="fade-up" data-aos-delay="300">
+           <div class="f-icon-box"><tui-icon icon="@tui.zap" /></div>
+           <h4>Chiến dịch & Promotion</h4>
+           <p>Tự động cập nhật các chương trình khuyến mãi và GWP (Quà tặng kèm) độc quyền.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICK ORDER DEMO -->
+  <section class="quick-order-intro">
+    <div class="container">
+      <div class="dark-box" data-aos="zoom-in">
+        <div class="box-content">
+           <span class="demo-tag">CÔNG CỤ ĐỘC QUYỀN</span>
+           <h2>ĐẶT HÀNG NHANH CHÓNG</h2>
+           <p>Tiết kiệm thời gian bằng cách nhập mã SKU và số lượng trực tiếp. Hoàn tất đơn sỉ hàng trăm món chỉ trong 1 phút.</p>
+           
+           <!-- MINI DEMO FORM -->
+           <div class="demo-form-preview">
+              <div class="demo-input-row">
+                <div class="demo-input">
+                  <label>MÃ SẢN PHẨM (SKU)</label>
+                  <div class="fake-input">WS-JACKET-BLK-XL</div>
+                </div>
+                <div class="demo-input small">
+                  <label>SỐ LƯỢNG</label>
+                  <div class="fake-input">12</div>
+                </div>
+                <div class="demo-action">
+                   <button class="add-btn"><tui-icon icon="@tui.plus" /></button>
+                </div>
+              </div>
+              <div class="demo-hint">Hệ thống sẽ tự động kiểm tra tồn kho và áp dụng giá sỉ ngay lập tức.</div>
+           </div>
+
+           <button tuiButton appearance="white-grayscale" routerLink="/quick-order" class="demo-main-cta">TRẢI NGHIỆM NGAY</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARTNERS -->
+  <section class="partner-logos">
+    <div class="container">
+      <p class="partner-label">ĐỐI TÁC CHIẾN LƯỢC</p>
+      <div class="logo-row">
+        <div class="p-logo">BRAND A</div>
+        <div class="p-logo">EST. 2024</div>
+        <div class="p-logo">LUXE CO.</div>
+        <div class="p-logo">STREET ARCH</div>
+        <div class="p-logo">GLOBAL F.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="landing-footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="f-logo">WSSTYLE</div>
+        <div class="f-links">
+           <a routerLink="/storefront">Cửa hàng</a>
+           <a routerLink="/login">Tài khoản</a>
+           <a routerLink="/support">Hỗ trợ</a>
+        </div>
+        <p>&copy; 2026 WSSTYLE REGISTRY. Một biểu tượng của sự đẳng cấp.</p>
+      </div>
+    </div>
+  </footer>
+</div>

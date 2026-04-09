@@ -1,11 +1,17 @@
 <div class="login-container">
+  <!-- TOP NAV ACTIONS -->
+  <div class="top-nav-header">
+    <a routerLink="/" class="nav-extra-link"><tui-icon icon="@tui.chevron-left"></tui-icon> TRANG CHỦ</a>
+    <a routerLink="/storefront" class="nav-extra-link">VÀO CỬA HÀNG <tui-icon icon="@tui.shopping-bag"></tui-icon></a>
+  </div>
+
   <div class="login-box">
     <div class="logo-wrapper">
-      <a routerLink="/storefront" class="logo">DOSI-IN <span>CLONE</span></a>
+      <a routerLink="/storefront" class="logo">WSSTYLE <span>LUXE</span></a>
     </div>
     
-    <h3>REGISTER</h3>
-    <p class="subtitle">Join our streetwear community today</p>
+    <h3>ĐĂNG KÝ</h3>
+    <p class="subtitle">Tham gia cộng đồng thời trang WSSTYLE ngay hôm nay</p>
 
     <div *ngIf="errorMsg" class="error-alert">
       {{ errorMsg }}
@@ -13,17 +19,9 @@
 
     <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
       <div class="form-field">
-        <label tuiLabel>FULL NAME</label>
-        <tui-textfield
-          tuiTextfieldSize="m"
-          tuiHintContent="Nhập tên thật để thuận tiện cho việc giao hàng."
-        >
-          <input
-            tuiTextfield
-            type="text"
-            formControlName="fullName"
-            placeholder="Your Name"
-          />
+        <label tuiLabel>HỌ VÀ TÊN</label>
+        <tui-textfield tuiTextfieldSize="m" tuiHintContent="Nhập tên thật để thuận tiện cho việc giao hàng.">
+          <input tuiTextfield type="text" formControlName="fullName" placeholder="Your Name" />
         </tui-textfield>
         <div *ngIf="registerForm.get('fullName')?.errors?.['required'] && registerForm.get('fullName')?.touched" class="field-error">
           Họ và tên không được để trống.
@@ -31,94 +29,46 @@
       </div>
 
       <div class="form-field">
-        <label tuiLabel>EMAIL ADDRESS</label>
-        <tui-textfield
-          tuiTextfieldSize="m"
-          tuiHintContent="Lưu ý: Email không được trùng với tài khoản khác."
-        >
-          <input
-            tuiTextfield
-            type="email"
-            formControlName="email"
-            placeholder="example@mail.com"
-          />
+        <label tuiLabel>ĐỊA CHỈ EMAIL</label>
+        <tui-textfield tuiTextfieldSize="m" tuiHintContent="Lưu ý: Email không được trùng với tài khoản khác.">
+          <input tuiTextfield type="email" formControlName="email" placeholder="example@mail.com" />
         </tui-textfield>
-        <div *ngIf="registerForm.get('email')?.errors?.['required'] && registerForm.get('email')?.touched" class="field-error">
-          Email không được để trống.
-        </div>
-        <div *ngIf="registerForm.get('email')?.errors?.['email'] && registerForm.get('email')?.touched" class="field-error">
-          Định dạng email chưa đúng (VD: example@mail.com).
-        </div>
-        <div *ngIf="registerForm.get('email')?.hasError('emailExists') && registerForm.get('email')?.touched" class="field-error">
-          Email này đã được đăng ký. Vui lòng sử dụng email khác.
-        </div>
+        <!-- (Validation messages removed for brevity in chunk, assumed to stay same as previous) -->
+        <div *ngIf="registerForm.get('email')?.errors?.['required'] && registerForm.get('email')?.touched" class="field-error">Email không được để trống.</div>
+        <div *ngIf="registerForm.get('email')?.errors?.['email'] && registerForm.get('email')?.touched" class="field-error">Định dạng email chưa đúng.</div>
+        <div *ngIf="registerForm.get('email')?.hasError('emailExists') && registerForm.get('email')?.touched" class="field-error">Email đã được đăng ký.</div>
       </div>
 
       <div class="form-field">
-        <label tuiLabel>PHONE NUMBER</label>
-        <tui-textfield
-          tuiTextfieldSize="m"
-          tuiHintContent="Nhập 10 chữ số, bắt đầu bằng số 0. Ví dụ: 0906880960"
-        >
-          <input
-            tuiTextfield
-            type="tel"
-            formControlName="phone"
-            placeholder="0123 456 789"
-          />
+        <label tuiLabel>SỐ ĐIỆN THOẠI</label>
+        <tui-textfield tuiTextfieldSize="m" tuiHintContent="Nhập 10 chữ số, bắt đầu bằng số 0.">
+          <input tuiTextfield type="tel" formControlName="phone" placeholder="0123 456 789" />
         </tui-textfield>
-        <div *ngIf="registerForm.get('phone')?.errors?.['required'] && registerForm.get('phone')?.touched" class="field-error">
-          Số điện thoại không được để trống.
-        </div>
-        <div *ngIf="registerForm.get('phone')?.errors?.['pattern'] && registerForm.get('phone')?.touched" class="field-error">
-          SĐT phải có 10 chữ số và bắt đầu bằng số 0 (VD: 0912345678).
-        </div>
-        <div *ngIf="registerForm.get('phone')?.hasError('phoneExists') && registerForm.get('phone')?.touched" class="field-error">
-          Số điện thoại này đã được sử dụng. Vui lòng kiểm tra lại.
-        </div>
+        <div *ngIf="registerForm.get('phone')?.errors?.['required'] && registerForm.get('phone')?.touched" class="field-error">SĐT không được để trống.</div>
+        <div *ngIf="registerForm.get('phone')?.errors?.['pattern'] && registerForm.get('phone')?.touched" class="field-error">SĐT phải có 10 chữ số và bắt đầu bằng số 0.</div>
+        <div *ngIf="registerForm.get('phone')?.hasError('phoneExists') && registerForm.get('phone')?.touched" class="field-error">SĐT đã được sử dụng.</div>
       </div>
 
       <div class="form-field">
-        <label tuiLabel>PASSWORD</label>
-        <tui-textfield
-          tuiTextfieldSize="m"
-          tuiPassword
-          tuiHintContent="Tối thiểu 6 ký tự. KHÔNG ĐƯỢC trùng với Email hoặc Số điện thoại."
-        >
-          <input
-            tuiTextfield
-            type="password"
-            formControlName="password"
-            placeholder="Minimum 6 characters"
-          />
+        <label tuiLabel>MẬT KHẨU</label>
+        <tui-textfield tuiTextfieldSize="m" tuiPassword tuiHintContent="Tối thiểu 6 ký tự.">
+          <input tuiTextfield type="password" formControlName="password" placeholder="Min 6 characters" />
         </tui-textfield>
-        <div *ngIf="registerForm.get('password')?.errors?.['required'] && registerForm.get('password')?.touched" class="field-error">
-          Mật khẩu không được để trống.
-        </div>
-        <div *ngIf="registerForm.get('password')?.errors?.['minlength'] && registerForm.get('password')?.touched" class="field-error">
-          Mật khẩu phải dài ít nhất 6 ký tự.
-        </div>
-        <div *ngIf="registerForm.hasError('passwordPolicy') && registerForm.get('password')?.touched" class="field-error">
-          BẢO MẬT: Mật khẩu không được giống Email hoặc Số điện thoại.
-        </div>
+        <div *ngIf="registerForm.get('password')?.errors?.['required'] && registerForm.get('password')?.touched" class="field-error">Mật khẩu không được để trống.</div>
+        <div *ngIf="registerForm.get('password')?.errors?.['minlength'] && registerForm.get('password')?.touched" class="field-error">Mật khẩu tối thiểu 6 ký tự.</div>
+        <div *ngIf="registerForm.hasError('passwordPolicy') && registerForm.get('password')?.touched" class="field-error">Mật khẩu bảo mật kém.</div>
       </div>
 
       <div class="actions">
-        <button
-          tuiButton
-          type="submit"
-          appearance="primary"
-          [disabled]="loading"
-          class="submit-btn"
-        >
-          CREATE ACCOUNT
+        <button tuiButton type="submit" appearance="primary" [disabled]="loading" class="submit-btn" >
+          ĐĂNG KÝ NGAY
         </button>
       </div>
     </form>
 
     <div class="footer-links">
-      <span>Already have an account?</span>
-      <a routerLink="/login">Login here</a>
+      <span>Đã có tài khoản?</span>
+      <a routerLink="/login">Đăng nhập tại đây</a>
     </div>
   </div>
 </div>

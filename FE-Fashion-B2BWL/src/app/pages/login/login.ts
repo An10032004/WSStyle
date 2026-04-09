@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
-import { TuiButton, TuiError, TuiTextfield, TuiLabel } from '@taiga-ui/core';
+import { TuiButton, TuiError, TuiTextfield, TuiLabel, TuiIcon } from '@taiga-ui/core';
 import { TuiFieldErrorPipe, TuiPassword } from '@taiga-ui/kit';
 import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -17,6 +17,7 @@ import { AuthService } from '../../services/auth.service';
     ReactiveFormsModule,
     RouterModule,
     TuiButton,
+    TuiIcon,
     TuiTextfield,
     TuiLabel,
     TuiPassword,

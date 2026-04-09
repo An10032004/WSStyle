@@ -5,6 +5,10 @@ import { authGuard } from './guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
+    loadComponent: () => import('./pages/landing/landing').then(m => m.LandingComponent)
+  },
+  {
+    path: 'admin',
     component: LayoutComponent,
     canActivate: [authGuard],
     data: { expectedRoles: ['ADMIN', 'Administrator', 'STAFF'] },
@@ -124,6 +128,9 @@ export const routes: Routes = [
       },
     ]
   },
+  { path: 'Administrator', redirectTo: 'admin', pathMatch: 'full' },
+  { path: 'dashboard', redirectTo: 'admin/dashboard', pathMatch: 'full' },
+  { path: 'reviews', redirectTo: 'admin/reviews', pathMatch: 'full' },
   {
     path: 'product/:id',
     loadComponent: () => import('./pages/product-detail/product-detail').then(m => m.ProductDetailComponent)
