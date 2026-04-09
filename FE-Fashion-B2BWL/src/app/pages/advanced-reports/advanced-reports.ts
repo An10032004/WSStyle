@@ -90,7 +90,9 @@ import { firstValueFrom } from 'rxjs';
                <tr class="tui-table__tr">
                  <th class="tui-table__th">SKU</th>
                  <th class="tui-table__th">Product</th>
+                 <th class="tui-table__th">Stock Before</th>
                  <th class="tui-table__th">Sold Quantity</th>
+                 <th class="tui-table__th">% Sold</th>
                  <th class="tui-table__th">Revenue</th>
                  <th class="tui-table__th">Current Stock</th>
                </tr>
@@ -99,7 +101,9 @@ import { firstValueFrom } from 'rxjs';
                <tr *ngFor="let v of variantRows()" class="tui-table__tr">
                  <td class="tui-table__td">{{ v.sku || '-' }}</td>
                  <td class="tui-table__td">{{ v.productName || '-' }}</td>
+                 <td class="tui-table__td">{{ startingStock(v) }}</td>
                  <td class="tui-table__td">{{ v.soldQuantity || 0 }}</td>
+                 <td class="tui-table__td">{{ soldPercent(v) }}%</td>
                  <td class="tui-table__td">{{ v.revenue | number }}đ</td>
                  <td class="tui-table__td">{{ v.currentStock || 0 }}</td>
                </tr>
@@ -155,5 +159,19 @@ export class AdvancedReportsComponent {
     this.startDate = start.toISOString().split('T')[0];
     this.endDate = end.toISOString().split('T')[0];
     this.refresh();
+  }
+
+  // Compute estimated starting stock for the period. NOTE: this assumes no restocks returns.
+  startingStock(v: VariantReportRow): number {
+    const sold = v?.soldQuantity ?? 0;
+    const current = v?.currentStock ?? 0;
+    return sold + current;
+  }
+
+  soldPercent(v: VariantReportRow): number {
+    const start = this.startingStock(v);
+    if (start <= 0) return 0;
+    const sold = v?.soldQuantity ?? 0;
+    return Math.round((sold / start) * 100);
   }
 }

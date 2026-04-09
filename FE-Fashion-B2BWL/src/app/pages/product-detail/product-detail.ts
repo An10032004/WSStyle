@@ -212,6 +212,12 @@ export class ProductDetailComponent implements OnInit {
     return this.isMoqViolation || this.isMaxQtyViolation;
   }
 
+  /** True khi biến thể đang chọn tồn kho bằng 0 hoặc âm */
+  get isSelectedVariantOutOfStock(): boolean {
+    const qty = this.selectedVariant?.stockQuantity;
+    return qty != null && qty <= 0;
+  }
+
   /** Thông báo info khi có MOQ theo dòng SP và khách đã đạt ngưỡng */
   get showMoqPolicyNotice(): boolean {
     if (!this.activeOrderLimit) return false;

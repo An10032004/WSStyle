@@ -3,6 +3,7 @@ import { ApiService, Product, ProductVariant } from './api.service';
 import { AuthService } from './auth.service';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { TuiAlertService } from '@taiga-ui/core';
 
 export interface CartItem {
@@ -103,6 +104,34 @@ export class CartService {
       ).subscribe();
       return;
     }
+    // Block adding if variant is out of stock or requested quantity exceeds available stock
+    if (variant.stockQuantity != null) {
+      if (variant.stockQuantity <= 0) {
+        this.alerts.open(
+          'Sản phẩm này hiện đã hết hàng và không thể thêm vào giỏ.',
+          { label: 'Hết hàng', appearance: 'warning' }
+        ).subscribe();
+        return;
+      }
+      const items = [...this.cartSubject.value];
+      const existing = items.find(i => i.productId === product.id && i.variantId === variant.id);
+      const existingQty = existing ? existing.quantity : 0;
+      const available = variant.stockQuantity - existingQty;
+      if (available <= 0) {
+        this.alerts.open(
+          'Sản phẩm này đã đạt giới hạn tồn kho trong giỏ hàng. Vui lòng kiểm tra giỏ hàng.',
+          { label: 'Hết hàng', appearance: 'warning' }
+        ).subscribe();
+        return;
+      }
+      if (quantity > available) {
+        this.alerts.open(
+          `Chỉ còn ${available} chiếc khả dụng cho biến thể này. Vui lòng giảm số lượng hoặc kiểm tra giỏ hàng.`,
+          { label: 'Số lượng vượt quá', appearance: 'warning' }
+        ).subscribe();
+        return;
+      }
+    }
     const items = [...this.cartSubject.value];
     let price = priceOverride || product.calculatedPrice || product.basePrice;
     
@@ -196,13 +225,31 @@ export class CartService {
       this.removeItem(productId, variantId);
       return;
     }
-    const items = this.currentItems;
-    const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
-    if (idx > -1) {
-      items[idx].quantity = quantity;
-      this.recalculateItemPrice(items[idx]); // Update unit price for bulk
-      this.saveCart(items);
-    }
+    (async () => {
+      // If variant known, validate against current stock before updating
+      if (variantId != null) {
+        try {
+          const variants = await firstValueFrom(this.api.getProductVariantsByProduct(productId));
+          const variant = (variants || []).find((v: any) => v.id === variantId);
+          if (variant && variant.stockQuantity != null) {
+            if (variant.stockQuantity < quantity) {
+              this.alerts.open(`Chỉ còn ${variant.stockQuantity} chiếc khả dụng cho biến thể này.`, { label: 'Số lượng vượt quá', appearance: 'warning' }).subscribe();
+              return;
+            }
+          }
+        } catch (e) {
+          // ignore API errors and allow update as fallback
+        }
+      }
+
+      const items = this.currentItems;
+      const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
+      if (idx > -1) {
+        items[idx].quantity = quantity;
+        this.recalculateItemPrice(items[idx]); // Update unit price for bulk
+        this.saveCart(items);
+      }
+    })();
   }
 
   private recalculateItemPrice(item: CartItem) {

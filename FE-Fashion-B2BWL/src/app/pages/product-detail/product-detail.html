@@ -186,13 +186,13 @@
         </div>
 
         <div class="main-cta" *ngIf="!product.hideAddToCart">
-          <button 
+           <button 
              tuiButton 
              appearance="secondary" 
              class="buy-btn" 
              (click)="addToCart()"
-             [disabled]="orderLimitBuyBlocked"
-          >
+             [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
+           >
             Thêm vào giỏ hàng
           </button>
         </div>
@@ -342,12 +342,12 @@
             {{ (currentPrice * quantity) | number:'1.0-0' }} ₫
           </span>
         </div>
-        <button 
-           class="sticky-buy-btn" 
-           *ngIf="!product.hideAddToCart" 
-           (click)="addToCart()"
-           [disabled]="orderLimitBuyBlocked"
-        >
+              <button 
+                class="sticky-buy-btn" 
+                *ngIf="!product.hideAddToCart" 
+                (click)="addToCart()"
+                [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
+              >
           Thêm vào giỏ hàng
         </button>
         <div class="sticky-replacement" *ngIf="product.hidePrice">
