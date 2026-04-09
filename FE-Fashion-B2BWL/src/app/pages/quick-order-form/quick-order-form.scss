@@ -45,6 +45,35 @@
   strong { color: #ef4444; font-size: 18px; font-weight: 800; }
 }
 
+.premium-black-btn {
+  background-color: #000 !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  border-radius: 8px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Outfit', sans-serif !important;
+  transition: all 0.3s ease !important;
+  &:hover {
+    background-color: #333 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+.modern-btn {
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  font-family: 'Outfit', sans-serif !important;
+}
+
+.pagination-container {
+  padding: 32px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #f1f5f9;
+}
+
 .filter-section {
   margin-bottom: 32px;
   .filter-group {

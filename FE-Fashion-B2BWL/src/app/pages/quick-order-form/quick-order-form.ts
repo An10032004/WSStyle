@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiDropdownService } from '@taiga-ui/core';
-import { TuiInputNumber, TuiDataListWrapper } from '@taiga-ui/kit';
+import { TuiInputNumber, TuiDataListWrapper, TuiPagination } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, Product, ProductVariant, Category } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
@@ -29,6 +29,7 @@ interface QuickOrderItem {
     TuiTextfield, 
     TuiLabel, 
     TuiInputNumber,
+    TuiPagination,
     TuiDataListWrapper,
     TuiSelectModule,
     TuiTextfieldControllerModule,
@@ -51,10 +52,20 @@ export class QuickOrderFormComponent implements OnInit {
   
   searchQuery: string = '';
   selectedCategory: Category | null = null;
+
+  // Pagination
+  readonly pageSize = 10;
+  index = 0;
   
   readonly stringifyCategory = (category: Category | string): string => 
     typeof category === 'string' ? category : category.name;
+  
   loading = true;
+
+  get paginatedProducts(): QuickOrderItem[] {
+    const start = this.index * this.pageSize;
+    return this.filteredProducts.slice(start, start + this.pageSize);
+  }
 
   get totalItemsSelected(): number {
     return this.products.reduce((acc, p) => acc + p.totalSelected, 0);
@@ -108,6 +119,7 @@ export class QuickOrderFormComponent implements OnInit {
   }
 
   filterProducts(): void {
+    this.index = 0; // Reset pagination on filter
     this.filteredProducts = this.products.filter(p => {
       const matchesSearch = p.product.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
                             p.product.productCode.toLowerCase().includes(this.searchQuery.toLowerCase());

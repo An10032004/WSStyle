@@ -2,19 +2,19 @@
 <div class="quick-order-container">
   <div class="quick-order-header">
     <div class="header-left">
-      <h1>Quick Order Form</h1>
-      <p class="subtitle">Bulk select items and variants quickly</p>
+      <h1>ĐẶT HÀNG NHANH</h1>
+      <p class="subtitle">Chọn mã hàng và số lượng đại lý dễ dàng</p>
     </div>
     
     <div class="summary-top" *ngIf="totalItemsSelected > 0">
       <div class="stat">
-        <span class="badge">{{ totalItemsSelected }}</span> item(s) selected
+        <span class="badge">{{ totalItemsSelected }}</span> mẫu đã chọn
       </div>
       <div class="stat">
-        Cart total: <strong>{{ totalAmount | number }}đ</strong>
+        Tổng cộng: <strong>{{ totalAmount | number }}đ</strong>
       </div>
-      <button tuiButton type="button" size="s" (click)="addToCart()">Add to Cart</button>
-      <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()">Checkout</button>
+      <button tuiButton type="button" size="s" (click)="addToCart()" class="premium-black-btn">Thêm vào giỏ</button>
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()" class="modern-btn">Thanh toán</button>
     </div>
   </div>
 
@@ -71,7 +71,7 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let item of filteredProducts">
+        <ng-container *ngFor="let item of paginatedProducts">
           <tr [class.expanded]="item.isExpanded">
             <td>
               <button
@@ -155,6 +155,13 @@
         </ng-container>
       </tbody>
     </table>
+
+    <div class="pagination-container" *ngIf="filteredProducts.length > pageSize">
+      <tui-pagination
+        [length]="Math.ceil(filteredProducts.length / pageSize)"
+        [(index)]="index"
+      ></tui-pagination>
+    </div>
   </div>
 
   <div class="summary-footer" *ngIf="totalItemsSelected > 0">
