@@ -34,7 +34,28 @@ export class CartService {
 
   private cartSubject = new BehaviorSubject<CartItem[]>([]);
   cart$ = this.cartSubject.asObservable();
+  
+  private appliedCouponSubject = new BehaviorSubject<any | null>(null);
+  appliedCoupon$ = this.appliedCouponSubject.asObservable();
+
   private currentUserId: number | null = null;
+  
+  get appliedCoupon(): any | null {
+    return this.appliedCouponSubject.value;
+  }
+
+  applyCoupon(code: string) {
+    return this.api.validateCoupon(code).pipe(
+      map(coupon => {
+        this.appliedCouponSubject.next(coupon);
+        return coupon;
+      })
+    );
+  }
+
+  removeCoupon() {
+    this.appliedCouponSubject.next(null);
+  }
 
   get currentItems(): CartItem[] {
     return [...this.cartSubject.value];

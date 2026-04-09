@@ -98,6 +98,36 @@
               <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
+            <!-- COUPON SECTION (PREMIUM STYLE) -->
+            <div class="summary-row coupon-row" style="margin: 8px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; padding: 10px 0;">
+              <div *ngIf="appliedCoupon$ | async as coupon; else couponInput" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <tui-icon icon="@tui.tags" style="color: #10b981; font-size: 18px;"></tui-icon>
+                  <span style="font-weight: 600; font-size: 14px; text-transform: uppercase; color: #10b981;">{{ coupon.code }}</span>
+                </div>
+                <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 11px; text-decoration: underline;">Change</button>
+              </div>
+              <ng-template #couponInput>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                  <input type="text" [(ngModel)]="couponCode" placeholder="Promo code" 
+                    style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; background: #fff;">
+                  <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Apply</button>
+                </div>
+              </ng-template>
+            </div>
+
+            <div class="summary-row discount" *ngIf="(discountAmount$ | async) as discount">
+              <span style="color: #10b981; font-weight: 500;">
+                Discount <span *ngIf="(appliedCoupon$ | async) as c">(-{{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
+              </span>
+              <strong style="color: #10b981;">- {{ discount | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <div class="summary-row after-discount" *ngIf="(appliedCoupon$ | async)" style="margin-bottom: 8px;">
+              <span style="font-size: 13px; font-weight: 600;">Price after coupon</span>
+              <strong style="font-size: 15px; color: #333;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+
             <div class="summary-row">
               <span>Estimated shipping</span>
               <ng-container *ngIf="(shippingFee$ | async) as shipFee">

@@ -29,15 +29,48 @@ export class CartComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly alerts = inject(TuiAlertService);
 
   cart$ = this.cartService.cart$;
 
+  couponCode = '';
+  appliedCoupon$ = this.cartService.appliedCoupon$;
+
+  applyCoupon() {
+    if (!this.couponCode.trim()) return;
+    this.cartService.applyCoupon(this.couponCode).subscribe({
+      next: () => {
+        this.revalidate();
+        this.couponCode = '';
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Mã giảm giá không hợp lệ';
+        this.alerts.open(msg, { appearance: 'error' }).subscribe();
+      }
+    });
+  }
+
+  removeCoupon() {
+    this.cartService.removeCoupon();
+    this.revalidate();
+  }
+
   /** Phí ship theo tổng đơn + loại KH (API), không lọc SP — chỉ hiển thị giỏ hàng. */
-  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
     debounceTime(200),
-    switchMap(([items, user]) => {
+    switchMap(([items, user, coupon]) => {
       const selected = items.filter(i => i.selected !== false);
-      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      
+      // Apply discount before shipping calculation if coupon exists
+      if (coupon) {
+        if (coupon.discountType === 'PERCENTAGE') {
+          subtotal = subtotal * (1 - coupon.discountValue / 100);
+        } else {
+          subtotal = Math.max(0, subtotal - coupon.discountValue);
+        }
+      }
+
       const qty = selected.reduce((s, i) => s + i.quantity, 0);
       if (selected.length === 0) {
         return of({
@@ -59,11 +92,21 @@ export class CartComponent implements OnInit {
 
   shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
 
-  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
     debounceTime(200),
-    switchMap(([items, user]) => {
+    switchMap(([items, user, coupon]) => {
       const selected = items.filter(i => i.selected !== false);
-      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+
+      // Apply discount before tax calculation if coupon exists
+      if (coupon) {
+        if (coupon.discountType === 'PERCENTAGE') {
+          subtotal = subtotal * (1 - coupon.discountValue / 100);
+        } else {
+          subtotal = Math.max(0, subtotal - coupon.discountValue);
+        }
+      }
+
       if (selected.length === 0) {
         return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
       }
@@ -143,14 +186,32 @@ export class CartComponent implements OnInit {
     shareReplay(1),
   );
 
+
   readonly totalPrice$ = this.cart$.pipe(
     map(items => items.filter(i => i.selected).reduce((sum, i) => sum + i.price * i.quantity, 0)),
     shareReplay(1),
   );
 
-  /** Tổng thanh toán ước tính = tạm tính + phí ship + thuế. */
-  readonly grandTotal$ = combineLatest([this.totalPrice$, this.shippingFee$, this.taxFee$]).pipe(
-    map(([sub, fee, tax]) => sub + fee + tax),
+  readonly discountAmount$ = combineLatest([this.totalPrice$, this.appliedCoupon$]).pipe(
+    map(([subtotal, coupon]) => {
+      if (!coupon) return 0;
+      if (coupon.discountType === 'PERCENTAGE') {
+        return subtotal * (coupon.discountValue / 100);
+      } else {
+        return Math.min(subtotal, coupon.discountValue);
+      }
+    }),
+    shareReplay(1)
+  );
+
+  readonly afterDiscountSubtotal$ = combineLatest([this.totalPrice$, this.discountAmount$]).pipe(
+    map(([sub, discount]) => Math.max(0, sub - discount)),
+    shareReplay(1)
+  );
+
+  /** Tổng thanh toán ước tính = tạm tính - giảm giá + phí ship + thuế. */
+  readonly grandTotal$ = combineLatest([this.totalPrice$, this.discountAmount$, this.shippingFee$, this.taxFee$]).pipe(
+    map(([sub, discount, fee, tax]) => Math.max(0, sub - discount) + fee + tax),
   );
 
   toggleItem(item: CartItem, selected: boolean) {

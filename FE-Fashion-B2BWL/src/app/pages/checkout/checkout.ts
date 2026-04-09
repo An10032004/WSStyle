@@ -37,6 +37,24 @@ export class CheckoutComponent implements OnInit {
   @ViewChild('paymentDialog') paymentDialogTemplate!: TemplateRef<any>;
   paymentQrUrl = '';
   currentOrder: any = null;
+  couponCode = '';
+
+  applyCoupon() {
+    if (!this.couponCode.trim()) return;
+    this.cartService.applyCoupon(this.couponCode).subscribe({
+      next: () => {
+        this.couponCode = '';
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Mã giảm giá không hợp lệ';
+        this.alerts.open(msg, { appearance: 'error' }).subscribe();
+      }
+    });
+  }
+
+  removeCoupon() {
+    this.cartService.removeCoupon();
+  }
 
   copyToClipboard(text: string, label: string) {
     if (!text) return;
@@ -72,12 +90,24 @@ export class CheckoutComponent implements OnInit {
     shareReplay(1),
   );
 
+  appliedCoupon$ = this.cartService.appliedCoupon$;
+
   /** Cùng logic API với giỏ hàng: tổng tiền + SL + loại KH, không lọc SP. */
-  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
     debounceTime(200),
-    switchMap(([items, user]) => {
+    switchMap(([items, user, coupon]) => {
       const selected = items.filter(i => i.selected !== false);
-      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+
+      // Apply discount before shipping calculation
+      if (coupon) {
+        if (coupon.discountType === 'PERCENTAGE') {
+          subtotal = subtotal * (1 - coupon.discountValue / 100);
+        } else {
+          subtotal = Math.max(0, subtotal - coupon.discountValue);
+        }
+      }
+
       const qty = selected.reduce((s, i) => s + i.quantity, 0);
       if (selected.length === 0) {
         return of({
@@ -99,11 +129,21 @@ export class CheckoutComponent implements OnInit {
 
   shippingFee$ = this.shippingQuote$.pipe(map(q => q?.fee ?? 0));
 
-  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$]).pipe(
+  taxQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
     debounceTime(200),
-    switchMap(([items, user]) => {
+    switchMap(([items, user, coupon]) => {
       const selected = items.filter(i => i.selected !== false);
-      const subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+      let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+
+      // Apply discount before tax calculation
+      if (coupon) {
+        if (coupon.discountType === 'PERCENTAGE') {
+          subtotal = subtotal * (1 - coupon.discountValue / 100);
+        } else {
+          subtotal = Math.max(0, subtotal - coupon.discountValue);
+        }
+      }
+
       if (selected.length === 0) {
         return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
       }
@@ -117,8 +157,25 @@ export class CheckoutComponent implements OnInit {
 
   taxFee$ = this.taxQuote$.pipe(map(q => q?.taxAmount ?? 0));
 
-  totalPrice$ = combineLatest([this.subtotal$, this.shippingFee$, this.taxFee$]).pipe(
-    map(([sub, fee, tax]) => sub + fee + tax),
+  discountAmount$ = combineLatest([this.subtotal$, this.appliedCoupon$]).pipe(
+    map(([sub, coupon]) => {
+      if (!coupon) return 0;
+      if (coupon.discountType === 'PERCENTAGE') {
+        return sub * (coupon.discountValue / 100);
+      } else {
+        return Math.min(sub, coupon.discountValue);
+      }
+    }),
+    shareReplay(1)
+  );
+
+  totalPrice$ = combineLatest([this.subtotal$, this.discountAmount$, this.shippingFee$, this.taxFee$]).pipe(
+    map(([sub, discount, fee, tax]) => Math.max(0, sub - discount) + fee + tax),
+  );
+
+  afterDiscountSubtotal$ = combineLatest([this.subtotal$, this.discountAmount$]).pipe(
+    map(([sub, discount]) => Math.max(0, sub - discount)),
+    shareReplay(1)
   );
 
   debtSummary$ = this.auth.user$.pipe(
@@ -244,56 +301,65 @@ export class CheckoutComponent implements OnInit {
         const shippingFee = quote?.fee ?? 0;
         const finalTotal = subtotal + shippingFee;
 
-        const request: OrderRequest = {
-          userId: user.id,
-          orderType: 'RETAIL',
-          paymentMethod: formValue.paymentMethod,
-          fullName: formValue.fullName,
-          phone: formValue.phone,
-          shippingAddress: formValue.shippingAddress,
-          note: formValue.note,
-          shippingFee,
-          items: currentItems.map(i => ({
-            productId: i.productId,
-            variantId: i.variantId,
-            quantity: i.quantity,
-            unitPrice: i.price,
-          })),
-        };
+        this.taxFee$.pipe(take(1)).subscribe(taxAmount => {
+          this.appliedCoupon$.pipe(take(1)).subscribe(coupon => {
+            this.discountAmount$.pipe(take(1)).subscribe(discountAmount => {
+              const request: OrderRequest = {
+                userId: user.id,
+                orderType: 'RETAIL',
+                paymentMethod: formValue.paymentMethod,
+                fullName: formValue.fullName,
+                phone: formValue.phone,
+                shippingAddress: formValue.shippingAddress,
+                note: formValue.note,
+                shippingFee,
+                taxAmount,
+                couponCode: coupon?.code,
+                discountAmount,
+                items: currentItems.map(i => ({
+                  productId: i.productId,
+                  variantId: i.variantId,
+                  quantity: i.quantity,
+                  unitPrice: i.price,
+                })),
+              };
 
-        this.apiService.createOrder(request).subscribe({
-          next: order => {
-            this.isPlacingOrder = false;
-            this.currentOrder = order;
-            if (formValue.paymentMethod === 'VNPAY') {
-              const bankId = '970415';
-              const accountNo = '103877669895';
-              const accountName = encodeURIComponent('NGUYEN VAN SON');
-              const description = encodeURIComponent(`Thanh toan don hang #${order.id}`);
+              this.apiService.createOrder(request).subscribe({
+                next: order => {
+                  this.isPlacingOrder = false;
+                  this.currentOrder = order;
+                  if (formValue.paymentMethod === 'VNPAY') {
+                    const bankId = '970415';
+                    const accountNo = '103877669895';
+                    const accountName = encodeURIComponent('NGUYEN VAN SON');
+                    const description = encodeURIComponent(`Thanh toan don hang #${order.id}`);
 
-              this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${finalTotal}&addInfo=${description}&accountName=${accountName}`;
+                    this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${order.totalAmount}&addInfo=${description}&accountName=${accountName}`;
 
-              this.dialogs.open(this.paymentDialogTemplate, {
-                size: 'm',
-                dismissible: false,
-                label: 'Secure Checkout',
-              }).subscribe();
-            } else {
-              this.onPaymentComplete();
-            }
-          },
-          error: (err) => {
-            const msg =
-              err?.error?.message ||
-              err?.error?.error ||
-              err?.message ||
-              'An error occurred while placing your order. Please try again.';
-            this.alerts.open(msg, {
-              label: 'Order Failed',
-              appearance: 'error',
-            }).subscribe();
-            this.isPlacingOrder = false;
-          },
+                    this.dialogs.open(this.paymentDialogTemplate, {
+                      size: 'm',
+                      dismissible: false,
+                      label: 'Secure Checkout',
+                    }).subscribe();
+                  } else {
+                    this.onPaymentComplete();
+                  }
+                },
+                error: (err) => {
+                  const msg =
+                    err?.error?.message ||
+                    err?.error?.error ||
+                    err?.message ||
+                    'An error occurred while placing your order. Please try again.';
+                  this.alerts.open(msg, {
+                    label: 'Order Failed',
+                    appearance: 'error',
+                  }).subscribe();
+                  this.isPlacingOrder = false;
+                },
+              });
+            });
+          });
         });
       },
       error: () => {

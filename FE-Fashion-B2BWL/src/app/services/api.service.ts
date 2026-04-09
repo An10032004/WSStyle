@@ -26,6 +26,9 @@ export interface OrderRequest {
   shippingAddress: string;
   note?: string;
   shippingFee?: number;
+  taxAmount?: number;
+  couponCode?: string;
+  discountAmount?: number;
   items: OrderItemRequest[];
 }
 
@@ -305,6 +308,8 @@ export interface Order {
   phone?: string;
   shippingAddress?: string;
   note?: string;
+  couponCode?: string;
+  discountAmount?: number;
   createdAt: string;
   items?: OrderItem[];
 }
@@ -831,8 +836,16 @@ export class ApiService {
     return this.http.post<Coupon>(`${this.base}/coupons`, body);
   }
 
+  updateCoupon(id: number, body: Partial<Coupon>): Observable<Coupon> {
+    return this.http.put<Coupon>(`${this.base}/coupons/${id}`, body);
+  }
+
   deleteCoupon(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/coupons/${id}`);
+  }
+
+  validateCoupon(code: string): Observable<Coupon> {
+    return this.http.get<Coupon>(`${this.base}/coupons/validate/${code}`);
   }
 
   // ─── Sale Campaigns ────────────────────────────────────

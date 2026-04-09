@@ -17,5 +17,8 @@ public class OrderRequest {
     private String shippingAddress;
     private String note;
     private java.math.BigDecimal shippingFee;
+    private java.math.BigDecimal taxAmount;
+    private String couponCode;
+    private java.math.BigDecimal discountAmount;
     private List<OrderItemRequest> items;
 }

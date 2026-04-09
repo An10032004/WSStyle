@@ -149,6 +149,37 @@
                <span>Subtotal</span>
                <strong>{{ subtotal$ | async | number:'1.0-0' }} ₫</strong>
              </div>
+
+             <!-- COUPON SECTION (PREMIUM STYLE) -->
+             <div class="calc-row coupon-calc-row" style="margin: 8px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; padding: 10px 0;">
+               <div *ngIf="appliedCoupon$ | async as coupon; else couponInput" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                 <div style="display: flex; gap: 8px; align-items: center;">
+                   <tui-icon icon="@tui.tags" style="color: #10b981; font-size: 16px;"></tui-icon>
+                   <span style="font-weight: 600; font-size: 13px; text-transform: uppercase; color: #10b981;">{{ coupon.code }}</span>
+                 </div>
+                 <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 10px; text-decoration: underline;">Change</button>
+               </div>
+               <ng-template #couponInput>
+                 <div style="display: flex; gap: 8px; width: 100%;">
+                   <input type="text" [(ngModel)]="couponCode" placeholder="Promo code" 
+                     style="flex: 1; padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; outline: none; background: #fff;">
+                   <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Apply</button>
+                 </div>
+               </ng-template>
+             </div>
+
+             <div class="calc-row discount" *ngIf="(discountAmount$ | async) as discount">
+               <span style="color: #10b981; font-weight: 500;">
+                 Discount <span *ngIf="(appliedCoupon$ | async) as c">({{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
+               </span>
+               <strong style="color: #10b981;">- {{ discount | number:'1.0-0' }} ₫</strong>
+             </div>
+
+             <div class="calc-row after-discount" *ngIf="(appliedCoupon$ | async)" style="margin-bottom: 8px;">
+               <span style="font-size: 13px; color: #666;">Price after coupon</span>
+               <strong style="font-size: 14px;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
+             </div>
+
              <div class="calc-row">
                <span>Shipping</span>
                <span class="free" *ngIf="(shippingFee$ | async) === 0; else showFee">FREE</span>

@@ -38,6 +38,7 @@ public class OrderService {
     private final OrderLimitService orderLimitService;
     private final ShippingRuleService shippingRuleService;
     private final NetTermRuleService netTermRuleService;
+    private final TaxDisplayRuleService taxDisplayRuleService;
 
     /** Bật API debt-summary và chặn đặt hàng khi quá hạn; tắt khi cấu hình flow riêng (app.net-term.debt-check.enabled=false). */
     @Value("${app.net-term.debt-check.enabled:true}")
@@ -125,9 +126,28 @@ public class OrderService {
         }
 
         int totalQty = itemReqs.stream().mapToInt(OrderItemRequest::getQuantity).sum();
-        ShippingQuoteResponse shipQuote = shippingRuleService.quote(request.getUserId(), totalAmount, totalQty);
+        
+        // --- Coupon Logic ---
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (request.getCouponCode() != null && !request.getCouponCode().isEmpty()) {
+            discountAmount = request.getDiscountAmount() != null ? request.getDiscountAmount() : BigDecimal.ZERO;
+            order.setCouponCode(request.getCouponCode());
+            order.setDiscountAmount(discountAmount);
+        }
+        
+        BigDecimal discountedSubtotal = totalAmount.subtract(discountAmount);
+        if (discountedSubtotal.compareTo(BigDecimal.ZERO) < 0) discountedSubtotal = BigDecimal.ZERO;
+
+        // Shipping logic based on discounted subtotal
+        ShippingQuoteResponse shipQuote = shippingRuleService.quote(request.getUserId(), discountedSubtotal, totalQty);
         order.setShippingFee(shipQuote.getFee() != null ? shipQuote.getFee() : BigDecimal.ZERO);
-        BigDecimal finalTotal = totalAmount.add(order.getShippingFee());
+        
+        // Tax logic based on discounted subtotal
+        var taxQuote = taxDisplayRuleService.quoteTax(request.getUserId(), discountedSubtotal);
+        BigDecimal taxAmount = (BigDecimal) taxQuote.getOrDefault("taxAmount", BigDecimal.ZERO);
+        order.setTaxAmount(taxAmount);
+
+        BigDecimal finalTotal = discountedSubtotal.add(order.getShippingFee()).add(taxAmount);
         order.setTotalAmount(finalTotal);
         order.setItems(items);
         if ("NET_TERMS".equals(request.getPaymentMethod())) {

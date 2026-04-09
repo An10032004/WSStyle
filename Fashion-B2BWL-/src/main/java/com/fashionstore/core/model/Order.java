@@ -71,6 +71,12 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    private BigDecimal discountAmount;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
