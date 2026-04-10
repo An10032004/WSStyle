@@ -39,6 +39,12 @@ export const routes: Routes = [
           import('./pages/variant-list/variant-list').then(m => m.VariantListComponent),
       },
       {
+        path: 'bundles',
+        data: { module: 'bundles' },
+        loadComponent: () =>
+          import('./pages/bundles/bundles').then(m => m.BundlesComponent),
+      },
+      {
         path: 'rule-engine',
         canActivate: [authGuard],
         data: { expectedRoles: ['ADMIN', 'Administrator'], module: 'rule-engine' },

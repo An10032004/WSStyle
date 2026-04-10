@@ -1,0 +1,236 @@
+<div class="bundles-page main-container">
+  <div class="page-header mb-8">
+    <div class="header-titles">
+      <h1 class="page-title text-3xl font-black">Quản lý Bundle / Combo</h1>
+      <p class="page-subtitle text-gray-500 font-medium pt-1">Gộp nhiều biến thể thành gói sản phẩm với chiến dịch giá đặc biệt.</p>
+    </div>
+    <div class="header-actions">
+      <button
+        tuiButton
+        size="m"
+        appearance="primary"
+        iconStart="@tui.plus"
+        (click)="onAdd()"
+        *ngIf="!showForm"
+      >
+        Tạo Bundle Mới
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLE LIST VIEW -->
+  <div class="table-container shadow-sm rounded-2xl border-2 border-gray-100" *ngIf="!showForm">
+    <ag-grid-angular
+      style="width: 100%; height: calc(100vh - 280px);"
+      [class]="theme"
+      [rowData]="rowData"
+      [columnDefs]="columnDefs"
+      [localeText]="localeText"
+      (gridReady)="onGridReady($event)"
+      [pagination]="true"
+      [paginationPageSize]="20"
+    >
+    </ag-grid-angular>
+  </div>
+
+  <!-- CREATION / EDIT FORM -->
+  <div class="form-panel card animate-fade-in mb-20" *ngIf="showForm">
+    <div class="flex justify-between items-center mb-10 border-b-2 border-gray-50 pb-8">
+      <h4 class="flex items-center gap-4 m-0 p-0 text-slate-900">
+        <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center shadow-inner">
+          <tui-icon [icon]="editingId ? '@tui.pencil-line' : '@tui.plus-square'"></tui-icon>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-2xl font-black">{{ editingId ? 'Sửa Bundle #' + editingId : 'Tạo Bundle Mới' }}</span>
+            <span class="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">Cấu hình gói siêu khuyến mãi</span>
+        </div>
+      </h4>
+      <div class="flex gap-4">
+          <button tuiButton appearance="secondary" size="m" class="rounded-xl px-8" (click)="onCancel()">Quay lại</button>
+          <button tuiButton appearance="primary" size="m" class="rounded-xl px-10 shadow-lg shadow-emerald-200" (click)="onSave()">Lưu thay đổi</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+        <!-- LEFT: FORM -->
+        <div class="space-y-8">
+            <div class="form-group">
+                <label tuiLabel>Tên gói Bundle / Combo <span class="text-red-500 font-bold">*</span></label>
+                <tui-textfield>
+                  <input tuiTextfield [(ngModel)]="formData.name" placeholder="VD: Combo Thời trang Công sở 2024" />
+                </tui-textfield>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                    <label tuiLabel>Trạng thái hiển thị</label>
+                    <select [(ngModel)]="formData.status" class="custom-select">
+                        <option value="ACTIVE">✅ Đang hoạt động (Công khai cho mọi khách)</option>
+                        <option value="INACTIVE">❌ Tạm ngưng áp dụng</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: PRICING -->
+        <div class="discount-section">
+            <h5 class="text-xs font-black text-emerald-800 mb-6 flex items-center gap-3 uppercase">
+                <tui-icon icon="@tui.banknote" class="text-lg" /> THIẾT LẬP CHIẾN LƯỢC GIÁ
+            </h5>
+            <div class="grid grid-cols-2 gap-6 mb-6">
+              <div>
+                <label tuiLabel>Hình thức giảm</label>
+                <select [(ngModel)]="formData.discountType" (change)="calculatePrices()" class="custom-select">
+                  <option value="PERCENTAGE">Phần trăm (%)</option>
+                  <option value="FIXED">Số tiền (₫)</option>
+                </select>
+              </div>
+              <div>
+                <label tuiLabel>Giá trị chiết khấu</label>
+                <tui-textfield>
+                  <input
+                    tuiTextfield
+                    [(ngModel)]="formData.discountValue"
+                    (ngModelChange)="calculatePrices()"
+                    [maskito]="maskOptions"
+                    class="text-right font-black text-emerald-800"
+                  />
+                  <span class="pr-3 font-black text-slate-400">
+                      {{ formData.discountType === 'PERCENTAGE' ? '%' : '₫' }}
+                  </span>
+                </tui-textfield>
+              </div>
+            </div>
+            <div class="price-summary flex justify-between items-center px-6 py-6 bg-white/80 rounded-2xl border border-emerald-100 shadow-sm">
+                <div class="text-right w-full">
+                    <div class="text-xs text-emerald-800 font-bold uppercase tracking-widest mb-1 opacity-70">GIÁ BÁN COMBO</div>
+                    <div class="new-price font-black text-emerald-600">{{ (formData.newPrice || 0) | number:'.0' }} ₫</div>
+                    <div class="old-price italic opacity-40">Giá gốc: {{ (formData.oldPrice || 0) | number:'.0' }} ₫</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEMS SECTION -->
+    <div class="items-section mt-12">
+      <div class="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl flex gap-4 animate-fade-in shadow-sm">
+          <div class="text-amber-500 pt-1">
+              <tui-icon icon="@tui.info" />
+          </div>
+          <div>
+              <div class="text-amber-900 font-black text-sm uppercase tracking-tighter mb-1">LƯU Ý VỀ TÍNH TOÁN GIÁ CỐT LÕI</div>
+              <p class="m-0 text-xs text-amber-800 leading-relaxed font-medium">
+                  Hệ thống <strong>không áp dụng thêm</strong> các quy tắc giảm giá sỉ, chiết khấu theo số lượng (Quantity Breaks) hoặc các chương trình khuyến mãi khác lên từng linh kiện khi chúng đã nằm trong gói Bundle này. Giá bán sẽ được tính toán dựa trên công thức chiết khấu của Combo bạn đã thiết lập ở trên.
+              </p>
+          </div>
+      </div>
+
+      <div class="flex justify-between items-center mb-6">
+            <h5 class="font-black text-slate-700 m-0 text-lg">HÀNG HÓA TÙY CHỌN</h5>
+            <button tuiButton [appearance]="showPicker ? 'accent' : 'secondary'" size="m" class="rounded-xl border-2" [iconStart]="showPicker ? '@tui.chevron-up' : '@tui.plus'" (click)="openVariantPicker()">
+                {{ showPicker ? 'Thu gọn bộ lọc' : 'Lấy thêm sản phẩm' }}
+            </button>
+        </div>
+
+        <div class="inline-picker animate-fade-in" *ngIf="showPicker">
+            <div class="picker-search-bar">
+                <tui-textfield iconStart="@tui.search">
+                    <input tuiTextfield [(ngModel)]="productSearch" (ngModelChange)="filterProducts()" placeholder="Gõ tên sản phẩm hoặc mã SKU..." />
+                </tui-textfield>
+            </div>
+            <div class="max-h-[500px] overflow-y-auto bg-slate-50/10 py-2">
+                <div *ngFor="let p of pagedProducts" class="product-card" [class.expanded]="expandedProductIds.has(p.id)">
+                    <div class="product-header" (click)="toggleProductExpand(p)">
+                        <img [src]="p.images?.[0]?.path ? '/api/files/' + p.images?.[0]?.path : (p.imageUrl ? p.imageUrl : 'assets/placeholder-product.png')" />
+                        <div class="p-info">
+                            <span class="block">{{ p.name }}</span>
+                            <span class="block text-[10px] text-slate-400 font-mono tracking-tighter">{{ p.productCode }}</span>
+                        </div>
+                        <tui-icon icon="@tui.chevron-right" size="s" [style.transform]="expandedProductIds.has(p.id) ? 'rotate(90deg)' : ''" class="transition-transform opacity-30"></tui-icon>
+                    </div>
+                    <div class="variants-area border-t bg-slate-50/50" *ngIf="expandedProductIds.has(p.id)">
+                        <table class="v-table">
+                            <thead>
+                                <tr>
+                                    <th class="w-16 text-center">CHỌN</th>
+                                    <th>BIẾN THỂ / SKU</th>
+                                    <th>MÀU / SIZE</th>
+                                    <th class="text-right">GIÁ BÁN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let v of productVariantsMap.get(p.id)" class="v-row" (click)="toggleVariantSelection(v.id)">
+                                    <td class="text-center">
+                                        <input type="checkbox" [checked]="pickerSelectedVariants.has(v.id)" (click)="$event.stopPropagation(); toggleVariantSelection(v.id)" class="w-5 h-5 rounded border-slate-300">
+                                    </td>
+                                    <td class="font-bold text-slate-700">{{ v.sku }}</td>
+                                    <td class="text-xs text-slate-500">{{ v.color || '-' }} / {{ v.size || '-' }}</td>
+                                    <td class="text-right font-black text-emerald-700">{{ (v.price || 0) | number:'.0' }} ₫</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="picker-footer">
+                <div class="picker-pagination">
+                    <tui-pagination *ngIf="filteredProducts.length > pickerSize"
+                        [length]="totalPages"
+                        [index]="pickerPage"
+                        (indexChange)="onPickerPageChange($event)"
+                    ></tui-pagination>
+                </div>
+                <div class="picker-actions">
+                    <span class="selected-count">Đã chọn {{ pickerSelectedVariants.size }} mã</span>
+                    <button tuiButton appearance="primary" size="m" class="rounded-xl px-10 shadow-md" [disabled]="!pickerSelectedVariants.size" (click)="addSelectedVariantsToBundle()">
+                        Xác nhận thêm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN ITEMS TABLE -->
+    <div class="items-section border-t-2 border-slate-50 pt-10">
+      <h5 class="font-black text-slate-800 mb-6 flex items-center gap-3 text-lg">
+          DANH SÁCH LINH KIỆN ĐÃ CHỌN 
+          <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-black">{{ formData.items?.length || 0 }}</span>
+      </h5>
+
+      <table class="items-table shadow-sm">
+        <thead>
+          <tr>
+            <th class="text-left">BIẾN THỂ / SKU</th>
+            <th class="text-center" style="width: 150px;">SỐ LƯỢNG</th>
+            <th class="text-right" style="width: 200px;">GIÁ GỐC</th>
+            <th class="text-center" style="width: 100px;">#</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of formData.items; let i = index" class="hover:bg-slate-50/50 transition-colors">
+            <td>
+              <div class="font-black text-slate-900 text-base">{{ item.variant?.sku }}</div>
+              <div class="text-xs text-slate-400 font-medium italic mb-1">{{ getProductName(item.variant?.productId!) }}</div>
+              <div class="flex gap-2">
+                  <span class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600 uppercase">{{ item.variant?.color || 'N/A' }}</span>
+                  <span class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-600 uppercase">{{ item.variant?.size || 'N/A' }}</span>
+              </div>
+            </td>
+            <td class="text-center">
+              <input type="number" class="qty-input" [(ngModel)]="item.quantity" (ngModelChange)="calculatePrices()" min="1" />
+            </td>
+            <td class="text-right font-black text-slate-800 text-base">{{ (item.variant?.price || 0) | number:'.0' }} ₫</td>
+            <td class="text-center">
+              <button tuiIconButton appearance="flat" size="s" iconStart="@tui.trash-2" class="text-red-400 hover:bg-red-50 rounded-full" (click)="removeItem(i)"></button>
+            </td>
+          </tr>
+          <tr *ngIf="!formData.items?.length">
+            <td colspan="4" class="text-center py-20 bg-slate-50/30 rounded-3xl opacity-50 italic font-bold">
+                Chưa có linh kiện nào trong bản thiết kế này.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

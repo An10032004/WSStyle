@@ -57,6 +57,7 @@ export class SidebarComponent {
           'pos': 'Point of sale',
           'staff': 'Quản lý nhân viên',
           'coupons': 'Quản lý coupon',
+          'bundles': 'Quản lý sản phẩm',
           'sale-campaigns': 'Quản lý chiến dịch sale',
           'wallets': 'Quản lý ví điện tử',
           'advanced-reports': 'Quản lý report',

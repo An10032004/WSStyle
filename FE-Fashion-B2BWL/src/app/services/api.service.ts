@@ -74,6 +74,7 @@ export interface Product {
   quantityBreaksJson?: string;
   isNetTermEligible?: boolean;
   netTermDays?: number;
+  images?: any[];
   description?: string;
 }
 
@@ -472,6 +473,26 @@ export interface Conversation {
   lastMessage: string;
   lastMessageTime: string;
   hasUnread: boolean;
+}
+
+export interface Bundle {
+  id: number;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  discountValue: number;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  oldPrice: number;
+  newPrice: number;
+  applyCustomerType: string;
+  items: BundleItem[];
+}
+
+export interface BundleItem {
+  id?: number;
+  bundleId?: number;
+  variantId: number;
+  variant?: ProductVariant;
+  quantity: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -948,5 +969,22 @@ export class ApiService {
   chatWithAI(message: string): Observable<AIResponse> {
     return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, { message })
       .pipe(map(res => res.data));
+  }
+
+  // ─── Bundles ──────────────────────────────────────────
+  getBundles(): Observable<Bundle[]> {
+    return this.http.get<ApiResponse<Bundle[]>>(`${this.base}/bundles`).pipe(map(r => r.data));
+  }
+  getBundleById(id: number): Observable<Bundle> {
+    return this.http.get<ApiResponse<Bundle>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
+  }
+  createBundle(body: Partial<Bundle>): Observable<Bundle> {
+    return this.http.post<ApiResponse<Bundle>>(`${this.base}/bundles`, body).pipe(map(r => r.data));
+  }
+  updateBundle(id: number, body: Partial<Bundle>): Observable<Bundle> {
+    return this.http.put<ApiResponse<Bundle>>(`${this.base}/bundles/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteBundle(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
   }
 }

@@ -53,6 +53,15 @@
       <tui-icon icon="@tui.layers" />
       {{ 'SIDEBAR.VARIANTS' | transloco }}
     </a>
+    <a
+      *ngIf="canSee('bundles')"
+      class="nav-item"
+      routerLink="/admin/bundles"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.library-big" />
+      Bundles / Combos
+    </a>
   </div>
 
   <!-- KHÁCH HÀNG & NHÓM -->
