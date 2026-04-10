@@ -38,6 +38,7 @@ export class BundlesComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
   formData: Partial<Bundle> = {
+    imageUrl: '',
     name: '',
     status: 'ACTIVE',
     discountType: 'PERCENTAGE',
@@ -76,6 +77,16 @@ export class BundlesComponent implements OnInit {
 
   columnDefs: ColDef[] = [
     { headerName: 'ID', field: 'id', width: 80, pinned: 'left' },
+    {
+      headerName: 'Ảnh',
+      field: 'imageUrl',
+      width: 90,
+      cellRenderer: (p: any) => {
+        const url = p.value as string | undefined;
+        if (!url) return '<span style="opacity:.35">—</span>';
+        return `<img src="${url}" alt="bundle" style="width:44px;height:44px;object-fit:cover;border-radius:10px;border:1px solid #eef2f7" />`;
+      }
+    },
     { headerName: 'Tên Bundle', field: 'name', width: 250, filter: true, pinned: 'left' },
     { 
       headerName: 'Trạng thái', 
@@ -170,6 +181,7 @@ export class BundlesComponent implements OnInit {
   onAdd() {
     this.editingId = null;
     this.formData = {
+      imageUrl: '',
       name: '',
       status: 'ACTIVE',
       discountType: 'PERCENTAGE',

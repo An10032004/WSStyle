@@ -477,6 +477,7 @@ export interface Conversation {
 
 export interface Bundle {
   id: number;
+  imageUrl?: string;
   name: string;
   status: 'ACTIVE' | 'INACTIVE';
   discountValue: number;

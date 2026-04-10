@@ -73,6 +73,31 @@
     </div>
   </section>
 
+  <!-- BUNDLES / COMBOS -->
+  <section class="bundles-section" *ngIf="bundles.length">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Bundles / Combos</h2>
+      </div>
+
+      <div class="bundle-grid">
+        <div class="bundle-card" *ngFor="let b of bundles.slice(0, 6)">
+          <div class="bundle-img">
+            <tui-icon icon="@tui.image" *ngIf="!b.imageUrl" class="placeholder-icon" />
+            <img [src]="b.imageUrl" *ngIf="b.imageUrl" [alt]="b.name" />
+          </div>
+          <div class="bundle-info">
+            <h4 class="bundle-name">{{ b.name }}</h4>
+            <div class="bundle-price">
+              <span class="new-price">{{ (b.newPrice || 0) | currency:'VND':'symbol':'1.0-0' }}</span>
+              <span class="old-price" *ngIf="b.oldPrice">{{ (b.oldPrice || 0) | currency:'VND':'symbol':'1.0-0' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- BEST SELLERS SECTION -->
   <section class="best-sellers-section">
     <div class="container">

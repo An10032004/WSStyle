@@ -35,6 +35,7 @@ public class BundleService {
     @Transactional
     public Bundle updateBundle(Long id, Bundle updatedBundle) {
         Bundle existing = getBundleById(id);
+        existing.setImageUrl(updatedBundle.getImageUrl());
         existing.setName(updatedBundle.getName());
         existing.setStatus(updatedBundle.getStatus());
         existing.setDiscountValue(updatedBundle.getDiscountValue());

@@ -7,7 +7,7 @@ import { TuiCarousel } from '@taiga-ui/kit';
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
-import { ApiService, Product } from '../../services/api.service';
+import { ApiService, Bundle, Product } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { distinctUntilChanged, map, switchMap } from 'rxjs';
 
@@ -36,6 +36,7 @@ export class StorefrontComponent implements OnInit {
   user$ = this.auth.user$;
 
   products: Product[] = [];
+  bundles: Bundle[] = [];
   banners = [
     'https://dosi-in.com/file/detailed/392/dosiin-89773346_141384927379462_7482344538762117120_n__1_392970.jpg?w=1200&h=500&fit=crop&fm=webp',
     'https://dosi-in.com/file/detailed/101/dosiin-FB_header101073.jpeg?w=1200&h=500&fit=crop&fm=webp',
@@ -73,6 +74,13 @@ export class StorefrontComponent implements OnInit {
         this.products = products;
         this.filterByTag();
         this.updateTrendingCategories();
+        this.cdr.detectChanges();
+      });
+
+    this.api.getBundles()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((bundles) => {
+        this.bundles = (bundles || []).filter(b => b.status === 'ACTIVE');
         this.cdr.detectChanges();
       });
 
