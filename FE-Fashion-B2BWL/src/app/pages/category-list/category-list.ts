@@ -107,6 +107,9 @@ export class CategoryListComponent implements OnInit {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
+    setTimeout(() => {
+      this.gridApi.autoSizeAllColumns();
+    }, 100);
   }
 
   loadData(): void {
@@ -166,6 +169,8 @@ export class CategoryListComponent implements OnInit {
         width: 260,
         sortable: false,
         filter: false,
+        pinned: 'right',
+        suppressSizeToFit: true
       },
     ];
   }

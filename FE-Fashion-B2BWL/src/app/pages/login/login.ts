@@ -57,7 +57,7 @@ export class LoginComponent {
           const isAdmin = role === 'ADMINISTRATOR' || role === 'ADMIN' || role === 'STAFF';
           
           if (isAdmin) {
-            this.router.navigate(['/dashboard']);
+            this.router.navigate(['/admin']);
           } else {
             this.router.navigate(['/storefront']);
           }

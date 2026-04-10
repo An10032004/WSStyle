@@ -1,3 +1,128 @@
 :host {
-  display: contents;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  background: white !important;
+  border-right: 1px solid #f1f5f9;
+  z-index: 100;
+}
+
+.sidebar-wrapper {
+  width: 80px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: white !important;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+
+  &.expanded {
+    width: 280px;
+  }
+
+  /* Hide scrollbar */
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background: #f1f5f9;
+  }
+}
+
+.nav-group {
+  padding: 12px 0;
+  border-bottom: 1px solid #f8fafc;
+  width: 100%;
+
+  &:last-child {
+    border-bottom: none;
+    margin-top: auto;
+  }
+}
+
+.group-title {
+  padding: 12px 28px 8px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-item {
+  margin: 4px 12px;
+  padding: 0 16px !important;
+  height: 48px !important;
+  border-radius: 12px !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+  
+  tui-icon {
+    font-size: 1.25rem !important;
+    transition: all 0.3s !important;
+    color: #64748b !important;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: #f8fafc !important;
+    color: var(--primary) !important;
+    
+    tui-icon {
+      color: var(--primary) !important;
+      transform: scale(1.1);
+    }
+  }
+
+  &.active {
+    background: var(--bgi) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 20px -5px rgba(0, 133, 88, 0.25);
+    font-weight: 700 !important;
+
+    tui-icon {
+      color: #ffffff !important;
+    }
+  }
+}
+
+header {
+  padding: 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-bottom: 1px solid #f1f5f9;
+  
+  button {
+    color: #94a3b8 !important;
+    &:hover {
+      background: #f8fafc !important;
+      color: var(--primary) !important;
+    }
+  }
+}
+
+.footer-group {
+  background: #fafbfb;
+  border-top: 1px solid #f1f5f9;
 }

@@ -129,6 +129,7 @@ export const routes: Routes = [
     ]
   },
   { path: 'Administrator', redirectTo: 'admin', pathMatch: 'full' },
+  { path: 'administrator', redirectTo: 'admin', pathMatch: 'full' },
   { path: 'dashboard', redirectTo: 'admin/dashboard', pathMatch: 'full' },
   { path: 'reviews', redirectTo: 'admin/reviews', pathMatch: 'full' },
   {

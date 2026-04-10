@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TuiIcon } from '@taiga-ui/core';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -9,7 +9,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, TuiNavigation, TuiIcon, TranslocoModule],
+  imports: [CommonModule, RouterLink, RouterLinkActive, TuiIcon, TranslocoModule],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
 })

@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { LanguageSwitcherComponent } from './header/language-switcher.component';
+import { SidebarComponent } from './sidebar/sidebar';
 
 @Component({
   selector: 'app-layout',
@@ -24,7 +25,8 @@ import { LanguageSwitcherComponent } from './header/language-switcher.component'
     TuiAvatar,
     TuiDataList,
     TuiDropdown,
-    LanguageSwitcherComponent
+    LanguageSwitcherComponent,
+    SidebarComponent
   ],
   templateUrl: './layout.html',
   styleUrl: './layout.scss',

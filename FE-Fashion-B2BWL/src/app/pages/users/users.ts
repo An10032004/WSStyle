@@ -196,13 +196,15 @@ export class UsersComponent implements OnInit, OnDestroy {
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
-        width: 200,
+        width: 260,
         cellRenderer: ActionRendererComponent,
         cellRendererParams: {
           onView: (data: User) => this.onView(data),
           onEdit: (data: User) => this.onEdit(data),
           onDelete: (data: User) => this.onDelete(data)
-        }
+        },
+        pinned: 'right',
+        suppressSizeToFit: true
       }
     ];
   }
@@ -258,7 +260,9 @@ export class UsersComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
-    this.gridApi.sizeColumnsToFit();
+    setTimeout(() => {
+      this.gridApi.autoSizeAllColumns();
+    }, 100);
   }
 
   onAdd(): void {
