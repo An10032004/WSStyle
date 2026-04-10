@@ -15,9 +15,10 @@ import {
   TuiInputNumber,
   TuiInputDate,
   TuiInputTime,
-  TuiCheckbox
+  TuiCheckbox,
+  TuiBadge
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule, TuiInputDateModule, TuiInputTimeModule } from '@taiga-ui/legacy';
+import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule, TuiInputDateModule, TuiInputTimeModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { PricingRule } from '../../services/api.service';
@@ -39,15 +40,16 @@ interface QuantityBracket {
     TuiButton, 
     TuiInputNumber, 
     TuiTabs,
-    TuiInputDateModule,
-    TuiInputTimeModule,
-    TuiCheckbox,
-    TuiTextfieldControllerModule, 
-    TuiLabel, 
-    TuiIcon, 
-    TranslocoModule, 
+    TuiSelectModule,
+    TuiMultiSelectModule,
+    TuiDataList,
+    TuiDataListWrapper,
+    TuiBadge,
+    TuiDropdown,
     TuiTextfield,
-    TuiDropdown
+    TuiLabel,
+    TuiIcon,
+    TranslocoModule
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -61,6 +63,7 @@ interface QuantityBracket {
         <div class="config-panel">
           <nav tuiTabs [(activeItemIndex)]="activeTab" class="tabs-nav">
             <button tuiTab>{{ 'QUANTITY_BREAK.GENERAL_TAB' | transloco }}</button>
+            <button tuiTab>Đối tượng áp dụng</button>
             <button tuiTab>{{ 'QUANTITY_BREAK.DISCOUNT_TAB' | transloco }}</button>
             <button tuiTab>{{ 'QUANTITY_BREAK.TABLE_TAB' | transloco }}</button>
           </nav>
@@ -131,8 +134,49 @@ interface QuantityBracket {
               </div>
             </div>
 
-            <!-- DISCOUNT SETTINGS -->
+            <!-- TARGETING SETTINGS -->
             <div *ngSwitchCase="1" class="form-section">
+               <div class="field-item">
+                 <div class="premium-label">Đối tượng khách hàng áp dụng</div>
+                 <tui-select [(ngModel)]="rule.applyCustomerType" (ngModelChange)="onTargetingChange()">
+                    <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
+                 </tui-select>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyCustomerType === 'GROUP'">
+                 <div class="premium-label">Chọn nhóm khách hàng</div>
+                 <tui-multi-select [(ngModel)]="selectedCustomerGroups" [stringify]="stringifyGroup" (ngModelChange)="onTargetingChange()">
+                    <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
+                    <ng-template #groupContent let-item>{{ item.name }}</ng-template>
+                 </tui-multi-select>
+               </div>
+
+               <div class="field-item">
+                 <div class="premium-label">Loại sản phẩm áp dụng</div>
+                 <tui-select [(ngModel)]="rule.applyProductType" (ngModelChange)="onTargetingChange()">
+                    <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
+                 </tui-select>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyProductType === 'GROUP' || rule.applyProductType === 'CATEGORY'">
+                 <div class="premium-label">Chọn danh mục áp dụng</div>
+                 <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="onTargetingChange()">
+                    <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
+                    <ng-template #catContent let-item>{{ item.name }}</ng-template>
+                 </tui-multi-select>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
+                 <div class="premium-label">Chọn sản phẩm áp dụng cụ thể</div>
+                 <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="onTargetingChange()">
+                    <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
+                    <ng-template #prodContent let-item>{{ item.name }}</ng-template>
+                 </tui-multi-select>
+               </div>
+            </div>
+
+            <!-- DISCOUNT SETTINGS -->
+            <div *ngSwitchCase="2" class="form-section">
               <div class="bracket-list">
                 <div *ngFor="let b of brackets; let i = index; trackBy: trackByFn" class="bracket-row">
                    <div class="bracket-field">
@@ -169,7 +213,7 @@ interface QuantityBracket {
             </div>
 
             <!-- TABLE SETTINGS -->
-            <div *ngSwitchCase="2" class="form-section">
+            <div *ngSwitchCase="3" class="form-section">
                <div class="empty-tab-message">
                   <tui-icon icon="@tui.settings-2" size="xl"></tui-icon>
                   <p>{{ 'SAAS.FEATURES_JSON' | transloco }} - Coming Soon</p>
@@ -306,6 +350,19 @@ interface QuantityBracket {
 })
 export class QuantityBreakEditorComponent implements OnInit {
   @Input() rule!: Partial<PricingRule>;
+  @Input() customerGroups: any[] = [];
+  @Input() categories: any[] = [];
+  @Input() products: any[] = [];
+  
+  @Input() selectedCustomerGroups: any[] = [];
+  @Input() selectedCategories: any[] = [];
+  @Input() selectedProducts: any[] = [];
+
+  @Output() selectedCustomerGroupsChange = new EventEmitter<any[]>();
+  @Output() selectedCategoriesChange = new EventEmitter<any[]>();
+  @Output() selectedProductsChange = new EventEmitter<any[]>();
+  @Output() targetingChanged = new EventEmitter<void>();
+
   @Output() save = new EventEmitter<Partial<PricingRule>>();
   @Output() cancel = new EventEmitter<void>();
   
@@ -319,12 +376,27 @@ export class QuantityBreakEditorComponent implements OnInit {
   startTime: TuiTime | null = null;
   hasEndDate = false;
 
+  customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
+  productTypeOptions = ['ALL', 'SPECIFIC', 'GROUP'];
+
+  readonly stringifyGroup = (item: any): string => item.name || '';
+  readonly stringifyCategory = (item: any): string => item.name || '';
+  readonly stringifyProduct = (item: any): string => item.name ? `${item.name} (${item.productCode})` : '';
+
   brackets: QuantityBracket[] = [
     { min: 1, max: 30, discount: 5 },
     { min: 31, max: 60, discount: 10 }
   ];
 
   onBracketChange() {
+    this.cdr.markForCheck();
+  }
+
+  onTargetingChange() {
+    this.selectedCustomerGroupsChange.emit(this.selectedCustomerGroups);
+    this.selectedCategoriesChange.emit(this.selectedCategories);
+    this.selectedProductsChange.emit(this.selectedProducts);
+    this.targetingChanged.emit();
     this.cdr.markForCheck();
   }
 

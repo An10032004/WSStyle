@@ -121,7 +121,18 @@
       </div>
     </div>
     <ng-template #qbEditor>
-      <app-quantity-break-editor [rule]="formData" (save)="onSubmit()" (cancel)="cancel()"></app-quantity-break-editor>
+      <app-quantity-break-editor 
+        [rule]="formData" 
+        [customerGroups]="customerGroups"
+        [categories]="categories"
+        [products]="products"
+        [(selectedCustomerGroups)]="selectedCustomerGroups"
+        [(selectedCategories)]="selectedCategories"
+        [(selectedProducts)]="selectedProducts"
+        (targetingChanged)="checkConflicts()"
+        (save)="onSubmit()" 
+        (cancel)="cancel()">
+      </app-quantity-break-editor>
     </ng-template>
   </div>
 
