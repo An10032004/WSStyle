@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
-import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiDropdown } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 import { BehaviorSubject, combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap, take } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -11,6 +11,7 @@ import { StorefrontHeaderComponent } from '../../shared/components/storefront-he
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { ApiService, DebtSummary } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 
 @Component({
   selector: 'app-cart',
@@ -18,7 +19,8 @@ import { AuthService } from '../../services/auth.service';
   imports: [
     CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiBadge,
     TuiFormatNumberPipe, TuiLabel, TuiLoader, TranslocoModule, TuiCheckbox,
-    StorefrontHeaderComponent, StorefrontFooterComponent
+    StorefrontHeaderComponent, StorefrontFooterComponent,
+    QuantityBreakTableComponent, TuiDropdown
   ],
   templateUrl: './cart.html',
   styleUrls: ['./cart.scss'],
@@ -223,5 +225,9 @@ export class CartComponent implements OnInit {
   toggleAll(selected: boolean) {
     this.cartService.toggleAll(selected);
     this.revalidate();
+  }
+
+  getQB(item: CartItem): any[] {
+    return this.cartService.getQuantityBreaks(item, this.auth.currentUserValue);
   }
 }

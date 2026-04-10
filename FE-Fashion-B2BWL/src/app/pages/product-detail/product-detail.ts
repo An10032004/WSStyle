@@ -16,6 +16,7 @@ import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown, TuiDialogService, TuiDialog, TuiAlertService, TuiNotification } from '@taiga-ui/core';
 import { TuiCarousel, TuiPagination, TuiBadge, TuiAccordion, TuiRating } from '@taiga-ui/kit';
 import { TuiTextareaModule } from '@taiga-ui/legacy';
@@ -55,6 +56,7 @@ import { ruleMatchesTargeting } from '../../utils/rule-targeting';
     FormsModule,
     ReactiveFormsModule,
     TuiNotification,
+    QuantityBreakTableComponent
   ],
   templateUrl: './product-detail.html',
   styleUrl: './product-detail.scss',
@@ -114,6 +116,7 @@ export class ProductDetailComponent implements OnInit {
   
   qbRules: any[] = [];
   b2bRule: any | null = null;
+  winnerType: 'B2B' | 'QB' | 'NONE' = 'NONE';
   quantityBreaks: any[] = [];
   activeOrderLimit: OrderLimit | null = null;
   /** Giới hạn SL tối đa (PER_PRODUCT / PER_VARIANT), chọn theo priority giống MOQ */
@@ -136,36 +139,16 @@ export class ProductDetailComponent implements OnInit {
   get currentPrice(): number {
     if (!this.product) return 0;
     
-    let base = 0;
-    if (this.selectedVariant && this.selectedVariant.price) {
-        base = this.selectedVariant.price;
-    }
+    // Use the central logic from CartService to ensure consistency
+    const result = this.cart.calculatePrice(
+      this.product.id,
+      this.product.categoryId,
+      this.selectedVariant?.price || this.product.basePrice || 0,
+      this.quantity,
+      this.product.quantityBreaksJson
+    );
 
-    // 3. Apply B2B Pricing Rule (Wholesale)
-    if (this.b2bRule) {
-      const discountValue = this.b2bRule.discountValue ?? this.b2bRule.parsedConfig?.discountValue ?? 0;
-      const discountType = this.b2bRule.discountType ?? this.b2bRule.parsedConfig?.discountType;
-
-      if (discountType === 'PERCENTAGE') {
-        base = base * (1 - discountValue / 100);
-      } else if (discountType === 'FIXED' || discountType === 'FIXED_AMOUNT') {
-        base = Math.max(0, base - discountValue);
-      }
-    }
-
-    // 4. Apply Quantity Break Pricing Rule
-    if (this.quantityBreaks && this.quantityBreaks.length > 0) {
-      const matchedBreak = this.quantityBreaks.find(b => {
-        const min = b.min ?? 1;
-        const max = b.max ?? 999999999;
-        return this.quantity >= min && this.quantity <= max;
-      });
-      if (matchedBreak && matchedBreak.discount != null) {
-        base = base * (1 - matchedBreak.discount / 100);
-      }
-    }
-    
-    return base;
+    return result.finalPrice;
   }
 
   get isVariantPriceApplied(): boolean {
@@ -455,31 +438,34 @@ export class ProductDetailComponent implements OnInit {
       const activeRules = this.cart.pricingRules;
       const user = this.auth.currentUserValue;
 
-      this.qbRules = activeRules.filter((r) => {
-        if (r.ruleType !== 'QUANTITY_BREAK') return false;
-        return ruleMatchesTargeting(r, { productId, categoryId, user });
-      });
+      // 1. Gather all applicable rules
+      const allMatches = activeRules.filter(r => ruleMatchesTargeting(r, { productId, categoryId, user }));
+      
+      // 2. Sort by priority (1 is highest)
+      allMatches.sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
-      this.qbRules.forEach(r => {
-        if (r.actionConfig) {
-          try {
-            r.parsedConfig = JSON.parse(r.actionConfig);
-          } catch (e) {}
+      const winner = allMatches[0];
+
+      // 3. Handle QB Discovery (always do this to have data available)
+      this.quantityBreaks = this.cart.getQuantityBreaks({
+        productId,
+        categoryId,
+        quantityBreaksJson: this.product?.quantityBreaksJson
+      }, user);
+
+      // 4. Set Winner UI State
+      if (winner?.ruleType === 'QUANTITY_BREAK') {
+        this.winnerType = 'QB';
+        this.b2bRule = null;
+      } else if (winner?.ruleType === 'B2B_PRICE') {
+        this.winnerType = 'B2B';
+        this.b2bRule = winner;
+        if (this.b2bRule.actionConfig) {
+          try { this.b2bRule.parsedConfig = JSON.parse(this.b2bRule.actionConfig); } catch(e) {}
         }
-      });
-
-      const b2bRules = activeRules.filter((r) => {
-        if (r.ruleType !== 'B2B_PRICE') return false;
-        return ruleMatchesTargeting(r, { productId, categoryId, user });
-      });
-
-      this.b2bRule = pickSingleBestRule(b2bRules);
-      if (this.b2bRule?.actionConfig) {
-        try {
-          this.b2bRule.parsedConfig = JSON.parse(this.b2bRule.actionConfig);
-        } catch (e) {
-          this.b2bRule.parsedConfig = undefined;
-        }
+      } else {
+        this.winnerType = 'NONE';
+        this.b2bRule = null;
       }
 
       this.cdr.detectChanges();
@@ -706,6 +692,40 @@ export class ProductDetailComponent implements OnInit {
     this.isLightboxOpen = false;
     document.body.style.overflow = 'auto';
     this.cdr.detectChanges();
+  }
+
+  handleTableBuy(qty: number) {
+    if (!this.product) return;
+    
+    // Check if variant is selected (if product has variants)
+    if (this.isSelectionIncomplete) {
+       this.alerts.open('Vui lòng chọn đầy đủ Màu sắc và Kích thước trước khi thêm vào giỏ hàng.', {
+          label: 'Chưa chọn phân loại',
+          appearance: 'warning'
+       }).subscribe();
+       return;
+    }
+
+    if (this.selectedVariant) {
+        this.cart.addToCart(this.product, this.selectedVariant, qty);
+        // Toast success
+        this.alerts.open(`Đã thêm ${qty} sản phẩm vào giỏ hàng`, {
+           appearance: 'success',
+           label: 'Thành công'
+        }).subscribe();
+    }
+  }
+
+  buyNow() {
+    if (!this.product) return;
+    if (this.isSelectionIncomplete) {
+       this.alerts.open('Vui lòng chọn đầy đủ phiên bản.', { appearance: 'warning' }).subscribe();
+       return;
+    }
+    if (this.selectedVariant) {
+        this.cart.addToCart(this.product, this.selectedVariant, this.quantity);
+        this.router.navigate(['/cart']);
+    }
   }
 
   lightboxPrev() {

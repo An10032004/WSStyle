@@ -109,18 +109,28 @@ public class ProductMapperService {
         });
 
         // 3. Apply Pricing Rules
+        // First, find the best matching Quantity Break rule for UI discovery
+        pricingRules.stream()
+                .filter(r -> "QUANTITY_BREAK".equals(r.getRuleType()))
+                .filter(r -> ruleCoreService.isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
+                .filter(r -> ruleCoreService.isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .min((r1, r2) -> (r1.getPriority() != null ? r1.getPriority() : 999) - (r2.getPriority() != null ? r2.getPriority() : 999))
+                .ifPresent(qbRule -> {
+                    dto.setQuantityBreaksJson(qbRule.getActionConfig());
+                });
+
+        // Apply best pricing rule (Lowest priority wins)
         ruleCoreService.findBestPricingRule(productId, categoryId, user, pricingRules).ifPresent(rule -> {
             if ("QUANTITY_BREAK".equals(rule.getRuleType())) {
-                dto.setQuantityBreaksJson(rule.getActionConfig());
                 dto.setDiscountLabel("Ưu đãi mua sỉ");
             } else {
                 BigDecimal price = dto.getCalculatedPrice();
                 if ("PERCENTAGE".equals(rule.getDiscountType()) && rule.getDiscountValue() != null) {
                     BigDecimal factor = BigDecimal.valueOf(100).subtract(rule.getDiscountValue())
                             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                    dto.setCalculatedPrice(price.multiply(factor));
+                    dto.setCalculatedPrice(price.multiply(factor).setScale(0, RoundingMode.HALF_UP));
                 } else if (("FIXED".equals(rule.getDiscountType()) || "FIXED_AMOUNT".equals(rule.getDiscountType())) && rule.getDiscountValue() != null) {
-                    dto.setCalculatedPrice(price.subtract(rule.getDiscountValue()));
+                    dto.setCalculatedPrice(price.subtract(rule.getDiscountValue()).setScale(0, RoundingMode.HALF_UP));
                 }
                 dto.setDiscountLabel(rule.getName());
             }

@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService, TuiDropdown } from '@taiga-ui/core';
 import { TuiInputNumber, TuiDataListWrapper, TuiPagination } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, Product, ProductVariant, Category } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
+import { AuthService } from '../../services/auth.service';
+import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 
 interface QuickOrderItem {
   product: Product;
@@ -38,7 +40,9 @@ interface QuickOrderItem {
     TuiDataListWrapper,
     TuiSelectModule,
     TuiTextfieldControllerModule,
-    StorefrontHeaderComponent
+    StorefrontHeaderComponent,
+    QuantityBreakTableComponent,
+    TuiDropdown
   ],
   templateUrl: './quick-order-form.html',
   styleUrls: ['./quick-order-form.scss']
@@ -49,6 +53,7 @@ export class QuickOrderFormComponent implements OnInit {
   private readonly alerts = inject(TuiAlertService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
 
   public Math = Math;
 
@@ -142,6 +147,14 @@ export class QuickOrderFormComponent implements OnInit {
     if (result.appliedQBBreak) rules.push(`Sỉ: -${result.appliedQBBreak.discount}%`);
     
     variant.appliedRulesText = rules.join(' | ');
+  }
+
+  getQB(product: Product): any[] {
+    return this.cart.getQuantityBreaks({
+      productId: product.id,
+      categoryId: product.categoryId,
+      quantityBreaksJson: product.quantityBreaksJson
+    }, this.auth.currentUserValue);
   }
 
   loadCategories(): void {

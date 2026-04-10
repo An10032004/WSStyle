@@ -136,9 +136,29 @@
                  <span class="item-name">{{ item.name }}</span>
                  <span class="item-variant">{{ item.color }} / {{ item.size }}</span>
                </div>
-               <div class="item-price">
-                 {{ (item.price * item.quantity) | number:'1.0-0' }} ₫
-               </div>
+                <div class="item-price">
+                  <div class="price-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</div>
+                  <div class="qb-trigger" *ngIf="getQB(item).length > 0">
+                    <tui-icon
+                      icon="@tui.info"
+                      style="cursor: pointer; opacity: 0.6; font-size: 14px;"
+                      [tuiDropdown]="checkoutQbDropdown"
+                    ></tui-icon>
+                    <ng-template #checkoutQbDropdown>
+                      <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+                        <app-quantity-break-table 
+                          [breaks]="getQB(item)" 
+                          [basePrice]="item.basePrice || item.price"
+                          [currentQty]="item.quantity">
+                        </app-quantity-break-table>
+                      </div>
+                    </ng-template>
+                  </div>
+                </div>
+                <!-- DISCOUNT NOTIFICATION -->
+                <div class="discount-label" *ngIf="item.discountLabel">
+                   {{ item.discountLabel }}
+                </div>
             </div>
           </div>
 

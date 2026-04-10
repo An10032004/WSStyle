@@ -71,6 +71,15 @@
             </div>
           </div>
         </div>
+        
+        <!-- QUANTITY BREAK TABLE (Show if QB is the winner, or if NO rules exist and we have product-level QB) -->
+        <app-quantity-break-table 
+           *ngIf="winnerType !== 'B2B' && quantityBreaks && quantityBreaks.length > 0"
+           [breaks]="quantityBreaks" 
+           [basePrice]="selectedVariant?.price || product?.basePrice || 0"
+           [currentQty]="quantity"
+           (onBuy)="handleTableBuy($event)">
+        </app-quantity-break-table>
 
         <div class="variant-selector" *ngIf="availableColors.length > 0">
           <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
@@ -126,34 +135,6 @@
         >
           <strong>Giá đã thay đổi:</strong> Bạn đang chọn một biến thể có mức giá riêng. 
         </tui-notification>
-
-        <!-- QUANTITY BREAK TABLE -->
-        <div class="qb-section" *ngIf="quantityBreaks.length > 0">
-           <div class="qb-title">
-             <tui-icon icon="@tui.tags"></tui-icon>
-             Mua càng nhiều, giá càng rẻ (Ưu đãi mua sỉ)
-           </div>
-           <div class="qb-table-wrapper">
-             <table class="qb-table">
-               <thead>
-                 <tr>
-                   <th>Số lượng</th>
-                   <th>Giá đơn vị</th>
-                   <th>Giảm</th>
-                 </tr>
-               </thead>
-               <tbody>
-                  <tr *ngFor="let b of quantityBreaks">
-                    <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
-                    <td class="price-val">
-                      {{ (currentPrice * (1 - b.discount/100)) | number:'1.0-0' }} ₫
-                    </td>
-                    <td class="discount-val">-{{ b.discount }}%</td>
-                  </tr>
-               </tbody>
-             </table>
-           </div>
-        </div>
 
         <div class="moq-warning" *ngIf="isMoqViolation">
           <tui-notification status="warning" icon="@tui.circle-alert" class="anim-fade">

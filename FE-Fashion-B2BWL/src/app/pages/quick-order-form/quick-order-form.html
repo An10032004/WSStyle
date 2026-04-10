@@ -171,6 +171,27 @@
                         <div class="rule-desc" *ngIf="v.appliedRulesText">
                           {{ v.appliedRulesText }}
                         </div>
+                        
+                        <!-- QUANTITY BREAK POPUP -->
+                        <div class="qb-info-trigger" *ngIf="getQB(item.product).length > 0">
+                           <button
+                             tuiIconButton
+                             type="button"
+                             size="xs"
+                             appearance="flat"
+                             icon="@tui.info"
+                             [tuiDropdown]="qbDropdown"
+                           ></button>
+                           <ng-template #qbDropdown>
+                             <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+                               <app-quantity-break-table 
+                                 [breaks]="getQB(item.product)" 
+                                 [basePrice]="v.price || item.product.basePrice"
+                                 [currentQty]="v.selectedQuantity">
+                               </app-quantity-break-table>
+                             </div>
+                           </ng-template>
+                        </div>
                       </td>
                       <td><code>{{ v.sku }}</code></td>
                       <td>

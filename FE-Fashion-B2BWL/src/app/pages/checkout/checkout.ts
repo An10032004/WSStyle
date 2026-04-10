@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
-import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiTextfield, TuiDialogService } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiTextfield, TuiDialogService, TuiDropdown } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
 import { combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap, take } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -11,6 +11,7 @@ import { StorefrontHeaderComponent } from '../../shared/components/storefront-he
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { ApiService, DebtSummary, NetTermQuote, OrderRequest } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 
 @Component({
   selector: 'app-checkout',
@@ -19,7 +20,8 @@ import { AuthService } from '../../services/auth.service';
     CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
     TuiButton, TuiIcon, TuiBadge, TuiLoader, TuiTextfield,
     TuiFormatNumberPipe, TuiLabel, TranslocoModule,
-    StorefrontHeaderComponent, StorefrontFooterComponent
+    StorefrontHeaderComponent, StorefrontFooterComponent,
+    QuantityBreakTableComponent, TuiDropdown
   ],
   templateUrl: './checkout.html',
   styleUrls: ['./checkout.scss'],
@@ -411,5 +413,9 @@ export class CheckoutComponent implements OnInit {
   cancelPayment(observer: any) {
     this.onPaymentComplete(false);
     observer.complete();
+  }
+
+  getQB(item: CartItem): any[] {
+    return this.cartService.getQuantityBreaks(item, this.auth.currentUserValue);
   }
 }

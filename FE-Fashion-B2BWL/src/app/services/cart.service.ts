@@ -22,6 +22,7 @@ export interface CartItem {
   basePrice?: number;
   quantityBreaksJson?: string;
   isFixedPrice?: boolean; // New flag to skip recalculations
+  discountLabel?: string;
 }
 
 export interface PriceCalculationResult {
@@ -127,7 +128,8 @@ export class CartService {
         // Ensure legacy items and undefined states are selected by default
         return items.map(i => ({
             ...i,
-            selected: i.selected !== false
+            selected: i.selected !== false,
+            basePrice: i.basePrice || i.price // Fallback for legacy items
         }));
     }
     return [];
@@ -419,6 +421,15 @@ export class CartService {
       item.quantityBreaksJson
     );
     item.price = result.finalPrice;
+
+    // Set notification label for UI
+    if (result.appliedQBBreak) {
+       item.discountLabel = `Ưu đãi mua sỉ (-${result.appliedQBBreak.discount}%)`;
+    } else if (result.appliedB2BRule) {
+       item.discountLabel = result.appliedB2BRule.ruleName || result.appliedB2BRule.name || 'Giá ưu đãi';
+    } else {
+       item.discountLabel = undefined;
+    }
   }
 
   calculatePrice(
@@ -433,44 +444,85 @@ export class CartService {
     let appliedQBBreak = null;
     const user = this.auth.currentUserValue;
 
-    // 1. Apply B2B Pricing Rule
-    if (this.pricingRules.length > 0) {
-      appliedB2BRule = this.findBestPricingRule(productId, categoryId || null, user);
-      if (appliedB2BRule) {
-        let discountValue = appliedB2BRule.discountValue;
-        let discountType = appliedB2BRule.discountType;
-        
-        if (discountValue == null && appliedB2BRule.actionConfig) {
-          try {
-             const config = JSON.parse(appliedB2BRule.actionConfig);
-             discountValue = config.discountValue;
-             discountType = config.discountType;
-          } catch(e) {}
-        }
+    // 1. Get all matching rules, sorted by priority (1 is highest)
+    const matchingRules = this.pricingRules
+      .filter(r => this.isCustomerMatch(r, user) && this.isProductMatch(r, productId, categoryId || null))
+      .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
-        if (discountType === 'PERCENTAGE' && discountValue != null) {
-          finalPrice = finalPrice * (1 - discountValue / 100);
-        } else if ((discountType === 'FIXED' || discountType === 'FIXED_AMOUNT') && discountValue != null) {
-          finalPrice = Math.max(0, finalPrice - discountValue);
-        }
+    // 2. Best Rule Discovery
+    const bestRule = matchingRules[0];
+
+    // 3. Fallback/Discovery for Quantity Tiers (shown in UI)
+    let tiers: any[] = [];
+    if (quantityBreaksJson) {
+       try { 
+         const parsed = JSON.parse(quantityBreaksJson); 
+         tiers = Array.isArray(parsed) ? parsed : (parsed.brackets || parsed.breaks || parsed.quantityBreaks || parsed.tiers || []);
+       } catch(e) {}
+    }
+
+    // 4. Determine base deduction from Best Rule
+    if (bestRule && bestRule.ruleType === 'QUANTITY_BREAK') {
+      try {
+        const config = JSON.parse(bestRule.actionConfig);
+        const ruleTiers = Array.isArray(config) ? config : (config.brackets || config.breaks || config.quantityBreaks || config.tiers || []);
+        if (ruleTiers.length > 0) tiers = ruleTiers; 
+      } catch(e) {}
+    } else if (bestRule) {
+      // Best rule is a standard discount (B2B Price)
+      appliedB2BRule = bestRule;
+      let dv = bestRule.discountValue;
+      let dt = bestRule.discountType;
+      
+      if (dv == null && bestRule.actionConfig) {
+        try {
+          const config = JSON.parse(bestRule.actionConfig);
+          dv = config.discountValue;
+          dt = config.discountType;
+        } catch(e) {}
+      }
+
+      if (dt === 'PERCENTAGE' && dv != null) {
+        finalPrice = finalPrice * (1 - dv / 100);
+      } else if ((dt === 'FIXED' || dt === 'FIXED_AMOUNT') && dv != null) {
+        finalPrice = Math.max(0, finalPrice - dv);
       }
     }
 
-    // 2. Apply Quantity Break Pricing Rule
-    if (quantityBreaksJson) {
-      try {
-        const breaks = JSON.parse(quantityBreaksJson);
-        appliedQBBreak = breaks.find((b: any) => {
-          const min = b.min ?? 1;
-          const max = b.max ?? 999999999;
-          return quantity >= min && quantity <= max;
-        });
-        if (appliedQBBreak && appliedQBBreak.discount != null) {
-          finalPrice = finalPrice * (1 - appliedQBBreak.discount / 100);
-        } else {
-          appliedQBBreak = null; // Reset if not matching
+    // 5. Apply Quantity Tiers if the best rule is the one providing them, or if no higher priority B2B rule exists.
+    // However, if bestRule is a B2B rule, we respect STRICT PRIORITY: higher priority rule wins.
+    if (tiers.length > 0) {
+      const matchedTier = tiers.find((b: any) => {
+        const min = b.min ?? 1;
+        const max = b.max ?? 999999999;
+        return quantity >= min && quantity <= max;
+      });
+      
+      if (matchedTier && matchedTier.discount != null) {
+        const qbPrice = basePrice * (1 - matchedTier.discount / 100);
+        
+        // Strict Priority Logic:
+        // Use QB price ONLY IF:
+        // 1. A QB rule is the actual "Best Rule" by priority
+        // 2. OR if NO best rule was found (fallback to product-level QB)
+        // 3. OR if QB price is BETTER than B2B price (Optional: user seems to want hierarchy, 
+        //    but let's favor QB if it's better for now UNLESS bestRule is higher priority B2B)
+        
+        const isBestRuleQB = bestRule?.ruleType === 'QUANTITY_BREAK';
+        const isBestRuleB2B = bestRule?.ruleType === 'B2B_PRICE';
+        
+        if (isBestRuleQB || !bestRule) {
+           finalPrice = qbPrice;
+           appliedQBBreak = matchedTier;
+        } else if (isBestRuleB2B) {
+           // Strict Hierarchy: B2B wins. We do NOT set appliedQBBreak.
+           appliedQBBreak = null; 
         }
-      } catch (e) {}
+      } else {
+        appliedQBBreak = null;
+      }
+    } else {
+      appliedQBBreak = null;
     }
 
     return {
@@ -479,6 +531,35 @@ export class CartService {
       appliedB2BRule,
       appliedQBBreak
     };
+  }
+
+  public getQuantityBreaks(item: any, user: any): any[] {
+    let productId = item.productId || item.id;
+    let categoryId = item.categoryId || null;
+    let fallbackJson = item.quantityBreaksJson;
+
+    let tiers: any[] = [];
+    if (fallbackJson) {
+       try { 
+         const parsed = JSON.parse(fallbackJson); 
+         tiers = Array.isArray(parsed) ? parsed : (parsed.brackets || parsed.breaks || parsed.quantityBreaks || parsed.tiers || []);
+       } catch(e) {}
+    }
+
+    const matchingRules = this.pricingRules
+      .filter(r => this.isCustomerMatch(r, user) && this.isProductMatch(r, productId, categoryId))
+      .sort((a, b) => (a.priority || 999) - (b.priority || 999));
+
+    const bestQBRule = matchingRules.find(r => r.ruleType === 'QUANTITY_BREAK');
+    if (bestQBRule) {
+       try {
+         const config = JSON.parse(bestQBRule.actionConfig);
+         const ruleTiers = Array.isArray(config) ? config : (config.brackets || config.breaks || config.quantityBreaks || config.tiers || []);
+         if (ruleTiers.length > 0) tiers = ruleTiers; 
+       } catch(e) {}
+    }
+
+    return tiers;
   }
 
   public findBestPricingRule(productId: number, categoryId: number | null, user: any): any | null {

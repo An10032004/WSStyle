@@ -51,7 +51,33 @@
                 </div>
               </div>
               <div class="col-price">
-                <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
+                <div class="price-display">
+                  <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
+                  <div class="qb-trigger" *ngIf="getQB(item).length > 0">
+                    <button
+                      tuiIconButton
+                      type="button"
+                      size="xs"
+                      appearance="flat"
+                      icon="@tui.info"
+                      [tuiDropdown]="cartQbDropdown"
+                    ></button>
+                    <ng-template #cartQbDropdown>
+                      <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+                        <app-quantity-break-table 
+                          [breaks]="getQB(item)" 
+                          [basePrice]="item.basePrice || item.price"
+                          [currentQty]="item.quantity">
+                        </app-quantity-break-table>
+                      </div>
+                    </ng-template>
+                  </div>
+                </div>
+                <!-- DISCOUNT NOTIFICATION -->
+                <div class="discount-notif" *ngIf="item.discountLabel">
+                   <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
+                   {{ item.discountLabel }}
+                </div>
               </div>
               <div class="col-qty">
                 <div class="qty-picker">
