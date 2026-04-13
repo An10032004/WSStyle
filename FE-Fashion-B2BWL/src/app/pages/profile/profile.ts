@@ -10,6 +10,18 @@ import { TuiBadge, TuiPagination } from '@taiga-ui/kit';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
+import {
+  buildOrderFlowSteps,
+  canCustomerCancelOrder,
+  canCustomerConfirmRefundReceived,
+  canCustomerMarkReceived,
+  getOrderPaymentCaption,
+  needsCustomerRefundContactNotice,
+  isAwaitingCustomerRefundConfirm,
+  showFulfilmentWaitingNotice,
+  shouldWarnQrRefundOnCancel,
+  type OrderFlowStep,
+} from '../../utils/profile-order-flow';
 
 @Component({
   selector: 'app-profile',
@@ -126,6 +138,64 @@ import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
 
               <!-- Expanded Details -->
               <div class="order-details-pane" *ngIf="isExpanded(order.id)">
+                <div class="order-flow">
+                  <h4 class="flow-title">Quy trình đơn hàng</h4>
+                  <ol class="flow-steps">
+                    <li *ngFor="let step of getFlowSteps(order)" class="flow-step" [ngClass]="'flow-step--' + step.state">
+                      <span class="flow-dot" aria-hidden="true"></span>
+                      <div class="flow-text">
+                        <span class="flow-label">{{ step.label }}</span>
+                        <span class="flow-hint" *ngIf="step.hint">{{ step.hint }}</span>
+                      </div>
+                    </li>
+                  </ol>
+                  <p class="payment-caption">{{ getPaymentCaption(order) }}</p>
+                  <p class="flow-notice" *ngIf="fulfilmentWaitingNotice(order)">
+                    Tiền đã được ghi nhận, nhưng shop chưa xác nhận đơn — bạn <strong>chưa thể</strong> bấm &quot;Đã nhận hàng&quot;. Giao hàng chỉ bắt đầu sau bước xác nhận đơn của shop.
+                  </p>
+                  <p class="flow-notice flow-notice--warn" *ngIf="refundContactNotice(order)">
+                    Đơn đã thu tiền qua chuyển khoản/QR. Vui lòng <strong>liên hệ shop</strong> để được hoàn tiền. Sau khi shop chuyển khoản lại, bạn sẽ thấy nút xác nhận đã nhận tiền hoàn trả bên dưới.
+                  </p>
+                  <p class="flow-notice flow-notice--ok" *ngIf="refundAwaitConfirmNotice(order)">
+                    Shop đã ghi nhận đã chuyển khoản hoàn tiền. Khi bạn kiểm tra đủ số tiền về tài khoản, hãy bấm xác nhận bên dưới.
+                  </p>
+                  <div class="customer-actions" *ngIf="canCancelOrder(order) || canMarkReceived(order) || canConfirmRefund(order)">
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="outline"
+                      *ngIf="canCancelOrder(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="cancelCustomerOrder($event, order)"
+                    >
+                      Hủy đơn
+                    </button>
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="primary"
+                      *ngIf="canMarkReceived(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="markOrderReceived($event, order)"
+                    >
+                      Đã nhận hàng
+                    </button>
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="accent"
+                      *ngIf="canConfirmRefund(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="confirmCustomerRefundReceived($event, order)"
+                    >
+                      Xác nhận đã nhận tiền hoàn trả
+                    </button>
+                  </div>
+                </div>
+
                 <div class="items-list">
                    <div class="item-row" *ngFor="let item of order.items || []">
                       <div class="item-pic">
@@ -232,6 +302,53 @@ import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
     .order-details-pane { 
       padding: 0 20px 20px;
       border-top: 1px dashed #eee;
+
+      .order-flow {
+        padding: 16px 0 8px;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 8px;
+      }
+      .flow-title { margin: 0 0 12px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+      .flow-steps { list-style: none; margin: 0; padding: 0 0 0 4px; }
+      .flow-step {
+        position: relative;
+        display: flex;
+        gap: 12px;
+        padding: 0 0 14px 0;
+        margin: 0;
+        &:not(:last-child)::before {
+          content: '';
+          position: absolute;
+          left: 5px;
+          top: 14px;
+          bottom: -2px;
+          width: 2px;
+          background: #e8e8e8;
+        }
+      }
+      .flow-step--done .flow-dot { background: #0d9488; border-color: #0d9488; }
+      .flow-step--current .flow-dot { background: #111; border-color: #111; box-shadow: 0 0 0 3px rgba(17,17,17,0.12); }
+      .flow-step--pending .flow-dot { background: #fff; border-color: #ccc; }
+      .flow-step--failed .flow-dot { background: #dc2626; border-color: #dc2626; }
+      .flow-step--failed .flow-label { color: #b91c1c; }
+      .flow-dot {
+        flex-shrink: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #ccc;
+        margin-top: 3px;
+        z-index: 1;
+      }
+      .flow-text { display: flex; flex-direction: column; gap: 4px; }
+      .flow-label { font-size: 14px; font-weight: 600; color: #111; }
+      .flow-hint { font-size: 12px; color: #777; line-height: 1.35; }
+      .payment-caption { margin: 12px 0 0; font-size: 13px; color: #444; padding: 10px 12px; background: #f7f7f7; border-radius: 8px; }
+      .flow-notice { margin: 10px 0 0; font-size: 12px; line-height: 1.45; color: #444; padding: 10px 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd; }
+      .flow-notice--warn { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
+      .flow-notice--ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+      .customer-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
       .items-list { padding: 15px 0; }
       .item-row { 
         display: flex; align-items: center; gap: 15px; padding: 10px 0;
@@ -294,13 +411,113 @@ export class ProfileComponent {
   );
 
   expandedOrderIds = new Set<number>();
+  /** Tránh double-submit khi gọi API trạng thái đơn. */
+  actionBusy = new Set<number>();
+
+  getFlowSteps(order: Order): OrderFlowStep[] {
+    return buildOrderFlowSteps(order);
+  }
+
+  getPaymentCaption(order: Order): string {
+    return getOrderPaymentCaption(order);
+  }
+
+  canCancelOrder(order: Order): boolean {
+    return canCustomerCancelOrder(order);
+  }
+
+  canMarkReceived(order: Order): boolean {
+    return canCustomerMarkReceived(order);
+  }
+
+  canConfirmRefund(order: Order): boolean {
+    return canCustomerConfirmRefundReceived(order);
+  }
+
+  fulfilmentWaitingNotice(order: Order): boolean {
+    return showFulfilmentWaitingNotice(order);
+  }
+
+  refundContactNotice(order: Order): boolean {
+    return needsCustomerRefundContactNotice(order);
+  }
+
+  refundAwaitConfirmNotice(order: Order): boolean {
+    return isAwaitingCustomerRefundConfirm(order);
+  }
+
+  cancelCustomerOrder(event: Event, order: Order): void {
+    event.stopPropagation();
+    if (shouldWarnQrRefundOnCancel(order)) {
+      if (
+        !confirm(
+          'Đơn đã thanh toán chuyển khoản/QR. Sau khi hủy bạn cần liên hệ shop để hoàn tiền (shop chuyển khoản lại → bạn xác nhận trên trang này). Tiếp tục hủy đơn?'
+        )
+      ) {
+        return;
+      }
+    } else if (!confirm('Bạn có chắc muốn hủy đơn hàng này?')) {
+      return;
+    }
+    this.actionBusy.add(order.id);
+    this.api.updateOrderStatus(order.id, 'CANCELLED').subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Đơn đã được hủy.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Không hủy được đơn. Thử lại hoặc liên hệ shop.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
+
+  confirmCustomerRefundReceived(event: Event, order: Order): void {
+    event.stopPropagation();
+    const uid = this.auth.currentUserValue?.id;
+    if (uid == null) {
+      this.alerts.open('Vui lòng đăng nhập lại.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      return;
+    }
+    if (!confirm('Xác nhận bạn đã nhận đủ tiền hoàn trả về tài khoản?')) return;
+    this.actionBusy.add(order.id);
+    this.api.confirmRefundReceived(order.id, uid).subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Đã ghi nhận. Cảm ơn bạn.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Chưa xác nhận được. Shop có thể chưa đánh dấu hoàn tiền.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
+
+  markOrderReceived(event: Event, order: Order): void {
+    event.stopPropagation();
+    this.actionBusy.add(order.id);
+    this.api.updateOrderStatus(order.id, 'COMPLETED').subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Cảm ơn bạn đã xác nhận nhận hàng.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Không cập nhật được trạng thái. Liên hệ shop.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
 
   getStatusAppearance(status: string): string {
     switch (status) {
       case 'COMPLETED':
       case 'APPROVED': return 'success';
       case 'PENDING': return 'warning';
-      case 'PROCESSING': return 'info';
+      case 'PROCESSING':
+      case 'SHIPPED': return 'info';
       case 'CANCELLED': 
       case 'REJECTED': return 'danger';
       default: return 'neutral';
@@ -321,12 +538,9 @@ export class ProfileComponent {
       this.expandedOrderIds.delete(order.id);
     } else {
       this.expandedOrderIds.add(order.id);
-      // Fetch full order to ensure items are present
-      if (!order.items) {
-        this.api.getOrderById(order.id).subscribe(fullOrder => {
-          order.items = fullOrder.items;
-        });
-      }
+      this.api.getOrderById(order.id).subscribe(fullOrder => {
+        Object.assign(order, fullOrder);
+      });
     }
   }
 

@@ -31,7 +31,7 @@ public class ReportService {
         List<Order> orders = orderRepository.findByCreatedAtBetween(start, end);
 
         BigDecimal totalRevenue = orders.stream()
-                .filter(o -> "PAID".equals(o.getPaymentStatus()))
+                .filter(this::countsTowardPaidRevenue)
                 .map(Order::getTotalAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -63,7 +63,7 @@ public class ReportService {
                 BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
 
                 bs.setQuantity(bs.getQuantity() + qty);
-                if ("PAID".equals(order.getPaymentStatus())) {
+                if (countsTowardPaidRevenue(order)) {
                     bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
                 }
                 bestSellerMap.put(name, bs);
@@ -80,7 +80,7 @@ public class ReportService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (Order order : orders) {
             String date = order.getCreatedAt().format(formatter);
-            if ("PAID".equals(order.getPaymentStatus())) {
+            if (countsTowardPaidRevenue(order)) {
                 revenueMap.put(date, revenueMap.getOrDefault(date, BigDecimal.ZERO).add(order.getTotalAmount()));
             }
         }
@@ -130,7 +130,7 @@ public class ReportService {
                 }
 
                 row.setSoldQuantity(row.getSoldQuantity() + qty);
-                if ("PAID".equals(order.getPaymentStatus())) {
+                if (countsTowardPaidRevenue(order)) {
                     row.setRevenue(row.getRevenue().add(itemRevenue));
                 }
 
@@ -164,6 +164,22 @@ public class ReportService {
                 .payableVat(payableVat)
                 .netVat(netVat)
                 .build();
+    }
+
+    /**
+     * Doanh thu tiền mặt đã thu: PAID, đơn không hủy/từ chối, không hoàn tiền đã đóng (REFUNDED / khách xác nhận hoàn).
+     */
+    private boolean countsTowardPaidRevenue(Order o) {
+        if (o == null) return false;
+        if ("REFUNDED".equalsIgnoreCase(o.getPaymentStatus())) return false;
+        if (!"PAID".equalsIgnoreCase(o.getPaymentStatus())) return false;
+        if (o.getRefundConfirmedByCustomerAt() != null) return false;
+        String st = o.getStatus();
+        if (st != null) {
+            String u = st.trim().toUpperCase();
+            if ("CANCELLED".equals(u) || "REJECTED".equals(u)) return false;
+        }
+        return true;
     }
 
     private LocalDateTime parseDateTime(String dateStr, LocalDateTime defaultDate) {

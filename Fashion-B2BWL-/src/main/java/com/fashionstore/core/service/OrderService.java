@@ -161,31 +161,57 @@ public class OrderService {
             order.setDueDate(null);
         }
 
-        // Only deduct stock immediately if order is already APPROVED (e.g. NET_TERMS)
-        if ("APPROVED".equals(order.getStatus())) {
-            deductStock(order);
-        }
-
+        // Tồn kho chỉ trừ khi admin xác nhận đơn (PROCESSING), không trừ lúc tạo đơn.
         return orderRepository.save(order);
     }
 
+    private Order requireOrderWithItems(Integer id) {
+        return orderRepository.findByIdWithItemVariants(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+    }
+
+    /**
+     * Trừ tồn kho (idempotent). Gọi khi admin xác nhận đơn — coi như đã lấy hàng / đang chuẩn bị giao.
+     */
     private void deductStock(Order order) {
-        if (order.getStockReduced() != null && order.getStockReduced()) return;
-        
+        if (Boolean.TRUE.equals(order.getStockReduced())) return;
+
         List<OrderItem> items = order.getItems();
         if (items != null) {
             for (OrderItem item : items) {
                 ProductVariant variant = item.getProductVariant();
-                if (variant == null) continue;
-                Integer currentQty = variant.getStockQuantity() != null ? variant.getStockQuantity() : 0;
+                if (variant == null || variant.getId() == null) continue;
+                ProductVariant managed = productVariantRepository.findById(variant.getId()).orElse(variant);
+                Integer currentQty = managed.getStockQuantity() != null ? managed.getStockQuantity() : 0;
                 int deduct = item.getQuantity() != null ? item.getQuantity() : 0;
                 int newQty = currentQty - deduct;
                 if (newQty < 0) newQty = 0;
-                variant.setStockQuantity(newQty);
-                productVariantRepository.save(variant);
+                managed.setStockQuantity(newQty);
+                productVariantRepository.save(managed);
             }
         }
         order.setStockReduced(true);
+    }
+
+    /**
+     * Hoàn tồn kho khi đơn hủy / từ chối / khách không nhận (sau khi đã trừ kho lúc xác nhận đơn).
+     */
+    private void restoreStock(Order order) {
+        if (!Boolean.TRUE.equals(order.getStockReduced())) return;
+
+        List<OrderItem> items = order.getItems();
+        if (items != null) {
+            for (OrderItem item : items) {
+                ProductVariant variant = item.getProductVariant();
+                if (variant == null || variant.getId() == null) continue;
+                ProductVariant managed = productVariantRepository.findById(variant.getId()).orElse(variant);
+                int add = item.getQuantity() != null ? item.getQuantity() : 0;
+                int cur = managed.getStockQuantity() != null ? managed.getStockQuantity() : 0;
+                managed.setStockQuantity(cur + add);
+                productVariantRepository.save(managed);
+            }
+        }
+        order.setStockReduced(false);
     }
 
     public List<Order> getAllOrders() {
@@ -207,9 +233,23 @@ public class OrderService {
 
     @Transactional
     public Order updateOrderStatus(Integer id, String status) {
-        Order order = getOrderById(id);
-        order.setStatus(status);
-        if ("APPROVED".equals(status)) {
+        if (status == null || status.isBlank()) {
+            throw new RuntimeException("status is required");
+        }
+        Order order = requireOrderWithItems(id);
+        String normalized = status.trim().toUpperCase();
+        order.setStatus(normalized);
+
+        // Admin xác nhận đơn → lấy hàng / giao: trừ tồn kho (một lần).
+        if ("PROCESSING".equals(normalized)) {
+            deductStock(order);
+        }
+        // Hủy / từ chối / khách không nhận → hoàn lại tồn nếu đã trừ.
+        if ("REJECTED".equals(normalized) || "CANCELLED".equals(normalized)) {
+            restoreStock(order);
+        }
+        // Tương thích đơn cũ: duyệt APPROVED mà chưa từng trừ (chưa qua PROCESSING).
+        if ("APPROVED".equals(normalized) && !Boolean.TRUE.equals(order.getStockReduced())) {
             deductStock(order);
         }
         return orderRepository.save(order);
@@ -217,14 +257,72 @@ public class OrderService {
 
     @Transactional
     public Order updatePaymentStatus(Integer id, String paymentStatus) {
-        Order order = getOrderById(id);
+        Order order = requireOrderWithItems(id);
         order.setPaymentStatus(paymentStatus);
-        if ("PAID".equals(paymentStatus)) {
+        if ("PAID".equalsIgnoreCase(paymentStatus)) {
             order.setPaidAmount(order.getTotalAmount());
             order.setDebtAmount(BigDecimal.ZERO);
-            order.setStatus("APPROVED");
-            deductStock(order);
+            // Chỉ ghi nhận thanh toán — không đổi status giao hàng (PENDING/PROCESSING/…) và không trừ tồn.
+            // Trừ kho và tiến trình xử lý đơn chỉ qua updateOrderStatus (vd. PROCESSING).
         }
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Admin: đơn hủy/từ chối + đã thu tiền qua QR/CK (VNPAY) — đánh dấu đã chuyển khoản hoàn cho khách.
+     */
+    @Transactional
+    public Order markRefundProcessed(Integer id) {
+        Order order = requireOrderWithItems(id);
+        String st = order.getStatus() != null ? order.getStatus().trim().toUpperCase() : "";
+        if (!"CANCELLED".equals(st) && !"REJECTED".equals(st)) {
+            throw new RuntimeException("Chỉ áp dụng cho đơn đã hủy hoặc từ chối.");
+        }
+        if (!"PAID".equalsIgnoreCase(order.getPaymentStatus())) {
+            throw new RuntimeException("Đơn chưa ở trạng thái đã thu tiền — không dùng nút hoàn tiền này.");
+        }
+        String method = order.getPaymentMethod() != null ? order.getPaymentMethod().trim().toUpperCase() : "";
+        if ("COD".equals(method)) {
+            throw new RuntimeException("Đơn COD: không dùng hoàn tiền chuyển khoản.");
+        }
+        if ("NET_TERMS".equals(method)) {
+            throw new RuntimeException("Đơn công nợ: dùng mục ghi nhận thanh toán công nợ, không dùng hoàn QR/CK.");
+        }
+        if (!"VNPAY".equals(method)) {
+            throw new RuntimeException("Nút này dành cho đơn đã thu qua chuyển khoản/QR (VNPAY).");
+        }
+        if (order.getRefundProcessedAt() != null) {
+            return order;
+        }
+        order.setRefundProcessedAt(LocalDateTime.now());
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Khách xác nhận đã nhận lại tiền hoàn — đóng vòng hoàn tiền, cập nhật payment sang REFUNDED (báo cáo doanh thu loại trừ).
+     */
+    @Transactional
+    public Order confirmRefundReceivedByCustomer(Integer orderId, Integer userId) {
+        if (userId == null) {
+            throw new RuntimeException("Thiếu userId.");
+        }
+        Order order = requireOrderWithItems(orderId);
+        if (order.getUser() == null || !userId.equals(order.getUser().getId())) {
+            throw new RuntimeException("Không khớp chủ đơn hàng.");
+        }
+        String st = order.getStatus() != null ? order.getStatus().trim().toUpperCase() : "";
+        if (!"CANCELLED".equals(st) && !"REJECTED".equals(st)) {
+            throw new RuntimeException("Chỉ áp dụng khi đơn đã hủy hoặc từ chối.");
+        }
+        if (order.getRefundProcessedAt() == null) {
+            throw new RuntimeException("Shop chưa đánh dấu đã hoàn tiền. Vui lòng liên hệ shop.");
+        }
+        if (order.getRefundConfirmedByCustomerAt() != null) {
+            throw new RuntimeException("Bạn đã xác nhận nhận hoàn tiền rồi.");
+        }
+        order.setRefundConfirmedByCustomerAt(LocalDateTime.now());
+        order.setPaymentStatus("REFUNDED");
+        order.setPaidAmount(BigDecimal.ZERO);
         return orderRepository.save(order);
     }
 

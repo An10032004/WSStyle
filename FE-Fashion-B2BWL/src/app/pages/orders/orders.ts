@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   AllCommunityModule,
@@ -15,14 +16,14 @@ import { Subscription } from 'rxjs';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { TuiButton, TuiDialogService, TuiAlertService } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
+import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton, TuiBadge],
+  imports: [CommonModule, FormsModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton, TuiBadge, TuiCheckbox],
   template: `
     <div class="page-container">
       <div class="header-section" style="padding: 16px; display:flex; justify-content:space-between; align-items:center;">
@@ -141,14 +142,48 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           </tbody>
         </table>
       </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 24px; gap: 8px;">
-        <button tuiButton size="m" appearance="primary" *ngIf="selectedOrder?.paymentStatus !== 'PAID'" (click)="updatePaymentStatus(selectedOrder!.id, 'PAID')">
-          Xác nhận đã nhận tiền
-        </button>
-        <button tuiButton size="m" appearance="accent" *ngIf="selectedOrder?.status === 'PENDING'" (click)="updateStatus(selectedOrder!.id, 'PROCESSING')">
-          Xác nhận đơn
-        </button>
-        <button tuiButton size="m" appearance="secondary" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
+      <div class="order-actions-footer" style="margin-top: 24px;">
+        <div *ngIf="showRefundPanel(selectedOrder)" style="width:100%; padding:12px; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; margin-bottom:12px;">
+          <strong>Hoàn tiền (đơn hủy/từ chối + đã thu QR/CK)</strong>
+          <p style="margin:8px 0 12px; font-size:13px; color:#78350f;">Khách cần liên hệ shop. Sau khi chuyển khoản hoàn cho khách, bấm &quot;Đã hoàn tiền&quot;. Khách sẽ xác nhận trên trang cá nhân — khi đó đơn không còn tính vào doanh thu báo cáo.</p>
+          <button tuiButton size="s" appearance="primary" *ngIf="!selectedOrder?.refundProcessedAt" [disabled]="orderActionBusy" (click)="markRefundProcessed()">Đã hoàn tiền cho khách</button>
+          <tui-badge *ngIf="selectedOrder?.refundProcessedAt && !selectedOrder?.refundConfirmedByCustomerAt" appearance="warning" size="m">Chờ khách xác nhận đã nhận hoàn tiền</tui-badge>
+          <tui-badge *ngIf="selectedOrder?.refundConfirmedByCustomerAt" appearance="success" size="m">Khách đã xác nhận hoàn tiền</tui-badge>
+        </div>
+
+        <div *ngIf="selectedOrder?.paymentMethod === 'NET_TERMS' && selectedOrder?.paymentStatus !== 'PAID'" style="width:100%; padding:12px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:8px; margin-bottom:12px;">
+          <strong>Ghi nhận thanh toán công nợ (NET_TERMS)</strong>
+          <p style="margin:8px 0 12px; font-size:13px; color:#0c4a6e;">Khác với thu tiền QR trước giao hàng: chỉ ghi nhận khi bạn đã đối chiếu sao kê / chứng từ và xác nhận khách đã thanh toán kỳ công nợ.</p>
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:13px; margin-bottom:12px;">
+            <input tuiCheckbox type="checkbox" [(ngModel)]="netTermsPaymentAck" />
+            <span>Tôi đã đối chiếu và xác nhận khoản thanh toán công nợ này.</span>
+          </label>
+          <button tuiButton size="m" appearance="primary" [disabled]="orderActionBusy || !netTermsPaymentAck" (click)="recordNetTermsPaid()">Ghi nhận thanh toán công nợ</button>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+          <button
+            tuiButton
+            size="m"
+            appearance="primary"
+            *ngIf="selectedOrder?.paymentMethod !== 'NET_TERMS' && selectedOrder?.paymentStatus !== 'PAID'"
+            [disabled]="orderActionBusy"
+            (click)="updatePaymentStatus(selectedOrder!.id, 'PAID')"
+          >
+            Xác nhận đã nhận tiền (CK/QR trước giao)
+          </button>
+          <button
+            tuiButton
+            size="m"
+            appearance="accent"
+            *ngIf="selectedOrder?.status === 'PENDING'"
+            [disabled]="orderActionBusy"
+            (click)="updateStatus(selectedOrder!.id, 'PROCESSING')"
+          >
+            Xác nhận đơn
+          </button>
+          <button tuiButton size="m" appearance="secondary" [disabled]="orderActionBusy" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
+        </div>
       </div>
     </ng-template>
 
@@ -175,6 +210,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 })
 export class OrdersComponent implements OnInit, OnDestroy {
   @ViewChild('viewDialog') viewDialogTemplate!: TemplateRef<any>;
+  /** Tránh gọi song song xác nhận đơn / xác nhận tiền (hai request chồng nhau). */
+  orderActionBusy = false;
+  /** Tick xác nhận đối soát trước khi ghi nhận thanh toán công nợ. */
+  netTermsPaymentAck = false;
   selectedOrder: Order | null = null;
   rowData: Order[] = [];
   gridApi!: GridApi;
@@ -264,10 +303,47 @@ export class OrdersComponent implements OnInit, OnDestroy {
   onView(order: Order): void {
     this.api.getOrderById(order.id).subscribe(fullOrder => {
       this.selectedOrder = fullOrder;
+      this.netTermsPaymentAck = false;
       this.dialogs.open(this.viewDialogTemplate, { size: 'l', label: this.transloco.translate('ORDER.TITLE') })
         .subscribe();
       this.cdr.detectChanges();
     });
+  }
+
+  showRefundPanel(o: Order | null): boolean {
+    if (!o) return false;
+    const st = (o.status || '').toUpperCase();
+    const ps = (o.paymentStatus || '').toUpperCase();
+    const m = (o.paymentMethod || '').toUpperCase();
+    return (st === 'CANCELLED' || st === 'REJECTED') && ps === 'PAID' && m === 'VNPAY';
+  }
+
+  markRefundProcessed(): void {
+    if (!this.selectedOrder) return;
+    const id = this.selectedOrder.id;
+    this.orderActionBusy = true;
+    this.cdr.markForCheck();
+    this.api.markRefundProcessed(id).subscribe({
+      next: (updated) => {
+        this.orderActionBusy = false;
+        this.alerts.open('Đã ghi nhận hoàn tiền. Khách có thể xác nhận trên trang cá nhân.', { appearance: 'success' }).subscribe();
+        this.loadData();
+        if (this.selectedOrder?.id === id) this.patchSelectedOrderFromResponse(updated);
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.orderActionBusy = false;
+        const msg = e?.error?.message || e?.message || 'Thao tác không hợp lệ.';
+        this.alerts.open(String(msg), { appearance: 'error' }).subscribe();
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  recordNetTermsPaid(): void {
+    if (!this.selectedOrder || !this.netTermsPaymentAck) return;
+    this.updatePaymentStatus(this.selectedOrder.id, 'PAID');
+    this.netTermsPaymentAck = false;
   }
 
   onReject(order: Order): void {
@@ -280,9 +356,23 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   updateStatus(id: number, status: string): void {
-    this.api.updateOrderStatus(id, status).subscribe(() => {
-      this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
-      this.loadData();
+    this.orderActionBusy = true;
+    this.cdr.markForCheck();
+    this.api.updateOrderStatus(id, status).subscribe({
+      next: (updated) => {
+        this.orderActionBusy = false;
+        this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
+        this.loadData();
+        if (this.selectedOrder?.id === id) {
+          this.patchSelectedOrderFromResponse(updated);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.orderActionBusy = false;
+        this.alerts.open('Cập nhật thất bại. Vui lòng thử lại.', { appearance: 'error' }).subscribe();
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -301,6 +391,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   getPaymentStatusAppearance(status: string): string {
     switch (status) {
       case 'PAID': return 'success';
+      case 'REFUNDED': return 'neutral';
       case 'AWAITING_CONFIRMATION': return 'warning';
       case 'FAILED': return 'danger';
       default: return 'neutral';
@@ -308,14 +399,34 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   updatePaymentStatus(id: number, status: string): void {
-    this.api.updatePaymentStatus(id, status).subscribe(() => {
-      this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
-      this.loadData();
-      if (this.selectedOrder && this.selectedOrder.id === id) {
-        this.selectedOrder.paymentStatus = status;
-        this.cdr.detectChanges();
-      }
+    this.orderActionBusy = true;
+    this.cdr.markForCheck();
+    this.api.updatePaymentStatus(id, status).subscribe({
+      next: (updated) => {
+        this.orderActionBusy = false;
+        this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
+        this.loadData();
+        if (this.selectedOrder?.id === id) {
+          this.patchSelectedOrderFromResponse(updated);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.orderActionBusy = false;
+        this.alerts.open('Cập nhật thất bại. Vui lòng thử lại.', { appearance: 'error' }).subscribe();
+        this.cdr.markForCheck();
+      },
     });
+  }
+
+  private patchSelectedOrderFromResponse(updated: Order): void {
+    if (!this.selectedOrder) return;
+    this.selectedOrder.status = updated.status;
+    this.selectedOrder.paymentStatus = updated.paymentStatus;
+    if (updated.paidAmount != null) this.selectedOrder.paidAmount = updated.paidAmount;
+    if (updated.debtAmount != null) this.selectedOrder.debtAmount = updated.debtAmount;
+    this.selectedOrder.refundProcessedAt = updated.refundProcessedAt;
+    this.selectedOrder.refundConfirmedByCustomerAt = updated.refundConfirmedByCustomerAt;
   }
 
   onGridReady(params: GridReadyEvent): void {

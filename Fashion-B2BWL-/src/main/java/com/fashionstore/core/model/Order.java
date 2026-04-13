@@ -33,7 +33,8 @@ public class Order {
     private String orderType; // RETAIL, WHOLESALE
 
     @Column(nullable = false, length = 50)
-    private String status; // PENDING, PROCESSING, SHIPPED, COMPLETED, CANCELLED
+    /** PENDING → PROCESSING (xác nhận đơn, trừ tồn) → …; REJECTED/CANCELLED hoàn tồn nếu đã trừ. */
+    private String status; // PENDING, PROCESSING, SHIPPED, COMPLETED, CANCELLED, APPROVED, REJECTED
 
     @Column(name = "payment_method", nullable = false, length = 50)
     private String paymentMethod; // COD, VNPAY, NET_TERMS
@@ -82,6 +83,14 @@ public class Order {
 
     @Column(name = "stock_reduced")
     private Boolean stockReduced = false;
+
+    /** Admin đánh dấu đã chuyển khoản hoàn tiền (đơn hủy + đã thu QR/CK). */
+    @Column(name = "refund_processed_at")
+    private LocalDateTime refundProcessedAt;
+
+    /** Khách xác nhận đã nhận lại tiền — đóng vòng hoàn tiền, đồng bộ báo cáo. */
+    @Column(name = "refund_confirmed_by_customer_at")
+    private LocalDateTime refundConfirmedByCustomerAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference

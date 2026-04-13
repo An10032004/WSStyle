@@ -73,4 +73,18 @@ public class OrderController {
     public ApiResponse<Order> updatePaymentStatus(@PathVariable Integer id, @RequestParam String paymentStatus) {
         return ApiResponse.success(orderService.updatePaymentStatus(id, paymentStatus));
     }
+
+    /** Admin: đơn hủy + đã thu tiền QR/CK — đánh dấu đã hoàn tiền cho khách. */
+    @PatchMapping("/{id}/refund-processed")
+    public ApiResponse<Order> markRefundProcessed(@PathVariable Integer id) {
+        return ApiResponse.success(orderService.markRefundProcessed(id));
+    }
+
+    /** Khách: xác nhận đã nhận tiền hoàn trả (userId phải trùng chủ đơn). */
+    @PatchMapping("/{id}/confirm-refund-received")
+    public ApiResponse<Order> confirmRefundReceived(
+            @PathVariable Integer id,
+            @RequestParam Integer userId) {
+        return ApiResponse.success(orderService.confirmRefundReceivedByCustomer(id, userId));
+    }
 }

@@ -307,6 +307,10 @@ export interface Order {
   paidAmount: number;
   debtAmount: number;
   dueDate: string;
+  /** Admin đánh dấu đã chuyển khoản hoàn tiền (đơn hủy + QR/CK). */
+  refundProcessedAt?: string | null;
+  /** Khách xác nhận đã nhận lại tiền hoàn. */
+  refundConfirmedByCustomerAt?: string | null;
   fullName?: string;
   phone?: string;
   shippingAddress?: string;
@@ -832,6 +836,16 @@ export class ApiService {
 
   updatePaymentStatus(id: number, status: string): Observable<Order> {
     return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/payment-status?paymentStatus=${status}`, {}).pipe(map(r => r.data));
+  }
+
+  markRefundProcessed(id: number): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/refund-processed`, {}).pipe(map(r => r.data));
+  }
+
+  confirmRefundReceived(orderId: number, userId: number): Observable<Order> {
+    return this.http
+      .patch<ApiResponse<Order>>(`${this.base}/orders/${orderId}/confirm-refund-received?userId=${userId}`, {})
+      .pipe(map(r => r.data));
   }
 
   // ─── Payments ───────────────────────────────────────────
