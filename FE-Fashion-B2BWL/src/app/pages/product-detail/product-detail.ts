@@ -11,7 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { ApiService, Product, ProductVariant, OrderLimit } from '../../services/api.service';
+import { ApiService, Product, ProductVariant, OrderLimit, Bundle } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
@@ -23,7 +23,7 @@ import { TuiTextareaModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { take } from 'rxjs';
-import { distinctUntilChanged, map, skip } from 'rxjs/operators';
+import { distinctUntilChanged, finalize, map, skip } from 'rxjs/operators';
 import { pickSingleBestRule } from '../../utils/rule-priority';
 import {
   resolveOrderLimitWinners,
@@ -74,6 +74,16 @@ export class ProductDetailComponent implements OnInit {
   private readonly alerts = inject(TuiAlertService);
   
   user$ = this.auth.user$;
+  /** Các bundleId đang có trong giỏ (để gắn nhãn «Đã có trong giỏ» trên từng combo). */
+  cartBundleIds$ = this.cart.cart$.pipe(
+    map(items => {
+      const s = new Set<number>();
+      for (const i of items) {
+        if (i.bundleId != null) s.add(i.bundleId);
+      }
+      return s;
+    }),
+  );
 
   product?: Product;
   variants: ProductVariant[] = [];
@@ -92,6 +102,13 @@ export class ProductDetailComponent implements OnInit {
   quantity = 1;
   reviews: any[] = [];
   editingReviewId: number | null = null;
+
+  /** Combo ACTIVE có chứa sản phẩm này. */
+  productBundles: Bundle[] = [];
+  /** Sau khi gọi API containing-product xong (để hiển thị empty state). */
+  productBundlesLoaded = false;
+  /** Cùng danh mục (trừ SP hiện tại). */
+  relatedProducts: Product[] = [];
   
   // Selected variant / state
   reviewRating = 5;
@@ -411,6 +428,28 @@ export class ProductDetailComponent implements OnInit {
       const id = parseInt(idParam);
       this.api.getProductById(id, userId).subscribe((p) => {
         this.product = p;
+        this.productBundles = [];
+        this.productBundlesLoaded = false;
+        this.relatedProducts = [];
+
+        if (p.categoryId != null) {
+          this.api
+            .getProductsByCategory(p.categoryId, userId)
+            .pipe(take(1))
+            .subscribe({
+              next: list => {
+                this.relatedProducts = (list || [])
+                  .filter(x => x.id !== p.id)
+                  .slice(0, 8);
+                this.cdr.markForCheck();
+              },
+              error: () => {
+                this.relatedProducts = [];
+                this.cdr.markForCheck();
+              },
+            });
+        }
+
         this.loadReviews(p.id);
         if (p.quantityBreaksJson) {
           try {
@@ -471,6 +510,45 @@ export class ProductDetailComponent implements OnInit {
       this.cdr.detectChanges();
   }
 
+  /** Tránh race khi đổi biến thể nhanh — chỉ áp dữ liệu combo của request mới nhất. */
+  private bundlesFetchSeq = 0;
+
+  /** Load combo theo đúng biến thể (item bundle gắn variant_id). */
+  private refreshProductBundles(variantId: number | undefined): void {
+    if (variantId == null) {
+      this.productBundles = [];
+      this.productBundlesLoaded = true;
+      this.cdr.markForCheck();
+      return;
+    }
+    this.productBundlesLoaded = false;
+    this.cdr.markForCheck();
+    const seq = ++this.bundlesFetchSeq;
+    this.api
+      .getBundlesContainingVariant(variantId)
+      .pipe(
+        take(1),
+        finalize(() => {
+          if (seq === this.bundlesFetchSeq) {
+            this.productBundlesLoaded = true;
+            this.cdr.markForCheck();
+          }
+        }),
+      )
+      .subscribe({
+        next: bs => {
+          if (seq !== this.bundlesFetchSeq) return;
+          this.productBundles = bs || [];
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          if (seq !== this.bundlesFetchSeq) return;
+          this.productBundles = [];
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
   loadVariants(productId: number) {
     this.api.getProductVariantsByProduct(productId).subscribe(vs => {
       this.variants = vs;
@@ -485,6 +563,8 @@ export class ProductDetailComponent implements OnInit {
       // Auto-select the first variant if available
       if (this.variants.length > 0) {
         this.selectVariant(this.variants[0]);
+      } else {
+        this.refreshProductBundles(undefined);
       }
       
       // Collect all possible images (Product images + All Variant images)
@@ -606,7 +686,8 @@ export class ProductDetailComponent implements OnInit {
 
   private applyVariant(v: ProductVariant | undefined) {
     this.selectedVariant = v;
-    
+    this.refreshProductBundles(v?.id);
+
     if (!v) {
       this.displayImages = [...this.allImages];
       this.cdr.detectChanges();

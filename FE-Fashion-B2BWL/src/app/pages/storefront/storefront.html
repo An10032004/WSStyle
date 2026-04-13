@@ -81,7 +81,7 @@
       </div>
 
       <div class="bundle-grid">
-        <div class="bundle-card" *ngFor="let b of bundles.slice(0, 6)">
+        <a class="bundle-card" *ngFor="let b of bundles.slice(0, 6)" [routerLink]="['/bundle', b.id]">
           <div class="bundle-img">
             <tui-icon icon="@tui.image" *ngIf="!b.imageUrl" class="placeholder-icon" />
             <img [src]="b.imageUrl" *ngIf="b.imageUrl" [alt]="b.name" />
@@ -92,8 +92,9 @@
               <span class="new-price">{{ (b.newPrice || 0) | currency:'VND':'symbol':'1.0-0' }}</span>
               <span class="old-price" *ngIf="b.oldPrice">{{ (b.oldPrice || 0) | currency:'VND':'symbol':'1.0-0' }}</span>
             </div>
+            <span class="bundle-cta">Xem combo →</span>
           </div>
-        </div>
+        </a>
       </div>
     </div>
   </section>

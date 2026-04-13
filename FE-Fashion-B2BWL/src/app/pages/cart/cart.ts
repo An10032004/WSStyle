@@ -6,6 +6,13 @@ import { CartService, CartItem } from '../../services/cart.service';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiDropdown } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 import { BehaviorSubject, combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap, take } from 'rxjs';
+
+interface CartBundleGroup {
+  bundleId: number;
+  label: string;
+  items: CartItem[];
+  selectedSubtotal: number;
+}
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -34,6 +41,62 @@ export class CartComponent implements OnInit {
   private readonly alerts = inject(TuiAlertService);
 
   cart$ = this.cartService.cart$;
+
+  /** Bố cục giỏ: nhóm combo + dòng lẻ (đồng bộ một snapshot). */
+  readonly cartLayout$ = this.cart$.pipe(
+    map((items) => ({
+      items,
+      bundleGroups: this.buildBundleGroups(items),
+      regularItems: items.filter((i) => i.bundleId == null),
+    })),
+    shareReplay(1),
+  );
+
+  readonly comboSubtotalSelected$ = this.cart$.pipe(
+    map((items) =>
+      items
+        .filter((i) => i.bundleId != null && i.selected !== false)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
+    shareReplay(1),
+  );
+
+  readonly regularSubtotalSelected$ = this.cart$.pipe(
+    map((items) =>
+      items
+        .filter((i) => i.bundleId == null && i.selected !== false)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
+    shareReplay(1),
+  );
+
+  readonly hasComboInCart$ = this.cart$.pipe(
+    map((items) => items.some((i) => i.bundleId != null)),
+    shareReplay(1),
+  );
+
+  private buildBundleGroups(items: CartItem[]): CartBundleGroup[] {
+    const m = new Map<number, CartItem[]>();
+    for (const i of items) {
+      if (i.bundleId == null) continue;
+      const id = i.bundleId;
+      if (!m.has(id)) m.set(id, []);
+      m.get(id)!.push(i);
+    }
+    return Array.from(m.entries()).map(([bundleId, lineItems]) => ({
+      bundleId,
+      label:
+        lineItems[0]?.bundleLabel ||
+        (lineItems[0]?.discountLabel?.startsWith('Combo · ')
+          ? lineItems[0]!.discountLabel!.slice(8)
+          : lineItems[0]?.discountLabel) ||
+        `Combo #${bundleId}`,
+      items: lineItems,
+      selectedSubtotal: lineItems
+        .filter((i) => i.selected !== false)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    }));
+  }
 
   couponCode = '';
   appliedCoupon$ = this.cartService.appliedCoupon$;
@@ -156,13 +219,25 @@ export class CartComponent implements OnInit {
   }
 
   updateQuantity(item: CartItem, newQty: number) {
-    this.cartService.updateQuantity(item.productId, item.variantId, newQty).subscribe(() => {
-      this.revalidate();
-    });
+    if (item.bundleId != null) {
+      return;
+    }
+    this.cartService
+      .updateQuantity(item.productId, item.variantId, newQty, item.bundleId)
+      .subscribe(() => {
+        this.revalidate();
+      });
   }
 
   removeItem(item: CartItem) {
-    this.cartService.removeItem(item.productId, item.variantId);
+    this.cartService.removeItem(item.productId, item.variantId, item.bundleId);
+    this.revalidate();
+  }
+
+  removeBundleGroup(ev: Event, bundleId: number): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.cartService.removeBundle(bundleId);
     this.revalidate();
   }
 
@@ -218,7 +293,7 @@ export class CartComponent implements OnInit {
   );
 
   toggleItem(item: CartItem, selected: boolean) {
-    this.cartService.toggleItemSelection(item.productId, item.variantId, selected);
+    this.cartService.toggleItemSelection(item.productId, item.variantId, selected, item.bundleId);
     this.revalidate();
   }
 

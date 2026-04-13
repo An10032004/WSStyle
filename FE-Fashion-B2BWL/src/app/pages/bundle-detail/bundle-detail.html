@@ -1,0 +1,76 @@
+<app-storefront-header />
+<main class="bundle-detail-page">
+  <div class="container">
+    @if (loading) {
+      <p class="state-msg">Đang tải combo…</p>
+    } @else if (error && !bundle) {
+      <p class="state-msg state-err">{{ error }}</p>
+      <button type="button" routerLink="/storefront" tuiButton appearance="secondary" size="m">
+        Về trang chủ
+      </button>
+    } @else if (bundle) {
+      <nav class="crumb">
+        <a routerLink="/storefront">Trang chủ</a>
+        <span>/</span>
+        <span>{{ bundle.name }}</span>
+      </nav>
+
+      <div class="bundle-layout">
+        <div class="bundle-visual">
+          <div class="bundle-img">
+            <tui-icon icon="@tui.image" *ngIf="!bundle.imageUrl" class="placeholder-icon" />
+            <img *ngIf="bundle.imageUrl" [src]="bundle.imageUrl" [alt]="bundle.name" />
+          </div>
+        </div>
+        <div class="bundle-main">
+          <h1>{{ bundle.name }}</h1>
+          @if (error) {
+            <p class="banner-warn">{{ error }}</p>
+          }
+          <div class="bundle-price-row">
+            <span class="new-price">{{ (bundle.newPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+            @if (bundle.oldPrice) {
+              <span class="old-price">{{ (bundle.oldPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+            }
+          </div>
+
+          @if (rows.length) {
+            <h2 class="sub-title">Gồm có</h2>
+            <ul class="line-list">
+              @for (row of rows; track row.bundleItem.variantId + '-' + row.product.id) {
+                <li>
+                  <span class="line-name">{{ row.product.name }}</span>
+                  @if (row.variant.color || row.variant.size) {
+                    <span class="line-var">{{ row.variant.color }} {{ row.variant.size }}</span>
+                  }
+                  <span class="line-qty">× {{ row.bundleItem.quantity || 1 }}</span>
+                  <span class="line-unit">
+                    @if (row.allocatedListUnitPrice != null) {
+                      <span class="line-unit-old">{{ row.allocatedListUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+                    }
+                    <span class="line-unit-new">{{ row.allocatedUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }} / sp</span>
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="hint">Combo chưa có sản phẩm.</p>
+          }
+
+          <button
+            tuiButton
+            appearance="primary"
+            size="l"
+            class="add-btn"
+            [disabled]="!rows.length || !!error || adding || bundle.status !== 'ACTIVE'"
+            (click)="addComboToCart()"
+          >
+            {{ adding ? 'Đang thêm…' : 'Thêm combo vào giỏ' }}
+          </button>
+          <a routerLink="/cart" class="link-cart">Xem giỏ hàng</a>
+        </div>
+      </div>
+    }
+  </div>
+</main>
+<app-storefront-footer />

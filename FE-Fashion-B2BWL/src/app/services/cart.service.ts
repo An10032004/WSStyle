@@ -5,6 +5,11 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, startWith, switchMap } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { TuiAlertService } from '@taiga-ui/core';
+import {
+  resolveOrderLimitWinners,
+  isMinOrderQtyType,
+  isMaxOrderQtyType,
+} from '../utils/order-limit-precedence';
 
 export interface CartItem {
   productId: number;
@@ -23,6 +28,10 @@ export interface CartItem {
   quantityBreaksJson?: string;
   isFixedPrice?: boolean; // New flag to skip recalculations
   discountLabel?: string;
+  /** Gộp dòng giỏ theo combo; tránh trùng variant giá thường vs combo */
+  bundleId?: number;
+  /** Tên hiển thị nhóm combo trên giỏ hàng */
+  bundleLabel?: string;
 }
 
 export interface PriceCalculationResult {
@@ -159,13 +168,55 @@ export class CartService {
     localStorage.removeItem(this.getCartKey(null)); // Clear guest cart after merge
   }
 
-  addToCart(product: Product, variant: ProductVariant | undefined, quantity: number, priceOverride?: number) {
+  /** Có ít nhất một dòng thuộc combo (bundle) trong giỏ. */
+  hasComboInCart(): boolean {
+    return this.cartSubject.value.some(i => i.bundleId != null);
+  }
+
+  /** Combo `bundleId` đã có đủ các dòng trong giỏ (mỗi loại combo chỉ thêm một lần). */
+  hasBundleInCart(bundleId: number): boolean {
+    return this.cartSubject.value.some(i => i.bundleId === bundleId);
+  }
+
+  /** Xóa toàn bộ dòng thuộc một combo. */
+  removeBundle(bundleId: number): void {
+    const items = this.currentItems.filter(i => i.bundleId !== bundleId);
+    this.saveCart(items);
+  }
+
+  /**
+   * @param lockUnitPrice Nếu true và có `unitPrice`, dùng đúng đơn giá đó (combo/bundle), không áp lại giá variant/QB.
+   * @param bundleId Gộp đúng dòng combo; không gộp với cùng variant ngoài combo.
+   * @param silent Nếu true: chỉ lưu giỏ, không gọi validate/toast (dùng khi thêm nhiều dòng combo, validate một lần ở ngoài).
+   * @param bundleLabel Tên combo hiển thị khi nhóm trong giỏ.
+   * @param cartOpts.skipComboBundleGuard Bỏ qua chặn trùng `bundleId` (dùng khi thêm lần lượt từng dòng của cùng một combo).
+   */
+  addToCart(
+    product: Product,
+    variant: ProductVariant | undefined,
+    quantity: number,
+    unitPrice?: number,
+    lockUnitPrice?: boolean,
+    bundleId?: number,
+    silent?: boolean,
+    bundleLabel?: string,
+    cartOpts?: { skipComboBundleGuard?: boolean },
+  ) {
     if (!variant?.id) {
       this.alerts.open(
         'Thiếu mã biến thể (variant) sản phẩm. Vui lòng chọn đủ màu/size trên trang sản phẩm rồi thêm lại.',
         { label: 'Không thể thêm vào giỏ', appearance: 'warning' },
       ).subscribe();
       return;
+    }
+    if (bundleId != null && !cartOpts?.skipComboBundleGuard) {
+      if (this.cartSubject.value.some(i => i.bundleId === bundleId)) {
+        this.alerts.open(
+          'Combo này đã có trong giỏ. Mỗi loại combo chỉ thêm một lần — xóa combo đó trong giỏ nếu muốn thêm lại.',
+          { label: 'Không thể thêm combo', appearance: 'warning' },
+        ).subscribe();
+        return;
+      }
     }
     // Block adding if variant is out of stock or requested quantity exceeds available stock
     if (variant.stockQuantity != null) {
@@ -177,7 +228,13 @@ export class CartService {
         return;
       }
       const items = [...this.cartSubject.value];
-      const existing = items.find(i => i.productId === product.id && i.variantId === variant.id);
+      const bidStock = bundleId ?? null;
+      const existing = items.find(
+        i =>
+          i.productId === product.id &&
+          i.variantId === variant.id &&
+          (i.bundleId ?? null) === bidStock,
+      );
       const existingQty = existing ? existing.quantity : 0;
       const available = variant.stockQuantity - existingQty;
       if (available <= 0) {
@@ -196,20 +253,25 @@ export class CartService {
       }
     }
     const items = [...this.cartSubject.value];
-    let price = priceOverride || product.calculatedPrice || product.basePrice;
-    
-    // 1. Prioritize Variant-specific price (Absolute Override)
-    const hasVariantPrice = !!(variant && (
-      (variant.price != null && variant.price > 0) || 
-      (variant.discountPrice != null && variant.discountPrice > 0)
-    ));
+    const locked = !!lockUnitPrice && unitPrice != null && unitPrice >= 0;
+    let price = locked
+      ? unitPrice!
+      : unitPrice || product.calculatedPrice || product.basePrice;
 
-    if (variant) {
+    // 1. Prioritize Variant-specific price (Absolute Override)
+    const hasVariantPrice =
+      !locked &&
+      !!(variant && (
+        (variant.price != null && variant.price > 0) ||
+        (variant.discountPrice != null && variant.discountPrice > 0)
+      ));
+
+    if (!locked && variant) {
       price = variant.discountPrice || variant.price || (price + (variant.priceAdjustment || 0));
     }
 
     // 2. Evaluate Quantity Breaks ONLY if NO specific variant price is set
-    if (!hasVariantPrice && product.quantityBreaksJson) {
+    if (!locked && !hasVariantPrice && product.quantityBreaksJson) {
       try {
         const breaks = JSON.parse(product.quantityBreaksJson);
         const matchedBreak = breaks.find((b: any) => {
@@ -224,14 +286,19 @@ export class CartService {
       } catch (e) {}
     }
 
-    const existingIndex = items.findIndex(i => 
-      i.productId === product.id && 
-      i.variantId === variant?.id
+    const bid = bundleId ?? null;
+    const existingIndex = items.findIndex(
+      i =>
+        i.productId === product.id &&
+        i.variantId === variant?.id &&
+        (i.bundleId ?? null) === bid,
     );
 
     if (existingIndex > -1) {
       items[existingIndex].quantity += quantity;
-      this.recalculateItemPrice(items[existingIndex]);
+      if (!items[existingIndex].isFixedPrice) {
+        this.recalculateItemPrice(items[existingIndex]);
+      }
     } else {
       const newItem: CartItem = {
         productId: product.id,
@@ -239,22 +306,36 @@ export class CartService {
         name: product.name,
         color: variant?.color,
         size: variant?.size,
-        price: price, // Initial, will be recalculated
+        price: price,
         quantity: quantity,
         imageUrl: variant?.imageUrl || product.imageUrl,
         categoryId: product.categoryId || undefined,
         selected: true,
         isNetTermEligible: product.isNetTermEligible,
         netTermDays: product.netTermDays,
-        basePrice: variant?.price || product.basePrice,
-        quantityBreaksJson: product.quantityBreaksJson,
-        isFixedPrice: false // Always allow recalculation from base
+        basePrice: locked ? price : variant?.price || product.basePrice,
+        quantityBreaksJson: locked ? undefined : product.quantityBreaksJson,
+        isFixedPrice: locked,
+        bundleId: bundleId ?? undefined,
+        bundleLabel:
+          bundleId != null ? bundleLabel || undefined : undefined,
+        discountLabel:
+          locked && bundleId != null
+            ? bundleLabel
+              ? `Combo · ${bundleLabel}`
+              : 'Combo'
+            : undefined,
       };
-      this.recalculateItemPrice(newItem);
+      if (!locked) {
+        this.recalculateItemPrice(newItem);
+      }
       items.push(newItem);
     }
 
     this.saveCart(items);
+    if (silent) {
+      return;
+    }
     this.validate().subscribe(results => {
        const failures = results.filter(r => !r.success);
        if (failures.length > 0) {
@@ -276,19 +357,38 @@ export class CartService {
     
     // Still call server-side as backup, but return client results immediately if any failures found there
     return this.auth.user$.pipe(
-      switchMap(user => this.api.validateCart(user?.id, selectedItems.map(i => ({
-        productId: i.productId,
-        categoryId: i.categoryId,
-        quantity: i.quantity,
-        price: i.price
-      })))),
+      switchMap(user =>
+        this.api.validateCart(
+          user?.id,
+          selectedItems.map(i => ({
+            productId: i.productId,
+            categoryId: i.categoryId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+            price: i.price,
+          })),
+        ),
+      ),
       map(serverResults => {
-          // Merge results if needed, but usually server matches client
-          return serverResults; 
+        const failures: any[] = [];
+        const pushUniq = (r: any) => {
+          if (!r || r.success) return;
+          if (!failures.some(f => f.message === r.message)) failures.push(r);
+        };
+        clientResults.forEach(pushUniq);
+        (serverResults || []).forEach(pushUniq);
+        return failures.length ? failures : serverResults || [];
       }),
-      // Default to client results if server is slow or failed (optional)
-      startWith(clientResults)
+      startWith(clientResults),
     );
+  }
+
+  /** Đồng bộ khóa gộp MOQ/MOV theo SP/biến thể với backend. */
+  private aggKeyForOrderLimit(item: CartItem, limitLevel: string): string {
+    if (limitLevel === 'PER_VARIANT' && item.variantId != null) {
+      return `V:${item.variantId}`;
+    }
+    return `P:${item.productId}`;
   }
 
   public validateClientSide(items: CartItem[]): any[] {
@@ -297,84 +397,129 @@ export class CartService {
     const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
 
-    // Filter and sort active rules by priority (lower is higher priority)
     const activeLimits = this.orderLimits
       .filter(l => l.status === 'ACTIVE')
       .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
-    // Helper to check if a rule is already overridden by a higher priority rule for the same "axis" (QTY/AMT)
-    const axisWinners: Set<string> = new Set();
+    const customerMatched = activeLimits.filter(l => this.isCustomerMatch(l, user));
+    const rulesToApply = resolveOrderLimitWinners(customerMatched);
 
-    // 1. Check Order-Level (PER_ORDER)
-    const orderLimits = activeLimits.filter(l => l.limitLevel === 'PER_ORDER' && this.isCustomerMatch(l, user));
-    
-    for (const rule of orderLimits) {
-      const isQty = rule.limitType === 'MIN_ORDER_QUANTITY' || rule.limitType === 'MIN_ORDER_QTY' || rule.limitType === 'MAX_ORDER_QUANTITY' || rule.limitType === 'MAX_ORDER_QTY';
-      const isAmt = rule.limitType === 'MIN_ORDER_VALUE' || rule.limitType === 'MIN_ORDER_VAL' || rule.limitType === 'MIN_ORDER_AMOUNT' || rule.limitType === 'MAX_ORDER_AMOUNT';
-      
-      const axisKey = isQty ? 'ORDER_QTY' : (isAmt ? 'ORDER_AMT' : null);
-      if (!axisKey || axisWinners.has(axisKey)) continue;
+    for (const rule of rulesToApply.filter(l => l.limitLevel === 'PER_ORDER')) {
+      const isQty =
+        isMinOrderQtyType(rule.limitType) || isMaxOrderQtyType(rule.limitType);
+      const isAmt =
+        rule.limitType === 'MIN_ORDER_VALUE' ||
+        rule.limitType === 'MIN_ORDER_VAL' ||
+        rule.limitType === 'MIN_ORDER_AMOUNT' ||
+        rule.limitType === 'MAX_ORDER_AMOUNT';
+      if (!isQty && !isAmt) continue;
 
-      // Handle MIN
       if (rule.limitType.startsWith('MIN')) {
-          if (isQty && totalQuantity < rule.limitValue) {
-            results.push({ success: false, message: `Tổng số lượng sản phẩm tối thiểu là ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")` });
-          } else if (isAmt && totalAmount < rule.limitValue) {
-            results.push({ success: false, message: `Giá trị đơn hàng tối thiểu là ${rule.limitValue.toLocaleString()} ₫. Hiện tại: ${totalAmount.toLocaleString()} ₫ (theo "${rule.name}")` });
-          }
+        if (isQty && totalQuantity < rule.limitValue) {
+          results.push({
+            success: false,
+            message: `Tổng số lượng sản phẩm tối thiểu là ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")`,
+          });
+        } else if (isAmt && totalAmount < rule.limitValue) {
+          results.push({
+            success: false,
+            message: `Giá trị đơn hàng tối thiểu là ${rule.limitValue.toLocaleString()} ₫. Hiện tại: ${totalAmount.toLocaleString()} ₫ (theo "${rule.name}")`,
+          });
+        }
+      } else if (rule.limitType.startsWith('MAX')) {
+        if (isQty && totalQuantity > rule.limitValue) {
+          results.push({
+            success: false,
+            message: `Tổng số lượng vượt tối đa ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")`,
+          });
+        } else if (isAmt && totalAmount > rule.limitValue) {
+          results.push({
+            success: false,
+            message: `Giá trị đơn hàng vượt tối đa ${rule.limitValue.toLocaleString()} ₫. (theo "${rule.name}")`,
+          });
+        }
       }
-      // Handle MAX
-      if (rule.limitType.startsWith('MAX')) {
-          if (isQty && totalQuantity > rule.limitValue) {
-            results.push({ success: false, message: `Tổng số lượng vượt tối đa ${rule.limitValue}. Hiện tại: ${totalQuantity} (theo "${rule.name}")` });
-          } else if (isAmt && totalAmount > rule.limitValue) {
-            results.push({ success: false, message: `Giá trị đơn hàng vượt tối đa ${rule.limitValue.toLocaleString()} ₫. (theo "${rule.name}")` });
-          }
-      }
-      
-      // If we applied a rule for this axis, assume it's the winner for PER_ORDER (simplified)
-      axisWinners.add(axisKey);
     }
 
-    // 2. Check Line-Level (PER_PRODUCT / PER_VARIANT)
-    items.forEach(item => {
-        const itemWinners = new Set<string>();
-        const productLimits = activeLimits.filter(l => 
-            (l.limitLevel === 'PER_PRODUCT' || l.limitLevel === 'PER_VARIANT') && 
-            this.isCustomerMatch(l, user) && 
-            this.isProductMatch(l, item.productId, item.categoryId || null)
-        );
+    for (const rule of rulesToApply.filter(
+      l => l.limitLevel === 'PER_PRODUCT' || l.limitLevel === 'PER_VARIANT',
+    )) {
+      const targetItems = items.filter(it =>
+        this.isProductMatch(rule, it.productId, it.categoryId || null),
+      );
+      const applyType = rule.applyProductType || 'ALL';
+      if (targetItems.length === 0 && applyType !== 'ALL') continue;
 
-        for (const rule of productLimits) {
-            const isQty = rule.limitType.includes('QTY') || rule.limitType.includes('QUANTITY');
-            const isAmt = rule.limitType.includes('VAL') || rule.limitType.includes('VALUE') || rule.limitType.includes('AMOUNT');
-            const axisKey = isQty ? 'ITEM_QTY' : (isAmt ? 'ITEM_AMT' : null);
-            
-            if (!axisKey || itemWinners.has(axisKey)) continue;
+      const isQty = isMinOrderQtyType(rule.limitType) || isMaxOrderQtyType(rule.limitType);
+      const isAmt =
+        rule.limitType === 'MIN_ORDER_VALUE' ||
+        rule.limitType === 'MIN_ORDER_VAL' ||
+        rule.limitType === 'MIN_ORDER_AMOUNT' ||
+        rule.limitType === 'MAX_ORDER_AMOUNT';
+      if (!isQty && !isAmt) continue;
 
-            if (rule.limitType.startsWith('MIN')) {
-                if (isQty && item.quantity < rule.limitValue) {
-                    results.push({ success: false, message: `Sản phẩm "${item.name}" cần tối thiểu ${rule.limitValue} chiếc.` });
-                } else if (isAmt && (item.price * item.quantity) < rule.limitValue) {
-                    results.push({ success: false, message: `Sản phẩm "${item.name}" cần giá trị tối thiểu ${rule.limitValue.toLocaleString()} ₫.` });
-                }
-            } else if (rule.limitType.startsWith('MAX')) {
-                if (isQty && item.quantity > rule.limitValue) {
-                    results.push({ success: false, message: `Sản phẩm "${item.name}" tối đa chỉ được mua ${rule.limitValue} chiếc.` });
-                } else if (isAmt && (item.price * item.quantity) > rule.limitValue) {
-                    results.push({ success: false, message: `Sản phẩm "${item.name}" tối đa chỉ được mua giá trị ${rule.limitValue.toLocaleString()} ₫.` });
-                }
-            }
-            itemWinners.add(axisKey);
+      const limitLevel = rule.limitLevel || 'PER_PRODUCT';
+      const bound = Number(rule.limitValue);
+
+      if (isQty) {
+        const qtyMap = new Map<string, { qty: number; label: string }>();
+        for (const it of targetItems) {
+          const k = this.aggKeyForOrderLimit(it, limitLevel);
+          const cur = qtyMap.get(k) || { qty: 0, label: it.name };
+          cur.qty += it.quantity;
+          qtyMap.set(k, cur);
         }
-    });
+        for (const [, { qty, label }] of qtyMap) {
+          if (rule.limitType.startsWith('MIN') && qty < bound) {
+            results.push({
+              success: false,
+              message: `Tổng số lượng "${label}" trong giỏ (gồm combo/lẻ) cần tối thiểu ${bound}. Hiện tại: ${qty} (theo "${rule.name}")`,
+            });
+          } else if (rule.limitType.startsWith('MAX') && qty > bound) {
+            results.push({
+              success: false,
+              message: `Tổng số lượng "${label}" trong giỏ (gồm combo/lẻ) tối đa ${bound}. Hiện tại: ${qty} (theo "${rule.name}")`,
+            });
+          }
+        }
+      } else if (isAmt) {
+        const valMap = new Map<string, { val: number; label: string }>();
+        for (const it of targetItems) {
+          const k = this.aggKeyForOrderLimit(it, limitLevel);
+          const cur = valMap.get(k) || { val: 0, label: it.name };
+          cur.val += it.price * it.quantity;
+          valMap.set(k, cur);
+        }
+        for (const [, { val, label }] of valMap) {
+          if (rule.limitType.startsWith('MIN') && val < bound) {
+            results.push({
+              success: false,
+              message: `Tổng giá trị "${label}" trong giỏ cần tối thiểu ${bound.toLocaleString()} ₫. Hiện tại: ${val.toLocaleString()} ₫ (theo "${rule.name}")`,
+            });
+          } else if (rule.limitType.startsWith('MAX') && val > bound) {
+            results.push({
+              success: false,
+              message: `Tổng giá trị "${label}" trong giỏ vượt tối đa ${bound.toLocaleString()} ₫. Hiện tại: ${val.toLocaleString()} ₫ (theo "${rule.name}")`,
+            });
+          }
+        }
+      }
+    }
 
     return results;
   }
 
-  updateQuantity(productId: number, variantId: number | undefined, quantity: number): Observable<void> {
+  updateQuantity(
+    productId: number,
+    variantId: number | undefined,
+    quantity: number,
+    bundleId?: number | null,
+  ): Observable<void> {
+    if (bundleId != null) {
+      return of(undefined);
+    }
     if (quantity < 1) {
-      this.removeItem(productId, variantId);
+      this.removeItem(productId, variantId, bundleId);
       return of(undefined);
     }
     
@@ -399,7 +544,13 @@ export class CartService {
         }
 
         const items = this.currentItems;
-        const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
+        const bid = bundleId ?? null;
+        const idx = items.findIndex(
+          i =>
+            i.productId === productId &&
+            i.variantId === variantId &&
+            (i.bundleId ?? null) === bid,
+        );
         if (idx > -1) {
           items[idx].quantity = quantity;
           this.recalculateItemPrice(items[idx]); // Update unit price for bulk
@@ -412,6 +563,7 @@ export class CartService {
   }
 
   private recalculateItemPrice(item: CartItem) {
+    if (item.isFixedPrice) return;
     if (item.basePrice == null) return;
     const result = this.calculatePrice(
       item.productId,
@@ -601,9 +753,15 @@ export class CartService {
     return false;
   }
 
-  removeItem(productId: number, variantId: number | undefined) {
-    const items = this.currentItems.filter(i => 
-      !(i.productId === productId && i.variantId === variantId)
+  removeItem(productId: number, variantId: number | undefined, bundleId?: number | null) {
+    const bid = bundleId ?? null;
+    const items = this.currentItems.filter(
+      i =>
+        !(
+          i.productId === productId &&
+          i.variantId === variantId &&
+          (i.bundleId ?? null) === bid
+        ),
     );
     this.saveCart(items);
   }
@@ -617,9 +775,20 @@ export class CartService {
     this.saveCart(remaining);
   }
 
-  toggleItemSelection(productId: number, variantId: number | undefined, selected: boolean) {
+  toggleItemSelection(
+    productId: number,
+    variantId: number | undefined,
+    selected: boolean,
+    bundleId?: number | null,
+  ) {
     const items = this.currentItems;
-    const idx = items.findIndex(i => i.productId === productId && i.variantId === variantId);
+    const bid = bundleId ?? null;
+    const idx = items.findIndex(
+      i =>
+        i.productId === productId &&
+        i.variantId === variantId &&
+        (i.bundleId ?? null) === bid,
+    );
     if (idx > -1) {
       items[idx].selected = !!selected;
       this.saveCart(items);

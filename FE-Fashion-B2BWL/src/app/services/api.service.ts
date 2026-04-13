@@ -15,6 +15,8 @@ export interface OrderItemRequest {
   quantity: number;
   unitPrice: number;
   appliedRuleId?: number;
+  /** Ghi chú ưu đãi tại thời điểm đặt (QB/B2B/combo…). */
+  pricingNote?: string;
 }
 
 export interface OrderRequest {
@@ -323,6 +325,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   appliedRuleId?: number;
+  /** Ưu đãi/ghi chú giá đã áp khi mua (đối chiếu khi reorder). */
+  pricingNote?: string;
 }
 
 export interface PaymentTransaction {
@@ -563,6 +567,13 @@ export class ApiService {
     const url = userId ? `${this.base}/products/${id}?userId=${userId}` : `${this.base}/products/${id}`;
     return this.http.get<ApiResponse<Product>>(url).pipe(map(r => r.data));
   }
+
+  getProductsByCategory(categoryId: number, userId?: number): Observable<Product[]> {
+    const q = userId != null ? `?userId=${userId}` : '';
+    return this.http
+      .get<ApiResponse<Product[]>>(`${this.base}/products/category/${categoryId}${q}`)
+      .pipe(map(r => r.data || []));
+  }
   createProduct(body: Partial<Product>): Observable<Product> {
     return this.http.post<ApiResponse<Product>>(`${this.base}/products`, body).pipe(map(r => r.data));
   }
@@ -579,6 +590,9 @@ export class ApiService {
   }
   getProductVariantsByProduct(productId: number): Observable<ProductVariant[]> {
     return this.http.get<ApiResponse<ProductVariant[]>>(`${this.base}/product-variants/product/${productId}`).pipe(map(r => r.data));
+  }
+  getProductVariant(id: number): Observable<ProductVariant> {
+    return this.http.get<ApiResponse<ProductVariant>>(`${this.base}/product-variants/${id}`).pipe(map(r => r.data));
   }
   createProductVariant(body: Partial<ProductVariant>): Observable<ProductVariant> {
     return this.http.post<ApiResponse<ProductVariant>>(`${this.base}/product-variants`, body).pipe(map(r => r.data));
@@ -976,6 +990,21 @@ export class ApiService {
   getBundles(): Observable<Bundle[]> {
     return this.http.get<ApiResponse<Bundle[]>>(`${this.base}/bundles`).pipe(map(r => r.data));
   }
+
+  /** Combo ACTIVE có chứa biến thể của sản phẩm (bất kỳ variant nào của SP). */
+  getBundlesContainingProduct(productId: number): Observable<Bundle[]> {
+    return this.http
+      .get<ApiResponse<Bundle[]>>(`${this.base}/bundles/containing-product/${productId}`)
+      .pipe(map(r => r.data || []));
+  }
+
+  /** Combo ACTIVE có item trỏ đúng biến thể đang chọn (trang chi tiết SP). */
+  getBundlesContainingVariant(variantId: number): Observable<Bundle[]> {
+    return this.http
+      .get<ApiResponse<Bundle[]>>(`${this.base}/bundles/containing-variant/${variantId}`)
+      .pipe(map(r => r.data || []));
+  }
+
   getBundleById(id: number): Observable<Bundle> {
     return this.http.get<ApiResponse<Bundle>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
   }

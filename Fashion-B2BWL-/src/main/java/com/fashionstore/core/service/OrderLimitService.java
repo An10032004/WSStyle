@@ -37,6 +37,8 @@ public class OrderLimitService {
     public static class CartItemDTO {
         private Integer productId;
         private Integer categoryId;
+        /** Nullable: khi có, quy tắc PER_VARIANT gộp theo biến thể. */
+        private Integer variantId;
         private Integer quantity;
         private BigDecimal price;
     }
@@ -305,6 +307,85 @@ public class OrderLimitService {
         return out;
     }
 
+    /** Gộp dòng giỏ theo sản phẩm (PER_PRODUCT) hoặc biến thể (PER_VARIANT, fallback theo SP nếu thiếu variantId). */
+    private String aggregateKeyPerLine(CartItemDTO line, String limitLevel) {
+        if ("PER_VARIANT".equals(limitLevel) && line.getVariantId() != null) {
+            return "V:" + line.getVariantId();
+        }
+        return "P:" + line.getProductId();
+    }
+
+    private void validateAggregatedLineQuantities(
+            List<CartItemDTO> targetItems,
+            String limitLevel,
+            int bound,
+            boolean min,
+            OrderLimit rule,
+            List<ValidationResult> results) {
+        Map<String, Integer> qtyByKey = new LinkedHashMap<>();
+        Map<String, Integer> sampleProductId = new LinkedHashMap<>();
+        for (CartItemDTO line : targetItems) {
+            String k = aggregateKeyPerLine(line, limitLevel);
+            qtyByKey.merge(k, line.getQuantity(), Integer::sum);
+            sampleProductId.putIfAbsent(k, line.getProductId());
+        }
+        for (Map.Entry<String, Integer> e : qtyByKey.entrySet()) {
+            int q = e.getValue();
+            boolean fail = min ? q < bound : q > bound;
+            if (!fail) {
+                continue;
+            }
+            String key = e.getKey();
+            Integer pid = sampleProductId.get(key);
+            String scope = key.startsWith("V:") ? ("biến thể ID " + key.substring(2)) : ("sản phẩm ID " + pid);
+            if (min) {
+                results.add(new ValidationResult(rule.getName(), false,
+                        "Tổng số lượng theo " + scope + " trong giỏ là " + q
+                                + ", chưa đạt tối thiểu " + bound + " (quy tắc \"" + rule.getName() + "\")."));
+            } else {
+                results.add(new ValidationResult(rule.getName(), false,
+                        "Tổng số lượng theo " + scope + " trong giỏ là " + q
+                                + ", vượt tối đa " + bound + " (quy tắc \"" + rule.getName() + "\")."));
+            }
+        }
+    }
+
+    private void validateAggregatedLineValues(
+            List<CartItemDTO> targetItems,
+            String limitLevel,
+            BigDecimal bound,
+            boolean min,
+            OrderLimit rule,
+            List<ValidationResult> results) {
+        Map<String, BigDecimal> valByKey = new LinkedHashMap<>();
+        Map<String, Integer> sampleProductId = new LinkedHashMap<>();
+        for (CartItemDTO line : targetItems) {
+            String k = aggregateKeyPerLine(line, limitLevel);
+            BigDecimal lineVal = line.getPrice().multiply(BigDecimal.valueOf(line.getQuantity()));
+            valByKey.merge(k, lineVal, BigDecimal::add);
+            sampleProductId.putIfAbsent(k, line.getProductId());
+        }
+        for (Map.Entry<String, BigDecimal> e : valByKey.entrySet()) {
+            BigDecimal v = e.getValue();
+            boolean fail = min ? v.compareTo(bound) < 0 : v.compareTo(bound) > 0;
+            if (!fail) {
+                continue;
+            }
+            String key = e.getKey();
+            Integer pid = sampleProductId.get(key);
+            String scope = key.startsWith("V:") ? ("biến thể ID " + key.substring(2)) : ("sản phẩm ID " + pid);
+            if (min) {
+                results.add(new ValidationResult(rule.getName(), false,
+                        "Tổng giá trị theo " + scope + " trong giỏ là " + formatMoney(v) + " ₫, chưa đạt tối thiểu "
+                                + formatMoney(bound) + " ₫ (quy tắc \"" + rule.getName() + "\")."));
+            } else {
+                results.add(new ValidationResult(rule.getName(), false,
+                        "Tổng giá trị theo " + scope + " trong giỏ là " + formatMoney(v) + " ₫, vượt tối đa "
+                                + formatMoney(bound) + " ₫ (quy tắc \"" + rule.getName() + "\")."));
+            }
+        }
+    }
+
     public List<ValidationResult> validateCart(User user, List<CartItemDTO> items) {
         if (items == null) {
             items = List.of();
@@ -345,13 +426,7 @@ public class OrderLimitService {
                                         + ", cần tối thiểu " + minRequired + " (theo quy tắc \"" + rule.getName() + "\")."));
                     }
                 } else if (isPerLineLevel(limitLevel)) {
-                    for (CartItemDTO line : targetItems) {
-                        if (line.getQuantity() < minRequired) {
-                            results.add(new ValidationResult(rule.getName(), false,
-                                    "Sản phẩm (ID " + line.getProductId() + "): số lượng " + line.getQuantity()
-                                            + " chưa đạt tối thiểu " + minRequired + " (quy tắc \"" + rule.getName() + "\")."));
-                        }
-                    }
+                    validateAggregatedLineQuantities(targetItems, limitLevel, minRequired, true, rule, results);
                 }
             } else if (isMaxQuantityType(limitType)) {
                 int maxAllowed = limitVal.intValue();
@@ -363,13 +438,7 @@ public class OrderLimitService {
                                         + ", vượt mức tối đa " + maxAllowed + " (quy tắc \"" + rule.getName() + "\"). Vui lòng giảm số lượng hoặc tách đơn."));
                     }
                 } else if (isPerLineLevel(limitLevel)) {
-                    for (CartItemDTO line : targetItems) {
-                        if (line.getQuantity() > maxAllowed) {
-                            results.add(new ValidationResult(rule.getName(), false,
-                                    "Sản phẩm (ID " + line.getProductId() + "): số lượng " + line.getQuantity()
-                                            + " vượt mức tối đa " + maxAllowed + " (quy tắc \"" + rule.getName() + "\")."));
-                        }
-                    }
+                    validateAggregatedLineQuantities(targetItems, limitLevel, maxAllowed, false, rule, results);
                 }
             } else if (isMinValueType(limitType)) {
                 if (isPerOrderLevel(limitLevel)) {
@@ -382,14 +451,7 @@ public class OrderLimitService {
                                         + formatMoney(limitVal) + " ₫ (quy tắc \"" + rule.getName() + "\")."));
                     }
                 } else if (isPerLineLevel(limitLevel)) {
-                    for (CartItemDTO line : targetItems) {
-                        BigDecimal lineVal = line.getPrice().multiply(BigDecimal.valueOf(line.getQuantity()));
-                        if (lineVal.compareTo(limitVal) < 0) {
-                            results.add(new ValidationResult(rule.getName(), false,
-                                    "Dòng sản phẩm (ID " + line.getProductId() + "): giá trị " + formatMoney(lineVal)
-                                            + " ₫ chưa đạt tối thiểu " + formatMoney(limitVal) + " ₫ (quy tắc \"" + rule.getName() + "\")."));
-                        }
-                    }
+                    validateAggregatedLineValues(targetItems, limitLevel, limitVal, true, rule, results);
                 }
             } else if (isMaxAmountType(limitType)) {
                 if (isPerOrderLevel(limitLevel)) {
@@ -402,14 +464,7 @@ public class OrderLimitService {
                                         + formatMoney(limitVal) + " ₫ (quy tắc \"" + rule.getName() + "\"). Vui lòng giảm số lượng hoặc tách đơn."));
                     }
                 } else if (isPerLineLevel(limitLevel)) {
-                    for (CartItemDTO line : targetItems) {
-                        BigDecimal lineVal = line.getPrice().multiply(BigDecimal.valueOf(line.getQuantity()));
-                        if (lineVal.compareTo(limitVal) > 0) {
-                            results.add(new ValidationResult(rule.getName(), false,
-                                    "Dòng sản phẩm (ID " + line.getProductId() + "): giá trị " + formatMoney(lineVal)
-                                            + " ₫ vượt mức tối đa " + formatMoney(limitVal) + " ₫ (quy tắc \"" + rule.getName() + "\")."));
-                        }
-                    }
+                    validateAggregatedLineValues(targetItems, limitLevel, limitVal, false, rule, results);
                 }
             }
         }

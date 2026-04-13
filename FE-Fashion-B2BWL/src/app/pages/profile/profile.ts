@@ -9,6 +9,7 @@ import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
 import { TuiBadge, TuiPagination } from '@taiga-ui/kit';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
 
 @Component({
   selector: 'app-profile',
@@ -137,6 +138,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
                         <div class="meta" *ngIf="item.productVariant?.color || item.productVariant?.size">
                           {{ item.productVariant?.color }}{{ item.productVariant?.color && item.productVariant?.size ? ' / ' : '' }}{{ item.productVariant?.size }}
                         </div>
+                        <div class="pricing-note" *ngIf="item.pricingNote">{{ item.pricingNote }}</div>
                       </div>
                       <div class="item-qty">x{{ item.quantity }}</div>
                       <div class="item-sub">{{ (item.unitPrice * item.quantity) | number }}đ</div>
@@ -239,6 +241,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
       .item-main { flex: 1; 
         .name { font-weight: 600; font-size: 14px; color: #111; }
         .meta { font-size: 12px; color: #888; margin-top: 2px; }
+        .pricing-note { font-size: 11px; color: #666; margin-top: 6px; line-height: 1.35; font-style: italic; }
       }
       .item-qty { font-weight: 700; color: #666; font-size: 14px; }
       .item-sub { font-weight: 700; color: #111; font-size: 14px; }
@@ -348,7 +351,9 @@ export class ProfileComponent {
           this.cart.addToCart(product, item.productVariant, item.quantity);
         }
       });
-      this.alerts.open('Tất cả sản phẩm đã được thêm lại vào giỏ hàng!', { label: 'Thành công', appearance: 'success' }).subscribe();
+      const msg =
+        'Đã thêm lại vào giỏ. ' + buildReorderPricingNotice(order);
+      this.alerts.open(msg, { label: 'Reorder', appearance: 'info', autoClose: 12000 }).subscribe();
     }
   }
 

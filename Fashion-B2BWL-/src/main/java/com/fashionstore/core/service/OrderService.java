@@ -80,6 +80,7 @@ public class OrderService {
             limitCart.add(OrderLimitService.CartItemDTO.builder()
                     .productId(variant.getProductId())
                     .categoryId(categoryId)
+                    .variantId(variant.getId())
                     .quantity(itemReq.getQuantity())
                     .price(itemReq.getUnitPrice())
                     .build());
@@ -121,6 +122,7 @@ public class OrderService {
                     .quantity(itemReq.getQuantity())
                     .unitPrice(itemReq.getUnitPrice())
                     .appliedRuleId(itemReq.getAppliedRuleId())
+                    .pricingNote(itemReq.getPricingNote())
                     .build();
             items.add(item);
         }

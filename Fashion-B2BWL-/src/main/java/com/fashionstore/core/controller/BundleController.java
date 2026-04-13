@@ -23,6 +23,24 @@ public class BundleController {
                 .build());
     }
 
+    @GetMapping("/containing-product/{productId}")
+    public ResponseEntity<ApiResponse<List<Bundle>>> getBundlesContainingProduct(
+            @PathVariable Integer productId) {
+        return ResponseEntity.ok(ApiResponse.<List<Bundle>>builder()
+                .success(true)
+                .data(bundleService.getActiveBundlesContainingProduct(productId))
+                .build());
+    }
+
+    @GetMapping("/containing-variant/{variantId}")
+    public ResponseEntity<ApiResponse<List<Bundle>>> getBundlesContainingVariant(
+            @PathVariable Long variantId) {
+        return ResponseEntity.ok(ApiResponse.<List<Bundle>>builder()
+                .success(true)
+                .data(bundleService.getActiveBundlesContainingVariant(variantId))
+                .build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Bundle>> getBundleById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.<Bundle>builder()

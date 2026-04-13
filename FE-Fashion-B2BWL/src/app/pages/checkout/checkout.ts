@@ -12,6 +12,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
 import { ApiService, DebtSummary, NetTermQuote, OrderRequest } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
+import { buildOrderItemPricingNote } from '../../utils/order-pricing-snapshot';
 
 @Component({
   selector: 'app-checkout',
@@ -323,6 +324,7 @@ export class CheckoutComponent implements OnInit {
                   variantId: i.variantId,
                   quantity: i.quantity,
                   unitPrice: i.price,
+                  pricingNote: buildOrderItemPricingNote(i),
                 })),
               };
 

@@ -103,6 +103,14 @@ interface QuantityBracket {
                 <div class="field-hint">{{ 'QUANTITY_BREAK.PRIORITY_HINT' | transloco }}</div>
               </div>
 
+              <div class="field-item">
+                <div class="premium-label">{{ 'RULE.STATUS' | transloco }}</div>
+                <tui-select [(ngModel)]="rule.status" [ngModelOptions]="{standalone: true}">
+                  <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
+                </tui-select>
+                <div class="field-hint">ACTIVE: áp dụng · INACTIVE: tạm tắt (không tính giá)</div>
+              </div>
+
               <div class="date-section">
                 <h4 class="section-title">{{ 'QUANTITY_BREAK.ACTIVE_DATES' | transloco }}</h4>
                 <div class="date-row">
@@ -378,6 +386,7 @@ export class QuantityBreakEditorComponent implements OnInit {
 
   customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
   productTypeOptions = ['ALL', 'SPECIFIC', 'GROUP'];
+  statusOptions = ['ACTIVE', 'INACTIVE'];
 
   readonly stringifyGroup = (item: any): string => item.name || '';
   readonly stringifyCategory = (item: any): string => item.name || '';
@@ -405,6 +414,9 @@ export class QuantityBreakEditorComponent implements OnInit {
   }
 
   ngOnInit() {
+    if (!this.rule.status) {
+      this.rule.status = 'ACTIVE';
+    }
     if (this.rule.actionConfig) {
       try {
         const config = JSON.parse(this.rule.actionConfig);

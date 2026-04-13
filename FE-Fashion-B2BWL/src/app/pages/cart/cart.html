@@ -8,8 +8,8 @@
 
     <h1 class="page-title">Shopping Cart</h1>
 
-    <ng-container *ngIf="(cart$ | async) as items; else loading">
-      <div class="cart-layout" *ngIf="items.length > 0; else emptyCart">
+    <ng-container *ngIf="(cartLayout$ | async) as layout; else loading">
+      <div class="cart-layout" *ngIf="layout.items.length > 0; else emptyCart">
         
         <!-- Cart Items Table -->
         <div class="cart-main">
@@ -30,75 +30,35 @@
               <span class="col-actions"></span>
             </div>
 
-            <div class="table-row" *ngFor="let item of items" [class.selected]="item.selected">
-              <div class="col-cb">
-                <input
-                  tuiCheckbox
-                  type="checkbox"
-                  [ngModel]="item.selected"
-                  (ngModelChange)="toggleItem(item, $event)"
-                />
-              </div>
-              <div class="col-prod">
-                <div class="prod-info">
-                  <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
-                  <div class="texts">
-                    <a [routerLink]="['/product', item.productId]" class="prod-name">{{ item.name }}</a>
-                    <div class="prod-variant" *ngIf="item.color || item.size">
-                      {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-price">
-                <div class="price-display">
-                  <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
-                  <div class="qb-trigger" *ngIf="getQB(item).length > 0">
-                    <button
-                      tuiIconButton
-                      type="button"
-                      size="xs"
-                      appearance="flat"
-                      icon="@tui.info"
-                      [tuiDropdown]="cartQbDropdown"
-                    ></button>
-                    <ng-template #cartQbDropdown>
-                      <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
-                        <app-quantity-break-table 
-                          [breaks]="getQB(item)" 
-                          [basePrice]="item.basePrice || item.price"
-                          [currentQty]="item.quantity">
-                        </app-quantity-break-table>
-                      </div>
-                    </ng-template>
-                  </div>
-                </div>
-                <!-- DISCOUNT NOTIFICATION -->
-                <div class="discount-notif" *ngIf="item.discountLabel">
-                   <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
-                   {{ item.discountLabel }}
-                </div>
-              </div>
-              <div class="col-qty">
-                <div class="qty-picker">
-                  <button (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
-                    <tui-icon icon="@tui.minus"></tui-icon>
+            <ng-container *ngFor="let g of layout.bundleGroups">
+              <details class="combo-block" open>
+                <summary class="combo-block__summary">
+                  <tui-icon icon="@tui.package" class="combo-block__icon"></tui-icon>
+                  <span class="combo-block__title">{{ g.label }}</span>
+                  <span class="combo-block__sub">Tạm tính đã chọn: {{ g.selectedSubtotal | number:'1.0-0' }} ₫</span>
+                  <button
+                    type="button"
+                    class="combo-block__remove"
+                    (click)="removeBundleGroup($event, g.bundleId)"
+                  >
+                    <tui-icon icon="@tui.trash-2"></tui-icon>
+                    Xóa combo
                   </button>
-                  <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
-                  <button (click)="updateQuantity(item, item.quantity + 1)">
-                    <tui-icon icon="@tui.plus"></tui-icon>
-                  </button>
+                </summary>
+                <div class="combo-block__rows">
+                  <ng-container *ngFor="let item of g.items">
+                    <ng-container *ngTemplateOutlet="cartRow; context: { $implicit: item }"></ng-container>
+                  </ng-container>
                 </div>
-              </div>
-              <div class="col-total">
-                <span class="total-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
-              </div>
-              <div class="col-actions">
-                <button class="remove-btn" (click)="removeItem(item)" title="Xóa">
-                  <tui-icon icon="@tui.trash"></tui-icon>
-                </button>
-              </div>
-            </div>
+              </details>
+            </ng-container>
+
+            <h3 class="cart-section-title" *ngIf="layout.regularItems.length && layout.bundleGroups.length">
+              Sản phẩm lẻ
+            </h3>
+            <ng-container *ngFor="let item of layout.regularItems">
+              <ng-container *ngTemplateOutlet="cartRow; context: { $implicit: item }"></ng-container>
+            </ng-container>
           </div>
 
           <div class="cart-footer">
@@ -117,6 +77,15 @@
             <div class="summary-row">
               <span>Total Items</span>
               <strong>{{ totalItems$ | async }}</strong>
+            </div>
+
+            <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+              <span>Combo (đã chọn)</span>
+              <strong>{{ comboSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+            <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+              <span>Sản phẩm lẻ (đã chọn)</span>
+              <strong>{{ regularSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
             <div class="summary-row">
@@ -233,3 +202,82 @@
 </ng-template>
 
 <app-storefront-footer></app-storefront-footer>
+
+<ng-template #cartRow let-item>
+  <div class="table-row" [class.selected]="item.selected" [class.row-combo]="item.bundleId != null">
+    <div class="col-cb">
+      <input
+        tuiCheckbox
+        type="checkbox"
+        [ngModel]="item.selected"
+        (ngModelChange)="toggleItem(item, $event)"
+      />
+    </div>
+    <div class="col-prod">
+      <div class="prod-info">
+        <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
+        <div class="texts">
+          <a [routerLink]="['/product', item.productId]" class="prod-name">{{ item.name }}</a>
+          <div class="prod-variant" *ngIf="item.color || item.size">
+            {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-price">
+      <div class="price-display">
+        <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
+        <div class="qb-trigger" *ngIf="getQB(item).length > 0 && !item.isFixedPrice">
+          <button
+            tuiIconButton
+            type="button"
+            size="xs"
+            appearance="flat"
+            icon="@tui.info"
+            [tuiDropdown]="cartQbDropdown"
+          ></button>
+          <ng-template #cartQbDropdown>
+            <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+              <app-quantity-break-table 
+                [breaks]="getQB(item)" 
+                [basePrice]="item.basePrice || item.price"
+                [currentQty]="item.quantity">
+              </app-quantity-break-table>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+      <div class="discount-notif" *ngIf="item.discountLabel">
+         <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
+         {{ item.discountLabel }}
+      </div>
+    </div>
+    <div class="col-qty">
+      <div class="qty-readonly" *ngIf="item.bundleId != null" title="Số lượng cố định theo combo">
+        {{ item.quantity }}
+      </div>
+      <div class="qty-picker" *ngIf="item.bundleId == null">
+        <button (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
+          <tui-icon icon="@tui.minus"></tui-icon>
+        </button>
+        <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
+        <button (click)="updateQuantity(item, item.quantity + 1)">
+          <tui-icon icon="@tui.plus"></tui-icon>
+        </button>
+      </div>
+    </div>
+    <div class="col-total">
+      <span class="total-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
+    </div>
+    <div class="col-actions">
+      <button
+        *ngIf="item.bundleId == null"
+        class="remove-btn"
+        (click)="removeItem(item)"
+        title="Xóa"
+      >
+        <tui-icon icon="@tui.trash"></tui-icon>
+      </button>
+    </div>
+  </div>
+</ng-template>

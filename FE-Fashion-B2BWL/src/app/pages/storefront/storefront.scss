@@ -374,6 +374,9 @@
     }
 
     .bundle-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
       background: #fff;
       border: 1px solid #f0f0f0;
       border-radius: 12px;
@@ -384,6 +387,15 @@
         transform: translateY(-4px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
       }
+    }
+
+    .bundle-cta {
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #111;
+      opacity: 0.75;
     }
 
     .bundle-img {

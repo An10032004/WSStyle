@@ -147,6 +147,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/storefront/storefront').then(m => m.StorefrontComponent)
   },
   {
+    path: 'bundle/:id',
+    loadComponent: () => import('./pages/bundle-detail/bundle-detail').then(m => m.BundleDetailComponent),
+  },
+  {
     path: 'login',
     loadComponent: () => import('./pages/login/login').then(m => m.LoginComponent)
   },

@@ -43,4 +43,8 @@ public class OrderItem {
 
     @Column(name = "applied_rule_id")
     private Integer appliedRuleId;
+
+    /** Ghi chú ưu đãi/giá tại thời điểm đặt (QB, B2B, combo…) — hỗ trợ reorder & hỗ trợ khách. */
+    @Column(name = "pricing_note", columnDefinition = "TEXT")
+    private String pricingNote;
 }
