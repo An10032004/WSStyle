@@ -1,4 +1,4 @@
-<aside class="sidebar-wrapper" [class.expanded]="expanded">
+<aside class="sidebar-wrapper">
   <header>
     <button
       class="nav-item"
@@ -9,7 +9,7 @@
   </header>
 
   <!-- TỔNG QUAN -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="canSee('dashboard')">
     <h4 class="group-title" *ngIf="expanded">Tổng quan</h4>
     <a
       *ngIf="canSee('dashboard')"
@@ -24,7 +24,7 @@
   </div>
 
   <!-- SẢN PHẨM & KHO -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="hasAny('categories', 'products', 'variants', 'bundles')">
     <h4 class="group-title" *ngIf="expanded">Sản phẩm & Kho</h4>
     <a
       *ngIf="canSee('categories')"
@@ -65,7 +65,7 @@
   </div>
 
   <!-- KHÁCH HÀNG & NHÓM -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="hasAny('users', 'customer-groups', 'registration-forms')">
     <h4 class="group-title" *ngIf="expanded">Khách hàng</h4>
     <a
       *ngIf="canSee('users')"
@@ -97,7 +97,7 @@
   </div>
 
   <!-- KINH DOANH -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="hasAny('orders', 'wallets', 'advanced-reports')">
     <h4 class="group-title" *ngIf="expanded">Kinh doanh</h4>
     <a
       *ngIf="canSee('orders')"
@@ -129,7 +129,7 @@
   </div>
 
   <!-- MARKETING & ĐÁNH GIÁ -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="hasAny('coupons', 'sale-campaigns', 'reviews')">
     <h4 class="group-title" *ngIf="expanded">Tăng trưởng</h4>
     <a
       *ngIf="canSee('coupons')"
@@ -161,7 +161,7 @@
   </div>
 
   <!-- CẤU HÌNH HỆ THỐNG -->
-  <div class="nav-group">
+  <div class="nav-group" *ngIf="hasAny('rule-engine', 'staff', 'permissions')">
     <h4 class="group-title" *ngIf="expanded">Cài đặt & B2B</h4>
     <a
       *ngIf="canSee('rule-engine')"
@@ -213,7 +213,7 @@
       <tui-icon icon="@tui.shopping-bag" />
       Xem Storefront
     </a>
-    <a tuiAsideItem routerLink="/help">
+    <a class="nav-item" routerLink="/help" routerLinkActive="active">
       <tui-icon icon="@tui.circle-help" />
       Trợ giúp
     </a>

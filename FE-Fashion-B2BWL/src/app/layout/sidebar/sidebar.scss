@@ -2,25 +2,66 @@
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
+  flex-shrink: 0 !important;
+  align-self: stretch;
+  box-sizing: border-box;
   background: white !important;
   border-right: 1px solid #f1f5f9;
   z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.expanded {
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+  }
+
+  &:not(.expanded) {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+  }
+}
+
+/*
+ * Thu gọn: .nav-item có font-size 14px !important — phải ghi đè bằng !important,
+ * nếu không chữ vẫn 14px trong cột 80px → cắt nửa chữ như bug UI.
+ */
+:host:not(.expanded) .sidebar-wrapper .nav-item {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 8px;
+  margin-right: 8px;
+  gap: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+
+  tui-icon {
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+    color: #64748b !important;
+  }
+
+  &.active tui-icon {
+    color: #ffffff !important;
+  }
 }
 
 .sidebar-wrapper {
-  width: 80px;
-  height: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: white !important;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 40px;
-
-  &.expanded {
-    width: 280px;
-  }
 
   /* Hide scrollbar */
   &::-webkit-scrollbar {
@@ -98,7 +139,7 @@
   &.active {
     background: var(--bgi) !important;
     color: #ffffff !important;
-    box-shadow: 0 10px 20px -5px rgba(0, 133, 88, 0.25);
+    box-shadow: 0 4px 12px -4px rgba(0, 133, 88, 0.35);
     font-weight: 700 !important;
 
     tui-icon {
