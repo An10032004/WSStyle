@@ -28,9 +28,13 @@
             <p class="banner-warn">{{ error }}</p>
           }
           <div class="bundle-price-row">
-            <span class="new-price">{{ (bundle.newPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
-            @if (bundle.oldPrice) {
-              <span class="old-price">{{ (bundle.oldPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+            @if (hideBundleComboPrices) {
+              <span class="bundle-price-replacement">{{ bundleComboPriceReplacement }}</span>
+            } @else {
+              <span class="new-price">{{ (bundle.newPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+              @if (bundle.oldPrice) {
+                <span class="old-price">{{ (bundle.oldPrice || 0) | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+              }
             }
           </div>
 

@@ -237,6 +237,18 @@ export class BundleDetailComponent implements OnInit {
       });
   }
 
+  /** Có ít nhất một SP trong combo bị chặn giá — không hiển thị tổng tiền số ở header. */
+  get hideBundleComboPrices(): boolean {
+    return this.rows.some((r) => !!r.product.hidePrice);
+  }
+
+  /** Thông báo thay cho giá tổng combo khi có dòng hidePrice. */
+  get bundleComboPriceReplacement(): string {
+    const row = this.rows.find((r) => !!r.product.hidePrice);
+    const t = row?.product.replacementText?.trim();
+    return t || 'Liên hệ để có giá';
+  }
+
   /** Kiểm tra tồn kho cho toàn bộ dòng combo trước khi thêm (tránh thêm dở). */
   private bundleStockError(bundleId: number): string | null {
     const sim = this.cart.currentItems.map((i) => ({ ...i }));
