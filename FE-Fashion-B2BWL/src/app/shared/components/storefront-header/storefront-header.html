@@ -79,10 +79,11 @@
       </button>
       
       <div class="cart-wrapper">
-        <button 
-          class="icon-circle" 
-          title="Cart" 
-          routerLink="/cart"
+        <button
+          type="button"
+          class="icon-circle"
+          title="Giỏ hàng"
+          (click)="toggleCartDrawer()"
         >
           <tui-icon icon="@tui.shopping-bag"></tui-icon>
           <span class="cart-badge">{{ (cartCount$ | async) || 0 }}</span>
@@ -334,3 +335,5 @@
     </ul>
   </div>
 </nav>
+
+<app-cart-drawer />

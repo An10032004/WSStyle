@@ -5,6 +5,8 @@
   --primary: #008558;
   --primary-light: #00b87f;
   --primary-dark: #006d48;
+  /** Dùng cho hover (trước đây thiếu → nút PDP hover thành nền trắng). */
+  --primary-hover: #006d48;
   
   --bgi: linear-gradient(130deg, #008558 0%, #00b87f 99%);
   --hvr-bgi: linear-gradient(130deg, #006d48 1%, #006d48 100%, #008558 100%);

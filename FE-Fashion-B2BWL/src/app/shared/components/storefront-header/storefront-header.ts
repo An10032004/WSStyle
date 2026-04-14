@@ -7,12 +7,13 @@ import { TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar } from '@tai
 import { AuthService } from '../../../services/auth.service';
 import { ApiService, Category, Product } from '../../../services/api.service';
 import { CartService } from '../../../services/cart.service';
+import { CartDrawerComponent } from '../cart-drawer/cart-drawer';
 import { Observable, map, distinctUntilChanged, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-storefront-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar],
+  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar, CartDrawerComponent],
   templateUrl: './storefront-header.html',
   styleUrls: ['./storefront-header.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +27,10 @@ export class StorefrontHeaderComponent implements OnInit {
   private readonly cart = inject(CartService);
 
   searchQuery = '';
+
+  toggleCartDrawer(): void {
+    this.cart.toggleCartDrawer();
+  }
 
   cartCount$ = this.cart.cart$.pipe(map(items => items.reduce((sum, i) => sum + i.quantity, 0)));
   cartItems$ = this.cart.cart$;

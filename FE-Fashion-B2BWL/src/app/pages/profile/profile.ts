@@ -1,6 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { ApiService, DebtSummary, Order } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
@@ -26,7 +33,17 @@ import {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, TuiButton, TuiIcon, TuiBadge, RouterModule, StorefrontHeaderComponent, StorefrontFooterComponent, TuiPagination],
+  imports: [
+    CommonModule,
+    TuiButton,
+    TuiIcon,
+    TuiBadge,
+    RouterModule,
+    ReactiveFormsModule,
+    StorefrontHeaderComponent,
+    StorefrontFooterComponent,
+    TuiPagination,
+  ],
   template: `
     <app-storefront-header></app-storefront-header>
     <div class="profile-container">
@@ -65,6 +82,31 @@ import {
               Logout
             </button>
           </div>
+        </div>
+
+        <div class="profile-card password-card" *ngIf="user$ | async">
+          <div class="profile-header" style="text-align:left">
+            <h2 style="margin:0">Đổi mật khẩu</h2>
+          </div>
+          <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
+            <div class="pwd-field">
+              <label for="pwd-current">Mật khẩu hiện tại</label>
+              <input id="pwd-current" type="password" formControlName="currentPassword" autocomplete="current-password" />
+            </div>
+            <div class="pwd-field">
+              <label for="pwd-new">Mật khẩu mới</label>
+              <input id="pwd-new" type="password" formControlName="newPassword" autocomplete="new-password" />
+            </div>
+            <div class="pwd-field">
+              <label for="pwd-confirm">Xác nhận mật khẩu mới</label>
+              <input id="pwd-confirm" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+            </div>
+            <p class="pwd-err" *ngIf="passwordForm.errors?.['mismatch'] && passwordForm.touched">Mật khẩu mới và xác nhận không khớp.</p>
+            <p class="pwd-hint">Tối thiểu 6 ký tự.</p>
+            <button tuiButton type="submit" appearance="primary" size="m" [disabled]="passwordForm.invalid || pwdBusy" style="width:100%; margin-top:4px;">
+              Cập nhật mật khẩu
+            </button>
+          </form>
         </div>
 
         <div class="profile-card debt-card" *ngIf="debtSummary$ | async as debt">
@@ -368,6 +410,17 @@ import {
 
     .pagination-wrap { margin-top: 30px; display: flex; justify-content: center; }
 
+    .password-card {
+      form { display: flex; flex-direction: column; gap: 12px; padding: 8px 4px 4px; }
+      .pwd-field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; }
+      .pwd-field input {
+        width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px;
+        font-size: 14px; box-sizing: border-box;
+      }
+      .pwd-err { color: #dc2626; font-size: 12px; margin: 0; }
+      .pwd-hint { font-size: 12px; color: #888; margin: 0; }
+    }
+
     .empty-orders { text-align: center; padding: 60px; color: #999; tui-icon { font-size: 48px; margin-bottom: 15px; } }
     .loading-state { text-align: center; padding: 30px; color: #888; }
   `]
@@ -378,7 +431,26 @@ export class ProfileComponent {
   private readonly cart = inject(CartService);
   private readonly alerts = inject(TuiAlertService);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   protected readonly Math = Math;
+
+  pwdBusy = false;
+
+  passwordForm = this.fb.nonNullable.group(
+    {
+      currentPassword: ['', Validators.required],
+      newPassword: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required],
+    },
+    { validators: [ProfileComponent.passwordsMatchValidator] },
+  );
+
+  private static passwordsMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const n = control.get('newPassword')?.value;
+    const c = control.get('confirmPassword')?.value;
+    if (n == null || c == null || n === '' || c === '') return null;
+    return n === c ? null : { mismatch: true };
+  }
 
   user$ = this.auth.user$;
   
@@ -569,6 +641,46 @@ export class ProfileComponent {
         'Đã thêm lại vào giỏ. ' + buildReorderPricingNotice(order);
       this.alerts.open(msg, { label: 'Reorder', appearance: 'info', autoClose: 12000 }).subscribe();
     }
+  }
+
+  submitPassword(): void {
+    const u = this.auth.currentUserValue;
+    if (!u?.email) {
+      this.alerts.open('Vui lòng đăng nhập lại.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      return;
+    }
+    this.passwordForm.markAllAsTouched();
+    if (this.passwordForm.invalid) return;
+    const v = this.passwordForm.getRawValue();
+    this.pwdBusy = true;
+    this.api
+      .changePassword({
+        email: u.email,
+        currentPassword: v.currentPassword,
+        newPassword: v.newPassword,
+      })
+      .subscribe({
+        next: (res) => {
+          this.pwdBusy = false;
+          if (res.success) {
+            this.passwordForm.reset();
+            this.alerts
+              .open(res.message || 'Đã cập nhật mật khẩu.', { label: 'Thành công', appearance: 'success' })
+              .subscribe();
+          } else {
+            this.alerts.open(res.message || 'Không đổi được mật khẩu.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+          }
+        },
+        error: (err) => {
+          this.pwdBusy = false;
+          const body = err?.error;
+          const msg =
+            (typeof body?.message === 'string' && body.message) ||
+            (body?.success === false && body?.message) ||
+            'Không đổi được mật khẩu. Kiểm tra mật khẩu hiện tại.';
+          this.alerts.open(msg, { label: 'Lỗi', appearance: 'error' }).subscribe();
+        },
+      });
   }
 
   logout(): void {

@@ -850,7 +850,9 @@ export class ProductDetailComponent implements OnInit {
         .subscribe();
       return;
     }
-    this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice);
+    this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice, undefined, undefined, undefined, undefined, {
+      openDrawer: true,
+    });
   }
 
   logout(): void {

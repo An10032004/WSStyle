@@ -1,8 +1,10 @@
 package com.fashionstore.core.controller;
 
+import com.fashionstore.core.dto.request.ChangePasswordRequest;
 import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
 import com.fashionstore.core.dto.request.TokenRefreshRequest;
+import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.dto.response.AuthResponse;
 import com.fashionstore.core.dto.response.CustomerGroupSummaryDTO;
 import com.fashionstore.core.dto.response.UserResponse;
@@ -16,11 +18,13 @@ import com.fashionstore.core.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
@@ -68,6 +72,29 @@ public class AuthController {
                         .success(false)
                         .message("Invalid email or password")
                         .build()));
+    }
+
+    /**
+     * Tránh lỗi Spring "No static resource .../change-password" khi ai đó mở URL bằng GET trên trình duyệt.
+     */
+    @GetMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePasswordMethodNotAllowed() {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error(
+                        "Chỉ hỗ trợ POST. Gửi JSON: {\"email\",\"currentPassword\",\"newPassword\"}."));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody ChangePasswordRequest request) {
+        try {
+            userService.changePassword(
+                    request.getEmail(),
+                    request.getCurrentPassword(),
+                    request.getNewPassword());
+            return ResponseEntity.ok(ApiResponse.success("Mật khẩu đã được cập nhật", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @GetMapping("/check-email")

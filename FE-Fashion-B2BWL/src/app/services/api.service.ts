@@ -540,6 +540,14 @@ export class ApiService {
     return this.http.get<boolean>(`${this.base}/auth/check-phone`, { params: { phone } });
   }
 
+  changePassword(payload: {
+    email: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Observable<ApiResponse<null>> {
+    return this.http.post<ApiResponse<null>>(`${this.base}/auth/change-password`, payload);
+  }
+
   // ─── Products ──────────────────────────────────────────
   getProducts(userId?: number): Observable<Product[]> {
     const url = userId ? `${this.apiUrl}/products?userId=${userId}` : `${this.apiUrl}/products`;

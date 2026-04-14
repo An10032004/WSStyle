@@ -1,0 +1,90 @@
+<ng-container *ngIf="open$ | async">
+  <div class="cart-drawer-backdrop" (click)="close()" aria-hidden="true"></div>
+  <aside class="cart-drawer-panel" role="dialog" aria-modal="true" aria-label="Giỏ hàng">
+    <div class="cart-drawer-head">
+      <h2>Giỏ hàng</h2>
+      <button type="button" class="cart-drawer-close" (click)="close()" aria-label="Đóng">
+        <tui-icon icon="@tui.x"></tui-icon>
+      </button>
+    </div>
+
+    <div class="cart-drawer-body" *ngIf="layout$ | async as layout">
+      <div class="cart-drawer-empty" *ngIf="layout.isEmpty">
+        <tui-icon icon="@tui.shopping-bag"></tui-icon>
+        <p>Giỏ hàng đang trống.</p>
+        <a routerLink="/shop" (click)="close()">Tiếp tục mua sắm</a>
+      </div>
+
+      <ng-container *ngIf="!layout.isEmpty">
+        <div class="cart-drawer-section" *ngFor="let g of layout.bundleGroups">
+          <div class="bundle-head">
+            <span class="bundle-label">{{ g.label }}</span>
+            <button type="button" class="link-remove" (click)="removeBundleGroup(g.bundleId)">Xóa combo</button>
+          </div>
+          <div class="line" *ngFor="let item of g.items">
+            <div class="line-img" *ngIf="item.imageUrl">
+              <img [src]="item.imageUrl" [alt]="item.name" />
+            </div>
+            <div class="line-main">
+              <div class="line-name">{{ item.name }}</div>
+              <div class="line-meta" *ngIf="item.color || item.size">
+                <span *ngIf="item.color">{{ item.color }}</span>
+                <span *ngIf="item.size">{{ item.size }}</span>
+              </div>
+              <div class="line-qty-note">Số lượng cố định theo combo — chỉnh trên trang giỏ hàng nếu cần.</div>
+              <div class="line-foot">
+                <span class="qty">× {{ item.quantity }}</span>
+                <span class="price">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+              </div>
+            </div>
+          </div>
+          <div class="bundle-sub">Tạm tính combo: {{ g.subtotal | number:'1.0-0' }} ₫</div>
+        </div>
+
+        <div class="cart-drawer-section" *ngIf="layout.regularItems.length">
+          <div class="section-title">Sản phẩm lẻ</div>
+          <div class="line" *ngFor="let item of layout.regularItems">
+            <div class="line-img" *ngIf="item.imageUrl">
+              <img [src]="item.imageUrl" [alt]="item.name" />
+            </div>
+            <div class="line-main">
+              <div class="line-name">{{ item.name }}</div>
+              <div class="line-meta" *ngIf="item.color || item.size">
+                <span *ngIf="item.color">{{ item.color }}</span>
+                <span *ngIf="item.size">{{ item.size }}</span>
+              </div>
+              <div class="line-controls">
+                <div class="qty-stepper">
+                  <button type="button" (click)="dec(item)" [disabled]="item.quantity <= 1">−</button>
+                  <span>{{ item.quantity }}</span>
+                  <button type="button" (click)="inc(item)">+</button>
+                </div>
+                <button type="button" class="link-remove" (click)="removeLine(item)">Xóa</button>
+              </div>
+              <div class="line-foot">
+                <span class="unit" *ngIf="item.discountLabel">{{ item.discountLabel }}</span>
+                <span class="price">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="cart-drawer-footer" *ngIf="layout$ | async as layout">
+      <ng-container *ngIf="!layout.isEmpty">
+        <div class="footer-row">
+          <span>Tạm tính</span>
+          <ng-container *ngIf="subtotal$ | async as st">
+            <strong>{{ st | number:'1.0-0' }} ₫</strong>
+          </ng-container>
+        </div>
+        <p class="footer-hint">Phí ship &amp; thuế xem chi tiết khi thanh toán.</p>
+        <div class="footer-actions">
+          <button tuiButton type="button" appearance="outline" size="m" routerLink="/cart" (click)="close()">Xem giỏ đầy đủ</button>
+          <button tuiButton type="button" appearance="primary" size="m" routerLink="/checkout" (click)="close()">Thanh toán</button>
+        </div>
+      </ng-container>
+    </div>
+  </aside>
+</ng-container>

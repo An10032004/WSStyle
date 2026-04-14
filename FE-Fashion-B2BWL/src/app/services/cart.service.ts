@@ -51,6 +51,22 @@ export class CartService {
 
   private cartSubject = new BehaviorSubject<CartItem[]>([]);
   cart$ = this.cartSubject.asObservable();
+
+  private cartDrawerOpenSubject = new BehaviorSubject(false);
+  /** Panel giỏ trượt (header storefront). */
+  cartDrawerOpen$ = this.cartDrawerOpenSubject.asObservable();
+
+  openCartDrawer(): void {
+    this.cartDrawerOpenSubject.next(true);
+  }
+
+  closeCartDrawer(): void {
+    this.cartDrawerOpenSubject.next(false);
+  }
+
+  toggleCartDrawer(): void {
+    this.cartDrawerOpenSubject.next(!this.cartDrawerOpenSubject.value);
+  }
   
   private appliedCouponSubject = new BehaviorSubject<any | null>(null);
   appliedCoupon$ = this.appliedCouponSubject.asObservable();
@@ -190,6 +206,7 @@ export class CartService {
    * @param silent Nếu true: chỉ lưu giỏ, không gọi validate/toast (dùng khi thêm nhiều dòng combo, validate một lần ở ngoài).
    * @param bundleLabel Tên combo hiển thị khi nhóm trong giỏ.
    * @param cartOpts.skipComboBundleGuard Bỏ qua chặn trùng `bundleId` (dùng khi thêm lần lượt từng dòng của cùng một combo).
+   * @param cartOpts.openDrawer Mở cart drawer sau khi thêm thành công (validate không lỗi).
    */
   addToCart(
     product: Product,
@@ -200,7 +217,7 @@ export class CartService {
     bundleId?: number,
     silent?: boolean,
     bundleLabel?: string,
-    cartOpts?: { skipComboBundleGuard?: boolean },
+    cartOpts?: { skipComboBundleGuard?: boolean; openDrawer?: boolean },
   ) {
     if (!variant?.id) {
       this.alerts.open(
@@ -344,6 +361,9 @@ export class CartService {
          });
        } else {
          this.alerts.open('Đã thêm sản phẩm vào giỏ hàng', { label: 'Thành công', appearance: 'success' }).subscribe();
+         if (cartOpts?.openDrawer) {
+           this.openCartDrawer();
+         }
        }
     });
   }

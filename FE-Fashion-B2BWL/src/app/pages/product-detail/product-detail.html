@@ -196,13 +196,12 @@
         </div>
 
         <div class="main-cta" *ngIf="!product.hideAddToCart">
-           <button 
-             tuiButton 
-             appearance="secondary" 
-             class="buy-btn" 
-             (click)="addToCart()"
-             [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
-           >
+          <button
+            type="button"
+            class="buy-btn"
+            (click)="addToCart()"
+            [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
+          >
             Thêm vào giỏ hàng
           </button>
         </div>
