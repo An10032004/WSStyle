@@ -1,7 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService, TuiDropdown } from '@taiga-ui/core';
 import { TuiInputNumber, TuiDataListWrapper, TuiPagination } from '@taiga-ui/kit';
@@ -54,6 +56,7 @@ export class QuickOrderFormComponent implements OnInit {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   public Math = Math;
 
@@ -91,43 +94,86 @@ export class QuickOrderFormComponent implements OnInit {
     }, 0);
   }
 
-  ngOnInit(): void {
-    this.loadData();
-    this.loadCategories();
+  /** Có ít nhất một dòng đang chọn thuộc SP đang ẩn giá — không hiển thị tổng tiền. */
+  get hasHiddenPriceInSelection(): boolean {
+    return this.products.some(
+      p =>
+        !!p.product.hidePrice &&
+        p.variants.some(v => v.selectedQuantity > 0),
+    );
   }
 
-  loadData(): void {
-    this.loading = true;
-    this.api.getProducts().subscribe(prods => {
-      prods.forEach(p => {
-        this.api.getProductVariantsByProduct(p.id).subscribe(variants => {
-          const item: QuickOrderItem = {
-            product: p,
-            variants: variants.map(v => ({ 
-              ...v, 
-              selectedQuantity: 0,
-              calculatedPrice: v.price || p.basePrice 
-            })),
-            isExpanded: false,
-            totalSelected: 0
-          };
-          // Initial calculation
-          item.variants.forEach(v => this.updateVariantPricing(item.product, v));
-          item.minPrice = Math.min(...item.variants.map(v => v.calculatedPrice || 0).filter(p => p > 0));
-          
-          this.products.push(item);
-          this.filterProducts();
+  replacementLabel(product: Product): string {
+    const t = product.replacementText?.trim();
+    return t || 'Liên hệ để có giá';
+  }
+
+  /** Thông báo thay thế khi giỏ chọn có SP ẩn giá (lấy SP ẩn giá đầu tiên đang chọn). */
+  get hiddenSelectionReplacement(): string {
+    for (const row of this.products) {
+      if (!row.product.hidePrice) continue;
+      if (row.variants.some(v => v.selectedQuantity > 0)) {
+        return this.replacementLabel(row.product);
+      }
+    }
+    return 'Liên hệ để có giá';
+  }
+
+  ngOnInit(): void {
+    /** Phải gửi userId giống storefront/shop — backend mới áp hide price / B2B đúng theo khách. */
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id),
+        distinctUntilChanged(),
+        switchMap((uid) => {
+          this.loading = true;
+          this.products = [];
+          this.filteredProducts = [];
+          this.index = 0;
+          return this.api.getProducts(uid);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((prods) => {
+        if (prods.length === 0) {
           this.loading = false;
+          this.filterProducts();
           this.cdr.detectChanges();
+          return;
+        }
+        prods.forEach((p) => {
+          this.api.getProductVariantsByProduct(p.id).subscribe((variants) => {
+            const item: QuickOrderItem = {
+              product: p,
+              variants: variants.map((v) => ({
+                ...v,
+                selectedQuantity: 0,
+                calculatedPrice: v.price || p.basePrice,
+              })),
+              isExpanded: false,
+              totalSelected: 0,
+            };
+            item.variants.forEach((v) => this.updateVariantPricing(item.product, v));
+            item.minPrice = Math.min(
+              ...item.variants.map((v) => v.calculatedPrice || 0).filter((x) => x > 0),
+            );
+
+            this.products.push(item);
+            this.filterProducts();
+            this.loading = false;
+            this.cdr.detectChanges();
+          });
         });
       });
-    });
 
-    // Also load order limits for the user profile to display them
-    this.cart.orderLimits$.subscribe(limits => {
-      this.appliedOrderLimits = limits;
-      this.cdr.detectChanges();
-    });
+    this.cart.orderLimits$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((limits) => {
+        this.appliedOrderLimits = limits;
+        this.cdr.detectChanges();
+      });
+
+    this.loadCategories();
   }
 
   updateVariantPricing(product: Product, variant: any) {
@@ -141,11 +187,15 @@ export class QuickOrderFormComponent implements OnInit {
     );
 
     variant.calculatedPrice = result.finalPrice;
-    
+
+    if (product.hidePrice) {
+      variant.appliedRulesText = '';
+      return;
+    }
     const rules = [];
     if (result.appliedB2BRule) rules.push(`B2B: ${result.appliedB2BRule.name}`);
     if (result.appliedQBBreak) rules.push(`Sỉ: -${result.appliedQBBreak.discount}%`);
-    
+
     variant.appliedRulesText = rules.join(' | ');
   }
 

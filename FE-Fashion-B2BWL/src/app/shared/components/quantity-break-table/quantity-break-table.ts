@@ -24,22 +24,28 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
               <th>Số lượng mua</th>
               <th>Đơn giá sỉ</th>
               <th>Mức chiết khấu</th>
-              <th class="action-col">Thêm vào giỏ</th>
+              <th class="action-col" *ngIf="!hideAddToCart">Thêm vào giỏ</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let b of breaks; let i = index" [class.highlight]="i === activeTierIndex">
+            <tr *ngFor="let b of breaks; let i = index" [class.highlight]="!hidePrice && i === activeTierIndex">
               <td class="qty-cell">
                 <div class="qty-range">{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</div>
               </td>
               <td class="price-cell">
-                <span class="price-val">{{ (basePrice * (1 - b.discount/100)).toLocaleString() }}₫</span>
-                <span class="price-unit">/sp</span>
+                <ng-container *ngIf="!hidePrice; else hiddenUnit">
+                  <span class="price-val">{{ (basePrice * (1 - b.discount/100)).toLocaleString() }}₫</span>
+                  <span class="price-unit">/sp</span>
+                </ng-container>
+                <ng-template #hiddenUnit>
+                  <span class="replacement-text">{{ replacementText || 'Liên hệ để có giá' }}</span>
+                </ng-template>
               </td>
               <td class="discount-cell">
-                <div class="discount-badge">Giảm {{ b.discount }}%</div>
+                <div class="discount-badge" *ngIf="!hidePrice">Giảm {{ b.discount }}%</div>
+                <span class="dash-muted" *ngIf="hidePrice">—</span>
               </td>
-              <td class="action-col">
+              <td class="action-col" *ngIf="!hideAddToCart">
                 <div class="inline-buy">
                   <div class="qty-control">
                     <input type="number" 
@@ -57,10 +63,16 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
         </table>
       </div>
 
-      <div class="qb-footer" *ngIf="activeTierIndex !== -1">
+      <div class="qb-footer" *ngIf="!hidePrice && activeTierIndex !== -1">
          <div class="active-notif">
             <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
             Bạn đang mua <strong>{{ currentQty }} mặt hàng</strong>, được hưởng mức giảm <strong>{{ breaks[activeTierIndex].discount }}%</strong>
+         </div>
+      </div>
+      <div class="qb-footer qb-footer-muted" *ngIf="hidePrice && activeTierIndex !== -1">
+         <div class="active-notif">
+            <tui-icon icon="@tui.info" class="sp-icon"></tui-icon>
+            Bạn đang mua <strong>{{ currentQty }} mặt hàng</strong>. {{ replacementText || 'Liên hệ để biết đơn giá theo bậc số lượng.' }}
          </div>
       </div>
     </div>
@@ -173,14 +185,24 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
     .cart-icon { font-size: 20px; }
 
     .qb-footer { padding: 16px 20px; background: #f0fdf4; border-top: 1px solid #dcfce7; }
+    .qb-footer-muted { background: #f8fafc; border-top-color: #e2e8f0; }
+    .qb-footer-muted .active-notif { color: #475569; }
+    .qb-footer-muted .sp-icon { color: #64748b; }
     .active-notif { display: flex; align-items: center; gap: 8px; color: #166534; font-size: 14px; font-weight: 600; }
     .sp-icon { color: #16a34a; font-size: 18px; }
+    .replacement-text { font-size: 14px; color: #64748b; font-weight: 600; line-height: 1.35; }
+    .dash-muted { color: #94a3b8; font-weight: 700; }
   `]
 })
 export class QuantityBreakTableComponent implements OnChanges {
   @Input() breaks: any[] = [];
   @Input() basePrice: number = 0;
   @Input() currentQty: number = 0;
+  /** Đồng bộ quy tắc ẩn giá (ProductResponseDTO / RuleCoreService). */
+  @Input() hidePrice = false;
+  @Input() replacementText?: string;
+  /** Khi bật, ẩn cột thêm giỏ trên bảng bậc số lượng (đồng bộ hideAddToCart sản phẩm). */
+  @Input() hideAddToCart = false;
 
   @Output() onBuy = new EventEmitter<number>();
 

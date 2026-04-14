@@ -107,6 +107,9 @@
            [breaks]="quantityBreaks" 
            [basePrice]="selectedVariant?.price || product?.basePrice || 0"
            [currentQty]="quantity"
+           [hidePrice]="!!product?.hidePrice"
+           [replacementText]="product?.replacementText"
+           [hideAddToCart]="!!product?.hideAddToCart"
            (onBuy)="handleTableBuy($event)">
         </app-quantity-break-table>
 

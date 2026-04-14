@@ -137,7 +137,8 @@
                  <span class="item-variant">{{ item.color }} / {{ item.size }}</span>
                </div>
                 <div class="item-price">
-                  <div class="price-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</div>
+                  <div class="price-val" *ngIf="!item.hidePrice">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</div>
+                  <div class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</div>
                   <div class="qb-trigger" *ngIf="getQB(item).length > 0">
                     <tui-icon
                       icon="@tui.info"
@@ -149,7 +150,10 @@
                         <app-quantity-break-table 
                           [breaks]="getQB(item)" 
                           [basePrice]="item.basePrice || item.price"
-                          [currentQty]="item.quantity">
+                          [currentQty]="item.quantity"
+                          [hidePrice]="!!item.hidePrice"
+                          [replacementText]="item.replacementText"
+                          [hideAddToCart]="!!item.hideAddToCart">
                         </app-quantity-break-table>
                       </div>
                     </ng-template>

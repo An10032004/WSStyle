@@ -28,6 +28,10 @@ export interface CartItem {
   quantityBreaksJson?: string;
   isFixedPrice?: boolean; // New flag to skip recalculations
   discountLabel?: string;
+  /** Theo DTO sản phẩm (hide price rules) — dùng khi hiển thị giỏ / bảng bậc số lượng. */
+  hidePrice?: boolean;
+  replacementText?: string;
+  hideAddToCart?: boolean;
   /** Gộp dòng giỏ theo combo; tránh trùng variant giá thường vs combo */
   bundleId?: number;
   /** Tên hiển thị nhóm combo trên giỏ hàng */
@@ -342,6 +346,9 @@ export class CartService {
               ? `Combo · ${bundleLabel}`
               : 'Combo'
             : undefined,
+        hidePrice: product.hidePrice,
+        replacementText: product.replacementText,
+        hideAddToCart: product.hideAddToCart,
       };
       if (!locked) {
         this.recalculateItemPrice(newItem);

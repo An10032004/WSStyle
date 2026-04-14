@@ -10,8 +10,11 @@
       <div class="stat">
         <span class="badge">{{ totalItemsSelected }}</span> mẫu đã chọn
       </div>
-      <div class="stat">
+      <div class="stat" *ngIf="!hasHiddenPriceInSelection">
         Tổng cộng: <strong>{{ totalAmount | number }}đ</strong>
+      </div>
+      <div class="stat replacement-stat" *ngIf="hasHiddenPriceInSelection">
+        Tổng cộng: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong>
       </div>
       <button tuiButton type="button" size="s" (click)="addToCart()" class="premium-black-btn">Thêm vào giỏ</button>
       <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()" class="modern-btn">Thanh toán</button>
@@ -117,10 +120,13 @@
             </td>
             <td>{{ item.product.basePrice === 0 ? 'Hết hàng' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
             <td>
-              <div class="price-cell">
+              <div class="price-cell" *ngIf="!item.product.hidePrice; else qoRowHidden">
                 <div class="final-price">Từ {{ item.minPrice | number }}đ</div>
                 <div class="original-price" *ngIf="item.product.basePrice > (item.minPrice || 0)">{{ item.product.basePrice | number }}đ</div>
               </div>
+              <ng-template #qoRowHidden>
+                <span class="replacement-text">{{ replacementLabel(item.product) }}</span>
+              </ng-template>
             </td>
             <td><code>{{ item.product.productCode }}</code></td>
             <td>
@@ -164,13 +170,18 @@
                       </td>
                       <td>{{ v.stockQuantity | number }}</td>
                       <td class="price-cell">
-                        <div class="final-price">{{ (v.calculatedPrice || v.price || item.product.basePrice) | number }}đ</div>
-                        <div class="original-price" *ngIf="v.calculatedPrice && v.calculatedPrice < (v.price || item.product.basePrice)">
-                          {{ (v.price || item.product.basePrice) | number }}đ
-                        </div>
-                        <div class="rule-desc" *ngIf="v.appliedRulesText">
-                          {{ v.appliedRulesText }}
-                        </div>
+                        <ng-container *ngIf="!item.product.hidePrice; else qoVarHidden">
+                          <div class="final-price">{{ (v.calculatedPrice || v.price || item.product.basePrice) | number }}đ</div>
+                          <div class="original-price" *ngIf="v.calculatedPrice && v.calculatedPrice < (v.price || item.product.basePrice)">
+                            {{ (v.price || item.product.basePrice) | number }}đ
+                          </div>
+                          <div class="rule-desc" *ngIf="v.appliedRulesText">
+                            {{ v.appliedRulesText }}
+                          </div>
+                        </ng-container>
+                        <ng-template #qoVarHidden>
+                          <span class="replacement-text">{{ replacementLabel(item.product) }}</span>
+                        </ng-template>
                         
                         <!-- QUANTITY BREAK POPUP -->
                         <div class="qb-info-trigger" *ngIf="getQB(item.product).length > 0">
@@ -187,7 +198,10 @@
                                <app-quantity-break-table 
                                  [breaks]="getQB(item.product)" 
                                  [basePrice]="v.price || item.product.basePrice"
-                                 [currentQty]="v.selectedQuantity">
+                                 [currentQty]="v.selectedQuantity"
+                                 [hidePrice]="!!item.product.hidePrice"
+                                 [replacementText]="item.product.replacementText"
+                                 [hideAddToCart]="!!item.product.hideAddToCart">
                                </app-quantity-break-table>
                              </div>
                            </ng-template>
@@ -227,7 +241,8 @@
     <div class="footer-inner">
       <div class="footer-stats">
         <span class="count-tag">{{ totalItemsSelected }} item(s) selected</span>
-        <span class="total-tag">Cart total: <strong>{{ totalAmount | number }}đ</strong></span>
+        <span class="total-tag" *ngIf="!hasHiddenPriceInSelection">Cart total: <strong>{{ totalAmount | number }}đ</strong></span>
+        <span class="total-tag" *ngIf="hasHiddenPriceInSelection">Cart total: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong></span>
       </div>
       <div class="footer-actions">
         <button tuiButton type="button" (click)="addToCart()" appearance="outline">Add to Cart</button>

@@ -226,7 +226,8 @@
     </div>
     <div class="col-price">
       <div class="price-display">
-        <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
+        <span class="price-val" *ngIf="!item.hidePrice">{{ item.price | number:'1.0-0' }} ₫</span>
+        <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
         <div class="qb-trigger" *ngIf="getQB(item).length > 0 && !item.isFixedPrice">
           <button
             tuiIconButton
@@ -241,7 +242,10 @@
               <app-quantity-break-table 
                 [breaks]="getQB(item)" 
                 [basePrice]="item.basePrice || item.price"
-                [currentQty]="item.quantity">
+                [currentQty]="item.quantity"
+                [hidePrice]="!!item.hidePrice"
+                [replacementText]="item.replacementText"
+                [hideAddToCart]="!!item.hideAddToCart">
               </app-quantity-break-table>
             </div>
           </ng-template>
@@ -267,7 +271,8 @@
       </div>
     </div>
     <div class="col-total">
-      <span class="total-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
+      <span class="total-val" *ngIf="!item.hidePrice">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
+      <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
     </div>
     <div class="col-actions">
       <button
