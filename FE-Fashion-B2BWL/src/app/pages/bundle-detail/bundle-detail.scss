@@ -150,6 +150,14 @@
       font-weight: 600;
       color: var(--tui-text-primary, #111);
     }
+
+    .line-unit-replacement {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--tui-text-secondary, #57534e);
+      text-align: right;
+      max-width: 14rem;
+    }
   }
 }
 

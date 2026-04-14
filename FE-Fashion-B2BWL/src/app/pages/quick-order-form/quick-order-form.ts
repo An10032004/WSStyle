@@ -303,7 +303,10 @@ export class QuickOrderFormComponent implements OnInit {
             quantity: v.selectedQuantity,
             categoryId: p.product.categoryId,
             basePrice: v.price || p.product.basePrice,
-            quantityBreaksJson: p.product.quantityBreaksJson
+            quantityBreaksJson: p.product.quantityBreaksJson,
+            hidePrice: !!p.product.hidePrice,
+            replacementText: p.product.replacementText,
+            hideAddToCart: !!p.product.hideAddToCart,
           });
         }
       });

@@ -1,8 +1,17 @@
+import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 import { ApiService, Product, ProductVariant } from './api.service';
 import { AuthService } from './auth.service';
-import { BehaviorSubject, Observable, of } from 'rxjs';
-import { map, startWith, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, forkJoin, fromEvent, of } from 'rxjs';
+import {
+  map,
+  startWith,
+  switchMap,
+  shareReplay,
+  catchError,
+  debounceTime,
+  filter,
+} from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { TuiAlertService } from '@taiga-ui/core';
 import {
@@ -52,9 +61,16 @@ export class CartService {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly alerts = inject(TuiAlertService);
+  private readonly document = inject(DOCUMENT);
 
   private cartSubject = new BehaviorSubject<CartItem[]>([]);
   cart$ = this.cartSubject.asObservable();
+
+  /** Có dòng đang tick chọn thuộc sản phẩm ẩn giá — không cho thanh toán. */
+  readonly selectionHasHiddenPrice$ = this.cart$.pipe(
+    map((items) => items.some((i) => i.selected !== false && !!i.hidePrice)),
+    shareReplay(1),
+  );
 
   private cartDrawerOpenSubject = new BehaviorSubject(false);
   /** Panel giỏ trượt (header storefront). */
@@ -131,10 +147,10 @@ export class CartService {
   }
 
   constructor() {
-    this.auth.user$.subscribe(user => {
+    this.auth.user$.subscribe((user) => {
       const oldUserId = this.currentUserId;
       this.currentUserId = user?.id || null;
-      
+
       if (oldUserId === null && this.currentUserId !== null) {
         // Guest becomes User -> Merge
         this.syncOnLogin(this.currentUserId);
@@ -143,6 +159,79 @@ export class CartService {
         this.cartSubject.next(this.loadCart(this.currentUserId));
       }
       this.loadPricingRules();
+      this.scheduleSyncHidePriceFromServer();
+    });
+
+    fromEvent(this.document, 'visibilitychange')
+      .pipe(
+        filter(() => this.document.visibilityState === 'visible'),
+        debounceTime(400),
+      )
+      .subscribe(() => {
+        if (this.currentItems.length > 0) {
+          this.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+        }
+      });
+  }
+
+  /** Khi quy tắc ẩn giá / DTO sản phẩm đổi, đồng bộ lại từng dòng giỏ theo API (theo productId + user hiện tại). */
+  syncHidePriceFlagsFromServer(): Observable<boolean> {
+    const items = this.currentItems;
+    if (!items.length) {
+      return of(false);
+    }
+    const uid = this.auth.currentUserValue?.id;
+    const ids = [...new Set(items.map((i) => i.productId))];
+    const requests = ids.map((pid) =>
+      this.api.getProductById(pid, uid).pipe(catchError(() => of(null as Product | null))),
+    );
+    return forkJoin(requests).pipe(
+      map((products) => {
+        const byId = new Map<number, Product>();
+        products.forEach((p, idx) => {
+          if (p) {
+            byId.set(ids[idx], p);
+          }
+        });
+        let changed = false;
+        const next = items.map((item) => {
+          const p = byId.get(item.productId);
+          if (!p) {
+            return item;
+          }
+          const hp = !!p.hidePrice;
+          const rt = p.replacementText;
+          const hac = !!p.hideAddToCart;
+          if (
+            item.hidePrice === hp &&
+            item.replacementText === rt &&
+            item.hideAddToCart === hac
+          ) {
+            return item;
+          }
+          changed = true;
+          const copy: CartItem = {
+            ...item,
+            hidePrice: hp,
+            replacementText: rt,
+            hideAddToCart: hac,
+          };
+          if (hp && copy.bundleId == null) {
+            copy.discountLabel = undefined;
+          }
+          return copy;
+        });
+        if (changed) {
+          this.saveCart(next);
+        }
+        return changed;
+      }),
+    );
+  }
+
+  private scheduleSyncHidePriceFromServer(): void {
+    queueMicrotask(() => {
+      this.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
     });
   }
 
@@ -186,6 +275,7 @@ export class CartService {
 
     this.saveCart(merged); // Save to user key
     localStorage.removeItem(this.getCartKey(null)); // Clear guest cart after merge
+    this.scheduleSyncHidePriceFromServer();
   }
 
   /** Có ít nhất một dòng thuộc combo (bundle) trong giỏ. */
@@ -317,6 +407,9 @@ export class CartService {
 
     if (existingIndex > -1) {
       items[existingIndex].quantity += quantity;
+      items[existingIndex].hidePrice = product.hidePrice;
+      items[existingIndex].replacementText = product.replacementText;
+      items[existingIndex].hideAddToCart = product.hideAddToCart;
       if (!items[existingIndex].isFixedPrice) {
         this.recalculateItemPrice(items[existingIndex]);
       }
@@ -420,6 +513,13 @@ export class CartService {
 
   public validateClientSide(items: CartItem[]): any[] {
     const results: any[] = [];
+    const hidden = items.find((i) => i.hidePrice);
+    if (hidden) {
+      const msg =
+        hidden.replacementText?.trim() ||
+        'Giỏ hàng có sản phẩm liên hệ để có giá — không thể thanh toán trực tuyến. Vui lòng bỏ chọn hoặc xóa các dòng đó, hoặc liên hệ nhân viên.';
+      results.push({ success: false, message: msg });
+    }
     const user = this.auth.currentUserValue;
     const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
@@ -608,6 +708,9 @@ export class CartService {
        item.discountLabel = result.appliedB2BRule.ruleName || result.appliedB2BRule.name || 'Giá ưu đãi';
     } else {
        item.discountLabel = undefined;
+    }
+    if (item.hidePrice && item.bundleId == null) {
+      item.discountLabel = undefined;
     }
   }
 

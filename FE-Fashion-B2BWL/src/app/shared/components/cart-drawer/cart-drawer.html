@@ -34,11 +34,21 @@
               <div class="line-qty-note">Số lượng cố định theo combo — chỉnh trên trang giỏ hàng nếu cần.</div>
               <div class="line-foot">
                 <span class="qty">× {{ item.quantity }}</span>
-                <span class="price">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+                <span class="price" *ngIf="!item.hidePrice">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+                <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
               </div>
             </div>
           </div>
-          <div class="bundle-sub">Tạm tính combo: {{ g.subtotal | number:'1.0-0' }} ₫</div>
+          <div class="bundle-sub" *ngIf="!g.hasHiddenLine">
+            Tạm tính combo: {{ g.subtotal | number:'1.0-0' }} ₫
+          </div>
+          <div class="bundle-sub" *ngIf="g.hasHiddenLine && g.subtotalVisible > 0">
+            Tạm tính (phần hiện giá): {{ g.subtotalVisible | number:'1.0-0' }} ₫
+            <span class="bundle-sub-hint"> — có dòng liên hệ giá</span>
+          </div>
+          <div class="bundle-sub replacement-text" *ngIf="g.hasHiddenLine && g.subtotalVisible === 0">
+            Có mặt hàng liên hệ để có giá trong combo
+          </div>
         </div>
 
         <div class="cart-drawer-section" *ngIf="layout.regularItems.length">
@@ -62,8 +72,9 @@
                 <button type="button" class="link-remove" (click)="removeLine(item)">Xóa</button>
               </div>
               <div class="line-foot">
-                <span class="unit" *ngIf="item.discountLabel">{{ item.discountLabel }}</span>
-                <span class="price">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+                <span class="unit" *ngIf="item.discountLabel && !item.hidePrice">{{ item.discountLabel }}</span>
+                <span class="price" *ngIf="!item.hidePrice">{{ (+item.price || 0) * item.quantity | number:'1.0-0' }} ₫</span>
+                <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
               </div>
             </div>
           </div>
@@ -75,14 +86,32 @@
       <ng-container *ngIf="!layout.isEmpty">
         <div class="footer-row">
           <span>Tạm tính</span>
-          <ng-container *ngIf="subtotal$ | async as st">
-            <strong>{{ st | number:'1.0-0' }} ₫</strong>
+          <ng-container *ngIf="subtotalVisible$ | async as st">
+            <ng-container *ngIf="(cartHasHiddenLine$ | async) !== true">
+              <strong>{{ st | number:'1.0-0' }} ₫</strong>
+            </ng-container>
+            <ng-container *ngIf="cartHasHiddenLine$ | async">
+              <strong *ngIf="st > 0">{{ st | number:'1.0-0' }} ₫ <span class="footer-row-hint">(phần hiện giá)</span></strong>
+              <strong class="replacement-text" *ngIf="st === 0">Liên hệ để có giá</strong>
+            </ng-container>
           </ng-container>
         </div>
-        <p class="footer-hint">Phí ship &amp; thuế xem chi tiết khi thanh toán.</p>
+        <p class="footer-hint" *ngIf="(cartHasHiddenLine$ | async) !== true">Phí ship &amp; thuế xem chi tiết khi thanh toán.</p>
+        <p class="footer-hint" *ngIf="cartHasHiddenLine$ | async" style="font-size: 12px; color: #9a3412;">
+          Có dòng liên hệ để có giá — tạm tính chỉ gồm phần hiện giá. Thanh toán trực tuyến bị chặn nếu các dòng đó đang được chọn trên trang giỏ.
+        </p>
         <div class="footer-actions">
           <button tuiButton type="button" appearance="outline" size="m" routerLink="/cart" (click)="close()">Xem giỏ đầy đủ</button>
-          <button tuiButton type="button" appearance="primary" size="m" routerLink="/checkout" (click)="close()">Thanh toán</button>
+          <button
+            tuiButton
+            type="button"
+            appearance="primary"
+            size="m"
+            [disabled]="selectionHasHiddenPrice$ | async"
+            (click)="checkoutFromDrawer()"
+          >
+            Thanh toán
+          </button>
         </div>
       </ng-container>
     </div>

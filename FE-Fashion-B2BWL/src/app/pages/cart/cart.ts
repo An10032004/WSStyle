@@ -12,7 +12,11 @@ interface CartBundleGroup {
   label: string;
   items: CartItem[];
   selectedSubtotal: number;
+  /** Tạm tính các dòng đã chọn không bị ẩn giá. */
+  selectedSubtotalVisible: number;
+  hasHiddenSelected: boolean;
 }
+
 import { TranslocoModule } from '@jsverse/transloco';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -42,6 +46,9 @@ export class CartComponent implements OnInit {
 
   cart$ = this.cartService.cart$;
 
+  /** Có dòng đang chọn thuộc SP ẩn giá — chặn checkout & ẩn tổng tiền tóm tắt. */
+  readonly selectionHasHiddenPrice$ = this.cartService.selectionHasHiddenPrice$;
+
   /** Bố cục giỏ: nhóm combo + dòng lẻ (đồng bộ một snapshot). */
   readonly cartLayout$ = this.cart$.pipe(
     map((items) => ({
@@ -61,6 +68,15 @@ export class CartComponent implements OnInit {
     shareReplay(1),
   );
 
+  readonly comboSubtotalSelectedVisible$ = this.cart$.pipe(
+    map((items) =>
+      items
+        .filter((i) => i.bundleId != null && i.selected !== false && !i.hidePrice)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
+    shareReplay(1),
+  );
+
   readonly regularSubtotalSelected$ = this.cart$.pipe(
     map((items) =>
       items
@@ -70,8 +86,49 @@ export class CartComponent implements OnInit {
     shareReplay(1),
   );
 
+  readonly regularSubtotalSelectedVisible$ = this.cart$.pipe(
+    map((items) =>
+      items
+        .filter((i) => i.bundleId == null && i.selected !== false && !i.hidePrice)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
+    shareReplay(1),
+  );
+
+  /** Combo / lẻ có ít nhất một dòng đã chọn bị ẩn giá (để ghi chú tóm tắt). */
+  readonly comboSelectionHasHidden$ = this.cart$.pipe(
+    map((items) =>
+      items.some((i) => i.bundleId != null && i.selected !== false && !!i.hidePrice),
+    ),
+    shareReplay(1),
+  );
+
+  readonly regularSelectionHasHidden$ = this.cart$.pipe(
+    map((items) =>
+      items.some((i) => i.bundleId == null && i.selected !== false && !!i.hidePrice),
+    ),
+    shareReplay(1),
+  );
+
+  /** Tổng các dòng đã chọn không ẩn giá (hiển thị khi vẫn chặn checkout). */
+  readonly selectedVisibleSubtotal$ = this.cart$.pipe(
+    map((items) =>
+      items
+        .filter((i) => i.selected !== false && !i.hidePrice)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
+    shareReplay(1),
+  );
+
   readonly hasComboInCart$ = this.cart$.pipe(
     map((items) => items.some((i) => i.bundleId != null)),
+    shareReplay(1),
+  );
+
+  readonly hasRegularSelection$ = this.cart$.pipe(
+    map((items) =>
+      items.some((i) => i.bundleId == null && i.selected !== false),
+    ),
     shareReplay(1),
   );
 
@@ -83,19 +140,26 @@ export class CartComponent implements OnInit {
       if (!m.has(id)) m.set(id, []);
       m.get(id)!.push(i);
     }
-    return Array.from(m.entries()).map(([bundleId, lineItems]) => ({
-      bundleId,
-      label:
-        lineItems[0]?.bundleLabel ||
-        (lineItems[0]?.discountLabel?.startsWith('Combo · ')
-          ? lineItems[0]!.discountLabel!.slice(8)
-          : lineItems[0]?.discountLabel) ||
-        `Combo #${bundleId}`,
-      items: lineItems,
-      selectedSubtotal: lineItems
-        .filter((i) => i.selected !== false)
-        .reduce((s, i) => s + i.price * i.quantity, 0),
-    }));
+    return Array.from(m.entries()).map(([bundleId, lineItems]) => {
+      const selected = lineItems.filter((i) => i.selected !== false);
+      const selectedVisible = selected.filter((i) => !i.hidePrice);
+      return {
+        bundleId,
+        label:
+          lineItems[0]?.bundleLabel ||
+          (lineItems[0]?.discountLabel?.startsWith('Combo · ')
+            ? lineItems[0]!.discountLabel!.slice(8)
+            : lineItems[0]?.discountLabel) ||
+          `Combo #${bundleId}`,
+        items: lineItems,
+        selectedSubtotal: selected.reduce((s, i) => s + i.price * i.quantity, 0),
+        selectedSubtotalVisible: selectedVisible.reduce(
+          (s, i) => s + i.price * i.quantity,
+          0,
+        ),
+        hasHiddenSelected: selected.some((i) => !!i.hidePrice),
+      };
+    });
   }
 
   couponCode = '';
@@ -215,7 +279,10 @@ export class CartComponent implements OnInit {
   );
 
   ngOnInit() {
-    this.revalidate();
+    this.cartService.syncHidePriceFlagsFromServer().subscribe({
+      next: () => this.revalidate(),
+      error: () => this.revalidate(),
+    });
   }
 
   updateQuantity(item: CartItem, newQty: number) {
@@ -251,12 +318,23 @@ export class CartComponent implements OnInit {
   }
 
   goToCheckout() {
-    this.isBlockedByDebt$.pipe(take(1)).subscribe(blocked => {
-      if (blocked) {
-        return;
-      }
-      this.router.navigate(['/checkout']);
-    });
+    combineLatest([this.isBlockedByDebt$, this.selectionHasHiddenPrice$])
+      .pipe(take(1))
+      .subscribe(([debt, hiddenPrice]) => {
+        if (debt) {
+          return;
+        }
+        if (hiddenPrice) {
+          this.alerts
+            .open(
+              'Giỏ có sản phẩm liên hệ để có giá — không thể thanh toán trực tuyến. Bỏ chọn hoặc xóa các dòng đó rồi thử lại.',
+              { label: 'Không thể thanh toán', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        this.router.navigate(['/checkout']);
+      });
   }
 
   readonly totalItems$ = this.cart$.pipe(

@@ -1,15 +1,19 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { CartService, CartItem } from '../../../services/cart.service';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { map, shareReplay } from 'rxjs';
+import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
+import { filter, map, shareReplay, take } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 interface CartBundleGroup {
   bundleId: number;
   label: string;
   items: CartItem[];
   subtotal: number;
+  subtotalVisible: number;
+  hasHiddenLine: boolean;
 }
 
 @Component({
@@ -20,10 +24,15 @@ interface CartBundleGroup {
   styleUrls: ['./cart-drawer.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CartDrawerComponent {
+export class CartDrawerComponent implements OnInit {
   private readonly cart = inject(CartService);
+  private readonly router = inject(Router);
+  private readonly alerts = inject(TuiAlertService);
+  private readonly destroyRef = inject(DestroyRef);
 
   open$ = this.cart.cartDrawerOpen$;
+
+  readonly selectionHasHiddenPrice$ = this.cart.selectionHasHiddenPrice$;
 
   readonly layout$ = this.cart.cart$.pipe(
     map((items) => ({
@@ -35,10 +44,30 @@ export class CartDrawerComponent {
     shareReplay(1),
   );
 
-  readonly subtotal$ = this.cart.cart$.pipe(
-    map((items) => items.reduce((s, i) => s + i.price * i.quantity, 0)),
+  /** Tạm tính chỉ các dòng không ẩn giá (drawer không lọc checkbox). */
+  readonly subtotalVisible$ = this.cart.cart$.pipe(
+    map((items) =>
+      items.filter((i) => !i.hidePrice).reduce((s, i) => s + i.price * i.quantity, 0),
+    ),
     shareReplay(1),
   );
+
+  readonly cartHasHiddenLine$ = this.cart.cart$.pipe(
+    map((items) => items.some((i) => !!i.hidePrice)),
+    shareReplay(1),
+  );
+
+  ngOnInit(): void {
+    this.cart.cartDrawerOpen$
+      .pipe(
+        filter((o) => o),
+        debounceTime(50),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.cart.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+      });
+  }
 
   private buildBundleGroups(items: CartItem[]): CartBundleGroup[] {
     const m = new Map<number, CartItem[]>();
@@ -58,6 +87,10 @@ export class CartDrawerComponent {
         `Combo #${bundleId}`,
       items: lineItems,
       subtotal: lineItems.reduce((s, i) => s + i.price * i.quantity, 0),
+      subtotalVisible: lineItems
+        .filter((i) => !i.hidePrice)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+      hasHiddenLine: lineItems.some((i) => !!i.hidePrice),
     }));
   }
 
@@ -81,5 +114,21 @@ export class CartDrawerComponent {
 
   removeBundleGroup(bundleId: number): void {
     this.cart.removeBundle(bundleId);
+  }
+
+  checkoutFromDrawer(): void {
+    this.selectionHasHiddenPrice$.pipe(take(1)).subscribe((blocked) => {
+      if (blocked) {
+        this.alerts
+          .open(
+            'Có sản phẩm liên hệ để có giá trong giỏ — không thể thanh toán trực tuyến. Vào giỏ đầy đủ để bỏ chọn hoặc xóa các dòng đó.',
+            { label: 'Không thể thanh toán', appearance: 'warning' },
+          )
+          .subscribe();
+        return;
+      }
+      this.close();
+      this.router.navigate(['/checkout']);
+    });
   }
 }

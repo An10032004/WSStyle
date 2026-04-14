@@ -45,10 +45,14 @@
                   }
                   <span class="line-qty">× {{ row.bundleItem.quantity || 1 }}</span>
                   <span class="line-unit">
-                    @if (row.allocatedListUnitPrice != null) {
-                      <span class="line-unit-old">{{ row.allocatedListUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+                    @if (row.product.hidePrice) {
+                      <span class="line-unit-replacement">{{ row.product.replacementText || 'Liên hệ để có giá' }}</span>
+                    } @else {
+                      @if (row.allocatedListUnitPrice != null) {
+                        <span class="line-unit-old">{{ row.allocatedListUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }}</span>
+                      }
+                      <span class="line-unit-new">{{ row.allocatedUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }} / sp</span>
                     }
-                    <span class="line-unit-new">{{ row.allocatedUnitPrice | currency: 'VND' : 'symbol' : '1.0-0' }} / sp</span>
                   </span>
                 </li>
               }

@@ -79,9 +79,12 @@ export class CheckoutComponent implements OnInit {
   });
 
   cart$ = this.cartService.cart$.pipe(
-    map(items => items.filter(i => i.selected)),
+    map((items) => items.filter((i) => i.selected !== false)),
     shareReplay(1),
   );
+
+  /** Đồng bộ với giỏ: có dòng đang chọn ẩn giá thì không đặt hàng / không hiện tổng. */
+  readonly selectionHasHiddenPrice$ = this.cartService.selectionHasHiddenPrice$;
 
   subtotal$ = this.cart$.pipe(
     map(items => items.reduce((sum, i) => sum + i.price * i.quantity, 0)),
@@ -209,6 +212,8 @@ export class CheckoutComponent implements OnInit {
       });
     }
 
+    this.cartService.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+
     // If cart is empty, go back to storefront
     this.cartService.cart$.subscribe(items => {
       if (items.length === 0 && !this.isPlacingOrder) {
@@ -239,12 +244,23 @@ export class CheckoutComponent implements OnInit {
       }).subscribe();
       return;
     }
-    this.isBlockedByDebt$.pipe(take(1)).subscribe(blocked => {
+    combineLatest([this.isBlockedByDebt$, this.selectionHasHiddenPrice$])
+      .pipe(take(1))
+      .subscribe(([blocked, hiddenPrice]) => {
       if (blocked) {
         this.alerts.open('Bạn đang có công nợ quá hạn. Vui lòng thanh toán các đơn công nợ trước khi đặt đơn mới.', {
           label: 'Công nợ quá hạn',
           appearance: 'error',
         }).subscribe();
+        return;
+      }
+      if (hiddenPrice) {
+        this.alerts
+          .open(
+            'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ hàng và bỏ chọn hoặc xóa các dòng đó.',
+            { label: 'Không thể đặt hàng', appearance: 'warning' },
+          )
+          .subscribe();
         return;
       }
       this.isPlacingOrder = true;
@@ -297,6 +313,16 @@ export class CheckoutComponent implements OnInit {
             'Không có sản phẩm hợp lệ để đặt hàng. Vui lòng chọn lại sản phẩm có đủ biến thể.',
             { label: 'Giỏ hàng không hợp lệ', appearance: 'warning' },
           ).subscribe();
+          this.isPlacingOrder = false;
+          return;
+        }
+        if (currentItems.some((i) => i.hidePrice)) {
+          this.alerts
+            .open(
+              'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ và bỏ chọn hoặc xóa các dòng đó.',
+              { label: 'Không thể đặt hàng', appearance: 'warning' },
+            )
+            .subscribe();
           this.isPlacingOrder = false;
           return;
         }

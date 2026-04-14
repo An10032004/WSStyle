@@ -35,7 +35,16 @@
                 <summary class="combo-block__summary">
                   <tui-icon icon="@tui.package" class="combo-block__icon"></tui-icon>
                   <span class="combo-block__title">{{ g.label }}</span>
-                  <span class="combo-block__sub">Tạm tính đã chọn: {{ g.selectedSubtotal | number:'1.0-0' }} ₫</span>
+                  <span class="combo-block__sub" *ngIf="!g.hasHiddenSelected">
+                    Tạm tính đã chọn: {{ g.selectedSubtotal | number:'1.0-0' }} ₫
+                  </span>
+                  <span class="combo-block__sub" *ngIf="g.hasHiddenSelected && g.selectedSubtotalVisible > 0">
+                    Tạm tính (phần hiện giá): {{ g.selectedSubtotalVisible | number:'1.0-0' }} ₫
+                    <span class="combo-block__hint"> — có dòng liên hệ giá trong combo</span>
+                  </span>
+                  <span class="combo-block__sub replacement-text" *ngIf="g.hasHiddenSelected && g.selectedSubtotalVisible === 0">
+                    Có mặt hàng liên hệ để có giá trong combo
+                  </span>
                   <button
                     type="button"
                     class="combo-block__remove"
@@ -79,11 +88,12 @@
               <strong>{{ totalItems$ | async }}</strong>
             </div>
 
+            <ng-container *ngIf="(selectionHasHiddenPrice$ | async) !== true">
             <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
               <span>Combo (đã chọn)</span>
               <strong>{{ comboSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
             </div>
-            <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+            <div class="summary-row summary-split" *ngIf="hasRegularSelection$ | async">
               <span>Sản phẩm lẻ (đã chọn)</span>
               <strong>{{ regularSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
             </div>
@@ -140,6 +150,32 @@
               <span>Grand Total</span>
               <span class="total-price-val">{{ grandTotal$ | async | number:'1.0-0' }} ₫</span>
             </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectionHasHiddenPrice$ | async">
+              <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+                <span>Combo (phần hiện giá)</span>
+                <strong>{{ comboSubtotalSelectedVisible$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <p class="summary-hint" *ngIf="comboSelectionHasHidden$ | async" style="font-size: 12px; color: #9a3412; margin: 0 0 8px;">
+                * Trong combo có biến thể / sản phẩm cần liên hệ để có giá — các dòng đó không cộng vào số trên.
+              </p>
+              <div class="summary-row summary-split" *ngIf="hasRegularSelection$ | async">
+                <span>Sản phẩm lẻ (phần hiện giá)</span>
+                <strong>{{ regularSubtotalSelectedVisible$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <p class="summary-hint" *ngIf="regularSelectionHasHidden$ | async" style="font-size: 12px; color: #9a3412; margin: 0 0 8px;">
+                * Có sản phẩm lẻ cần liên hệ để có giá — các dòng đó không cộng vào số trên.
+              </p>
+              <div class="summary-row">
+                <span>Tạm tính (phần hiện giá)</span>
+                <strong>{{ selectedVisibleSubtotal$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <div class="summary-row invalid-msg" style="margin-top: 12px;">
+                <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
+                <span>Đơn có sản phẩm liên hệ để có giá — không thanh toán trực tuyến. Không hiển thị mã giảm giá / tổng cuối cho đến khi bỏ chọn hoặc xóa các dòng đó.</span>
+              </div>
+            </ng-container>
 
             <!-- RULE VALIDATION MESSAGES -->
             <div class="validation-section" *ngIf="(validationResults$ | async) as results">
@@ -161,7 +197,7 @@
               tuiButton 
               size="l" 
               class="checkout-btn" 
-              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async)"
+              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async) || (selectionHasHiddenPrice$ | async)"
               (click)="goToCheckout()"
             >
               CHECKOUT NOW
@@ -251,7 +287,7 @@
           </ng-template>
         </div>
       </div>
-      <div class="discount-notif" *ngIf="item.discountLabel">
+      <div class="discount-notif" *ngIf="item.discountLabel && !item.hidePrice">
          <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
          {{ item.discountLabel }}
       </div>
