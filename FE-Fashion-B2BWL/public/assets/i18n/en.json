@@ -129,7 +129,7 @@
     "GROUP_NAME": "Group Name",
     "DISCOUNT_RATE": "Default Discount Rate",
     "USERS_TITLE": "User Accounts",
-    "FORMS_TITLE": "B2B Registration Forms",
+    "FORMS_TITLE": "Wholesale agent registrations",
     "FORM_DATA": "Survey Responses (JSON)",
     "EMAIL": "Email Address",
     "NAME": "Full Name",
@@ -142,7 +142,7 @@
     "PHONE": "Phone Number",
     "GROUP_DETAIL": "Customer Group Details",
     "USER_DETAIL": "User Account Details",
-    "FORM_DETAIL": "Registration Form Detail"
+    "FORM_DETAIL": "Wholesale registration detail"
   },
   "ENUMS": {
     "ACTIVE": "✅ Active",

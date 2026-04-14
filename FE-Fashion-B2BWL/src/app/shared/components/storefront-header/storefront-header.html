@@ -330,8 +330,8 @@
           </div>
         </div>
       </li>
-      <li><a routerLink="/become-a-partner" class="partner-link">Trở thành đối tác</a></li>
-      <li><a routerLink="/quick-order" class="quick-order-link">Đặt hàng nhanh</a></li>
+      <li><a routerLink="/become-a-partner" class="partner-link">Đại lý mua sỉ</a></li>
+      <li *ngIf="user$ | async"><a routerLink="/quick-order" class="quick-order-link">Đặt hàng nhanh</a></li>
     </ul>
   </div>
 </nav>

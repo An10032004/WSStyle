@@ -177,6 +177,7 @@ export const routes: Routes = [
   },
   {
     path: 'quick-order',
+    canActivate: [authGuard],
     loadComponent: () => import('./pages/quick-order-form/quick-order-form').then(m => m.QuickOrderFormComponent)
   },
   {

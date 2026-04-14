@@ -125,8 +125,8 @@
     </div>
   </section>
 
-  <!-- QUICK ORDER DEMO -->
-  <section class="quick-order-intro">
+  <!-- QUICK ORDER DEMO — chỉ cho user đã đăng nhập -->
+  <section class="quick-order-intro" *ngIf="user$ | async">
     <div class="container">
       <div class="dark-box" data-aos="zoom-in">
         <div class="box-content">

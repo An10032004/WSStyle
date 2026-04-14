@@ -136,10 +136,10 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
               </tui-accordion-item>
               
               <tui-accordion-item>
-                Làm thế nào để trở thành đối tác sỉ?
+                Làm thế nào để đăng ký đại lý mua sỉ?
                 <ng-template tuiAccordionItemContent>
                   <div class="faq-answer">
-                    <p>Chúng tôi luôn chào đón các đối tác kinh doanh mới. Vui lòng gửi thông tin của bạn qua mục "Trở thành đối tác" hoặc trực tiếp nhắn tin cho chúng tôi. Đội ngũ B2B sẽ phản hồi trong vòng 24 giờ làm việc.</p>
+                    <p>Chúng tôi luôn chào đón các đại lý mua sỉ mới. Vui lòng gửi thông tin của bạn qua mục "Đại lý mua sỉ" trên thanh điều hướng hoặc nhắn tin trực tiếp cho chúng tôi. Đội ngũ B2B sẽ phản hồi trong vòng 24 giờ làm việc.</p>
                   </div>
                 </ng-template>
               </tui-accordion-item>

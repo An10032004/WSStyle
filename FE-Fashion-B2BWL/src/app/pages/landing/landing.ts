@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, HostListener, inject, ChangeDetecto
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-landing',
@@ -14,6 +15,10 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
 export class LandingComponent {
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly auth = inject(AuthService);
+
+  /** Chỉ hiện block Quick Order khi đã đăng nhập (đồng bộ với route /quick-order). */
+  readonly user$ = this.auth.user$;
 
   isScrolled = false;
 

@@ -133,7 +133,7 @@
     "GROUP_NAME": "Tên nhóm",
     "DISCOUNT_RATE": "Tỷ lệ chiết khấu mặc định",
     "USERS_TITLE": "Tài khoản người dùng",
-    "FORMS_TITLE": "Hồ sơ đăng ký đại lý",
+    "FORMS_TITLE": "Đăng ký đại lý mua sỉ",
     "FORM_DATA": "Câu trả lời khảo sát (JSON)",
     "EMAIL": "Địa chỉ Email",
     "NAME": "Họ và tên",
@@ -146,7 +146,7 @@
     "PHONE": "Số điện thoại",
     "GROUP_DETAIL": "Chi tiết nhóm khách hàng",
     "USER_DETAIL": "Chi tiết tài khoản người dùng",
-    "FORM_DETAIL": "Chi tiết hồ sơ đăng ký"
+    "FORM_DETAIL": "Chi tiết đăng ký đại lý mua sỉ"
   },
   "ENUMS": {
     "ACTIVE": "✅ Đang hoạt động",
