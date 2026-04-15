@@ -250,9 +250,16 @@
             }
           }
 
-          &:hover:not(.active) {
+          &:hover:not(.active):not(.unavailable) {
             transform: translateY(-4px);
             box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+          }
+
+          &.unavailable {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(0.35);
           }
         }
 
@@ -286,6 +293,15 @@
                background: #000;
                color: #fff;
                border-color: #000;
+             }
+
+             &.unavailable {
+               opacity: 0.45;
+               text-decoration: line-through;
+               cursor: not-allowed;
+               pointer-events: none;
+               background: #f1f5f9;
+               color: #94a3b8;
              }
           }
         }

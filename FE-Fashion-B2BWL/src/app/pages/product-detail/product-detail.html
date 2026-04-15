@@ -110,6 +110,7 @@
            [hidePrice]="!!product?.hidePrice"
            [replacementText]="product?.replacementText"
            [hideAddToCart]="!!product?.hideAddToCart"
+           [buyDisabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
            (onBuy)="handleTableBuy($event)">
         </app-quantity-break-table>
 
@@ -120,6 +121,7 @@
               class="color-circle" 
               *ngFor="let color of availableColors"
               [class.active]="selectedColor === color"
+              [class.unavailable]="!colorHasOpenSale(color)"
               [class.light-color]="color === 'White' || color === 'Trắng' || color === 'Cream'"
               (click)="selectColor(color)"
               [title]="color"
@@ -137,6 +139,7 @@
               class="size-btn" 
               *ngFor="let size of availableSizes"
               [class.active]="selectedSize === size"
+              [class.unavailable]="!sizeHasOpenSale(size)"
               (click)="selectSize(size)"
             >
               {{ size }}
@@ -151,6 +154,7 @@
               class="size-btn" 
               *ngFor="let weight of availableWeights"
               [class.active]="selectedWeight === weight"
+              [class.unavailable]="!weightHasOpenSale(weight)"
               (click)="selectWeight(weight)"
             >
               {{ weight }}
@@ -160,6 +164,15 @@
 
 
         <!-- PRICE CHANGE NOTIFICATION -->
+        <tui-notification
+          *ngIf="isSelectedVariantInactive"
+          status="warning"
+          icon="@tui.circle-alert"
+          class="price-notif"
+        >
+          <strong>Ngừng bán:</strong> Biến thể đang chọn không còn mở bán. Bạn vẫn có thể xem thông tin; vui lòng chọn biến thể khác hoặc liên hệ nhân viên.
+        </tui-notification>
+
         <tui-notification
           *ngIf="isVariantPriceApplied"
           status="info"
@@ -203,7 +216,7 @@
             type="button"
             class="buy-btn"
             (click)="addToCart()"
-            [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
+            [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
           >
             Thêm vào giỏ hàng
           </button>
@@ -390,7 +403,7 @@
                 class="sticky-buy-btn" 
                 *ngIf="!product.hideAddToCart" 
                 (click)="addToCart()"
-                [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock"
+                [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
               >
           Thêm vào giỏ hàng
         </button>

@@ -12,6 +12,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap, take } from 'rxjs/operators';
 import { ApiService, Bundle, BundleItem, Product, ProductVariant } from '../../services/api.service';
+import { isVariantAvailableForSale } from '../../utils/variant-availability';
 import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
@@ -298,6 +299,16 @@ export class BundleDetailComponent implements OnInit {
     const err = this.bundleStockError(bid);
     if (err) {
       this.alerts.open(err, { label: 'Không thể thêm combo', appearance: 'warning' }).subscribe();
+      return;
+    }
+    const inactiveRow = this.rows.find((r) => !isVariantAvailableForSale(r.variant));
+    if (inactiveRow) {
+      this.alerts
+        .open(
+          `Combo có biến thể đã ngừng bán («${inactiveRow.product.name}»). Không thể thêm vào giỏ.`,
+          { label: 'Ngừng bán', appearance: 'warning' },
+        )
+        .subscribe();
       return;
     }
 

@@ -49,6 +49,9 @@ export class CartComponent implements OnInit {
   /** Có dòng đang chọn thuộc SP ẩn giá — chặn checkout & ẩn tổng tiền tóm tắt. */
   readonly selectionHasHiddenPrice$ = this.cartService.selectionHasHiddenPrice$;
 
+  /** Có dòng đang chọn là biến thể / combo ngừng bán. */
+  readonly selectionHasUnavailableLine$ = this.cartService.selectionHasUnavailableLine$;
+
   /** Bố cục giỏ: nhóm combo + dòng lẻ (đồng bộ một snapshot). */
   readonly cartLayout$ = this.cart$.pipe(
     map((items) => ({
@@ -283,6 +286,10 @@ export class CartComponent implements OnInit {
       next: () => this.revalidate(),
       error: () => this.revalidate(),
     });
+    this.cartService.syncLineAvailabilityFromServer().subscribe({
+      next: () => this.revalidate(),
+      error: () => this.revalidate(),
+    });
   }
 
   updateQuantity(item: CartItem, newQty: number) {
@@ -318,9 +325,13 @@ export class CartComponent implements OnInit {
   }
 
   goToCheckout() {
-    combineLatest([this.isBlockedByDebt$, this.selectionHasHiddenPrice$])
+    combineLatest([
+      this.isBlockedByDebt$,
+      this.selectionHasHiddenPrice$,
+      this.selectionHasUnavailableLine$,
+    ])
       .pipe(take(1))
-      .subscribe(([debt, hiddenPrice]) => {
+      .subscribe(([debt, hiddenPrice, unavailable]) => {
         if (debt) {
           return;
         }
@@ -329,6 +340,15 @@ export class CartComponent implements OnInit {
             .open(
               'Giỏ có sản phẩm liên hệ để có giá — không thể thanh toán trực tuyến. Bỏ chọn hoặc xóa các dòng đó rồi thử lại.',
               { label: 'Không thể thanh toán', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        if (unavailable) {
+          this.alerts
+            .open(
+              'Giỏ có sản phẩm hoặc combo đã ngừng bán — không thể thanh toán. Vui lòng xóa hoặc bỏ chọn các dòng đó.',
+              { label: 'Ngừng bán', appearance: 'warning' },
             )
             .subscribe();
           return;

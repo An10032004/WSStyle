@@ -1,4 +1,11 @@
-import { Component, Input, OnChanges, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  Output,
+  EventEmitter,
+  input,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
@@ -51,9 +58,10 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
                     <input type="number" 
                            [(ngModel)]="tierBuyQtys[i]" 
                            (change)="validateQty(i)"
+                           [disabled]="buyDisabled()"
                            class="row-input">
                   </div>
-                  <button class="cart-btn" (click)="handleBuy(i)">
+                  <button class="cart-btn" type="button" [disabled]="buyDisabled()" (click)="handleBuy(i)">
                     <tui-icon icon="@tui.shopping-cart" class="cart-icon"></tui-icon>
                   </button>
                 </div>
@@ -203,6 +211,8 @@ export class QuantityBreakTableComponent implements OnChanges {
   @Input() replacementText?: string;
   /** Khi bật, ẩn cột thêm giỏ trên bảng bậc số lượng (đồng bộ hideAddToCart sản phẩm). */
   @Input() hideAddToCart = false;
+  /** Chặn thêm từ bảng bậc (MOQ, hết hàng, biến thể ngừng bán, …). */
+  readonly buyDisabled = input(false);
 
   @Output() onBuy = new EventEmitter<number>();
 
@@ -231,6 +241,7 @@ export class QuantityBreakTableComponent implements OnChanges {
   }
 
   handleBuy(index: number) {
+    if (this.buyDisabled()) return;
     this.validateQty(index);
     const qty = this.tierBuyQtys[index];
     this.onBuy.emit(qty);

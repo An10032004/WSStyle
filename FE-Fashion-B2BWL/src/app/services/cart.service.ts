@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
-import { ApiService, Product, ProductVariant } from './api.service';
+import { ApiService, Bundle, Product, ProductVariant } from './api.service';
+import { isVariantAvailableForSale } from '../utils/variant-availability';
 import { AuthService } from './auth.service';
 import { BehaviorSubject, Observable, forkJoin, fromEvent, of } from 'rxjs';
 import {
@@ -45,6 +46,10 @@ export interface CartItem {
   bundleId?: number;
   /** Tên hiển thị nhóm combo trên giỏ hàng */
   bundleLabel?: string;
+  /** Đồng bộ từ API: biến thể đã ngừng bán (INACTIVE). */
+  variantInactive?: boolean;
+  /** Đồng bộ từ API: combo/bundle không ACTIVE. */
+  bundleInactive?: boolean;
 }
 
 export interface PriceCalculationResult {
@@ -72,12 +77,26 @@ export class CartService {
     shareReplay(1),
   );
 
+  /** Có dòng đang tick chọn là biến thể / combo ngừng bán — không cho thanh toán. */
+  readonly selectionHasUnavailableLine$ = this.cart$.pipe(
+    map((items) =>
+      items.some(
+        (i) =>
+          i.selected !== false && (!!i.variantInactive || !!i.bundleInactive),
+      )),
+    shareReplay(1),
+  );
+
   private cartDrawerOpenSubject = new BehaviorSubject(false);
   /** Panel giỏ trượt (header storefront). */
   cartDrawerOpen$ = this.cartDrawerOpenSubject.asObservable();
 
   openCartDrawer(): void {
     this.cartDrawerOpenSubject.next(true);
+    queueMicrotask(() => {
+      this.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+      this.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
+    });
   }
 
   closeCartDrawer(): void {
@@ -159,7 +178,7 @@ export class CartService {
         this.cartSubject.next(this.loadCart(this.currentUserId));
       }
       this.loadPricingRules();
-      this.scheduleSyncHidePriceFromServer();
+      this.scheduleSyncCartMetadataFromServer();
     });
 
     fromEvent(this.document, 'visibilitychange')
@@ -170,6 +189,7 @@ export class CartService {
       .subscribe(() => {
         if (this.currentItems.length > 0) {
           this.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+          this.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
         }
       });
   }
@@ -229,9 +249,78 @@ export class CartService {
     );
   }
 
-  private scheduleSyncHidePriceFromServer(): void {
+  /**
+   * Đồng bộ trạng thái ngừng bán: từng variant (getProductVariant) và combo (getBundleById).
+   */
+  syncLineAvailabilityFromServer(): Observable<boolean> {
+    const items = this.currentItems;
+    if (!items.length) {
+      return of(false);
+    }
+    const variantIds = [
+      ...new Set(
+        items.map((i) => i.variantId).filter((id): id is number => id != null),
+      ),
+    ];
+    const bundleIds = [
+      ...new Set(
+        items.map((i) => i.bundleId).filter((id): id is number => id != null),
+      ),
+    ];
+    if (!variantIds.length && !bundleIds.length) {
+      return of(false);
+    }
+    const variantReqs = variantIds.map((id) =>
+      this.api.getProductVariant(id).pipe(
+        catchError(() => of(null as ProductVariant | null)),
+      ),
+    );
+    const bundleReqs = bundleIds.map((id) =>
+      this.api.getBundleById(id).pipe(catchError(() => of(null as Bundle | null))),
+    );
+    return forkJoin([...variantReqs, ...bundleReqs]).pipe(
+      map((responses) => {
+        const inactiveVariantIds = new Set<number>();
+        variantIds.forEach((vid, i) => {
+          const v = responses[i] as ProductVariant | null;
+          if (!isVariantAvailableForSale(v ?? undefined)) {
+            inactiveVariantIds.add(vid);
+          }
+        });
+        const inactiveBundleIds = new Set<number>();
+        bundleIds.forEach((bid, j) => {
+          const b = responses[variantIds.length + j] as Bundle | null;
+          if (!b || (b.status ?? '').toString().toUpperCase() !== 'ACTIVE') {
+            inactiveBundleIds.add(bid);
+          }
+        });
+        let changed = false;
+        const next = items.map((item) => {
+          const variantInactive =
+            item.variantId != null && inactiveVariantIds.has(item.variantId);
+          const bundleInactive =
+            item.bundleId != null && inactiveBundleIds.has(item.bundleId);
+          if (
+            !!item.variantInactive === variantInactive &&
+            !!item.bundleInactive === bundleInactive
+          ) {
+            return item;
+          }
+          changed = true;
+          return { ...item, variantInactive, bundleInactive };
+        });
+        if (changed) {
+          this.saveCart(next);
+        }
+        return changed;
+      }),
+    );
+  }
+
+  private scheduleSyncCartMetadataFromServer(): void {
     queueMicrotask(() => {
       this.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+      this.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
     });
   }
 
@@ -275,7 +364,7 @@ export class CartService {
 
     this.saveCart(merged); // Save to user key
     localStorage.removeItem(this.getCartKey(null)); // Clear guest cart after merge
-    this.scheduleSyncHidePriceFromServer();
+    this.scheduleSyncCartMetadataFromServer();
   }
 
   /** Có ít nhất một dòng thuộc combo (bundle) trong giỏ. */
@@ -317,6 +406,13 @@ export class CartService {
       this.alerts.open(
         'Thiếu mã biến thể (variant) sản phẩm. Vui lòng chọn đủ màu/size trên trang sản phẩm rồi thêm lại.',
         { label: 'Không thể thêm vào giỏ', appearance: 'warning' },
+      ).subscribe();
+      return;
+    }
+    if (!isVariantAvailableForSale(variant)) {
+      this.alerts.open(
+        'Biến thể này đã ngừng bán và không thể thêm vào giỏ.',
+        { label: 'Ngừng bán', appearance: 'warning' },
       ).subscribe();
       return;
     }
@@ -410,6 +506,8 @@ export class CartService {
       items[existingIndex].hidePrice = product.hidePrice;
       items[existingIndex].replacementText = product.replacementText;
       items[existingIndex].hideAddToCart = product.hideAddToCart;
+      items[existingIndex].variantInactive = false;
+      items[existingIndex].bundleInactive = false;
       if (!items[existingIndex].isFixedPrice) {
         this.recalculateItemPrice(items[existingIndex]);
       }
@@ -442,6 +540,8 @@ export class CartService {
         hidePrice: product.hidePrice,
         replacementText: product.replacementText,
         hideAddToCart: product.hideAddToCart,
+        variantInactive: false,
+        bundleInactive: false,
       };
       if (!locked) {
         this.recalculateItemPrice(newItem);
@@ -519,6 +619,14 @@ export class CartService {
         hidden.replacementText?.trim() ||
         'Giỏ hàng có sản phẩm liên hệ để có giá — không thể thanh toán trực tuyến. Vui lòng bỏ chọn hoặc xóa các dòng đó, hoặc liên hệ nhân viên.';
       results.push({ success: false, message: msg });
+    }
+    const badAvail = items.find((i) => i.variantInactive || i.bundleInactive);
+    if (badAvail) {
+      results.push({
+        success: false,
+        message:
+          'Giỏ hàng có sản phẩm hoặc combo đã ngừng bán — không thể thanh toán. Vui lòng xóa các dòng đó hoặc bỏ chọn chúng.',
+      });
     }
     const user = this.auth.currentUserValue;
     const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -653,6 +761,30 @@ export class CartService {
     // Create an observable for the update process
     return new Observable<void>(observer => {
       (async () => {
+        const itemsProbe = this.currentItems;
+        const idxProbe = itemsProbe.findIndex(
+          i =>
+            i.productId === productId &&
+            i.variantId === variantId &&
+            (i.bundleId ?? null) === (bundleId ?? null),
+        );
+        if (idxProbe > -1) {
+          const cur = itemsProbe[idxProbe];
+          if (
+            (cur.variantInactive || cur.bundleInactive) &&
+            quantity > cur.quantity
+          ) {
+            this.alerts
+              .open(
+                'Biến thể / combo đã ngừng bán — chỉ có thể giảm số lượng hoặc xóa khỏi giỏ.',
+                { label: 'Ngừng bán', appearance: 'warning' },
+              )
+              .subscribe();
+            observer.complete();
+            return;
+          }
+        }
+
         // If variant known, validate against current stock before updating
         if (variantId != null) {
           try {

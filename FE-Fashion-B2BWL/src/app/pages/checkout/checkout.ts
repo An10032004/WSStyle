@@ -86,6 +86,8 @@ export class CheckoutComponent implements OnInit {
   /** Đồng bộ với giỏ: có dòng đang chọn ẩn giá thì không đặt hàng / không hiện tổng. */
   readonly selectionHasHiddenPrice$ = this.cartService.selectionHasHiddenPrice$;
 
+  readonly selectionHasUnavailableLine$ = this.cartService.selectionHasUnavailableLine$;
+
   subtotal$ = this.cart$.pipe(
     map(items => items.reduce((sum, i) => sum + i.price * i.quantity, 0)),
     shareReplay(1),
@@ -213,6 +215,7 @@ export class CheckoutComponent implements OnInit {
     }
 
     this.cartService.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+    this.cartService.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
 
     // If cart is empty, go back to storefront
     this.cartService.cart$.subscribe(items => {
@@ -244,9 +247,13 @@ export class CheckoutComponent implements OnInit {
       }).subscribe();
       return;
     }
-    combineLatest([this.isBlockedByDebt$, this.selectionHasHiddenPrice$])
+    combineLatest([
+      this.isBlockedByDebt$,
+      this.selectionHasHiddenPrice$,
+      this.selectionHasUnavailableLine$,
+    ])
       .pipe(take(1))
-      .subscribe(([blocked, hiddenPrice]) => {
+      .subscribe(([blocked, hiddenPrice, unavailable]) => {
       if (blocked) {
         this.alerts.open('Bạn đang có công nợ quá hạn. Vui lòng thanh toán các đơn công nợ trước khi đặt đơn mới.', {
           label: 'Công nợ quá hạn',
@@ -259,6 +266,15 @@ export class CheckoutComponent implements OnInit {
           .open(
             'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ hàng và bỏ chọn hoặc xóa các dòng đó.',
             { label: 'Không thể đặt hàng', appearance: 'warning' },
+          )
+          .subscribe();
+        return;
+      }
+      if (unavailable) {
+        this.alerts
+          .open(
+            'Đơn có sản phẩm hoặc combo đã ngừng bán — không thể đặt hàng. Vui lòng quay lại giỏ hàng và xóa hoặc bỏ chọn các dòng đó.',
+            { label: 'Ngừng bán', appearance: 'warning' },
           )
           .subscribe();
         return;
@@ -321,6 +337,16 @@ export class CheckoutComponent implements OnInit {
             .open(
               'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ và bỏ chọn hoặc xóa các dòng đó.',
               { label: 'Không thể đặt hàng', appearance: 'warning' },
+            )
+            .subscribe();
+          this.isPlacingOrder = false;
+          return;
+        }
+        if (currentItems.some((i) => i.variantInactive || i.bundleInactive)) {
+          this.alerts
+            .open(
+              'Đơn có sản phẩm hoặc combo đã ngừng bán — không thể đặt hàng. Vui lòng quay lại giỏ và xóa hoặc bỏ chọn các dòng đó.',
+              { label: 'Ngừng bán', appearance: 'warning' },
             )
             .subscribe();
           this.isPlacingOrder = false;

@@ -197,7 +197,7 @@
               tuiButton 
               size="l" 
               class="checkout-btn" 
-              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async) || (selectionHasHiddenPrice$ | async)"
+              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async) || (selectionHasHiddenPrice$ | async) || (selectionHasUnavailableLine$ | async)"
               (click)="goToCheckout()"
             >
               Thanh toán ngay
@@ -257,6 +257,11 @@
           <div class="prod-variant" *ngIf="item.color || item.size">
             {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
           </div>
+          <div class="cart-line-unavailable" *ngIf="item.variantInactive || item.bundleInactive">
+            <tui-icon icon="@tui.circle-alert" class="cart-line-unavailable__icon"></tui-icon>
+            <span *ngIf="item.bundleInactive">Combo đã ngừng bán — chỉ có thể giảm SL hoặc xóa.</span>
+            <span *ngIf="!item.bundleInactive && item.variantInactive">Biến thể đã ngừng bán — chỉ có thể giảm SL hoặc xóa.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -301,8 +306,17 @@
         <button type="button" (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
           <tui-icon icon="@tui.minus"></tui-icon>
         </button>
-        <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
-        <button type="button" (click)="updateQuantity(item, item.quantity + 1)">
+        <input
+          type="number"
+          [(ngModel)]="item.quantity"
+          (change)="updateQuantity(item, item.quantity)"
+          [readOnly]="item.variantInactive || item.bundleInactive"
+        >
+        <button
+          type="button"
+          (click)="updateQuantity(item, item.quantity + 1)"
+          [disabled]="item.variantInactive || item.bundleInactive"
+        >
           <tui-icon icon="@tui.plus"></tui-icon>
         </button>
       </div>

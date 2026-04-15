@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { CartService, CartItem } from '../../../services/cart.service';
 import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
-import { filter, map, shareReplay, take } from 'rxjs';
+import { combineLatest, filter, map, shareReplay, take } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -33,6 +33,8 @@ export class CartDrawerComponent implements OnInit {
   open$ = this.cart.cartDrawerOpen$;
 
   readonly selectionHasHiddenPrice$ = this.cart.selectionHasHiddenPrice$;
+
+  readonly selectionHasUnavailableLine$ = this.cart.selectionHasUnavailableLine$;
 
   readonly layout$ = this.cart.cart$.pipe(
     map((items) => ({
@@ -66,6 +68,7 @@ export class CartDrawerComponent implements OnInit {
       )
       .subscribe(() => {
         this.cart.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
+        this.cart.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
       });
   }
 
@@ -100,6 +103,7 @@ export class CartDrawerComponent implements OnInit {
 
   inc(item: CartItem): void {
     if (item.bundleId != null) return;
+    if (item.variantInactive || item.bundleInactive) return;
     this.cart.updateQuantity(item.productId, item.variantId, item.quantity + 1, item.bundleId ?? null).subscribe();
   }
 
@@ -117,18 +121,29 @@ export class CartDrawerComponent implements OnInit {
   }
 
   checkoutFromDrawer(): void {
-    this.selectionHasHiddenPrice$.pipe(take(1)).subscribe((blocked) => {
-      if (blocked) {
-        this.alerts
-          .open(
-            'Có sản phẩm liên hệ để có giá trong giỏ — không thể thanh toán trực tuyến. Vào giỏ đầy đủ để bỏ chọn hoặc xóa các dòng đó.',
-            { label: 'Không thể thanh toán', appearance: 'warning' },
-          )
-          .subscribe();
-        return;
-      }
-      this.close();
-      this.router.navigate(['/checkout']);
-    });
+    combineLatest([this.selectionHasHiddenPrice$, this.selectionHasUnavailableLine$])
+      .pipe(take(1))
+      .subscribe(([hiddenPrice, unavailable]) => {
+        if (hiddenPrice) {
+          this.alerts
+            .open(
+              'Có sản phẩm liên hệ để có giá trong giỏ — không thể thanh toán trực tuyến. Vào giỏ đầy đủ để bỏ chọn hoặc xóa các dòng đó.',
+              { label: 'Không thể thanh toán', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        if (unavailable) {
+          this.alerts
+            .open(
+              'Có sản phẩm hoặc combo đã ngừng bán trong giỏ — không thể thanh toán. Vào giỏ đầy đủ để xóa hoặc bỏ chọn các dòng đó.',
+              { label: 'Ngừng bán', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        this.close();
+        this.router.navigate(['/checkout']);
+      });
   }
 }

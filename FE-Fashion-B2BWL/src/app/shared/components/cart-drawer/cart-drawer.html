@@ -31,6 +31,9 @@
                 <span *ngIf="item.color">{{ item.color }}</span>
                 <span *ngIf="item.size">{{ item.size }}</span>
               </div>
+              <div class="line-unavailable" *ngIf="item.variantInactive || item.bundleInactive">
+                {{ item.bundleInactive ? 'Combo ngừng bán' : 'Biến thể ngừng bán' }}
+              </div>
               <div class="line-qty-note">Số lượng cố định theo combo — chỉnh trên trang giỏ hàng nếu cần.</div>
               <div class="line-foot">
                 <span class="qty">× {{ item.quantity }}</span>
@@ -63,11 +66,18 @@
                 <span *ngIf="item.color">{{ item.color }}</span>
                 <span *ngIf="item.size">{{ item.size }}</span>
               </div>
+              <div class="line-unavailable" *ngIf="item.variantInactive || item.bundleInactive">
+                {{ item.bundleInactive ? 'Combo ngừng bán' : 'Biến thể ngừng bán' }}
+              </div>
               <div class="line-controls">
                 <div class="qty-stepper">
                   <button type="button" (click)="dec(item)" [disabled]="item.quantity <= 1">−</button>
                   <span>{{ item.quantity }}</span>
-                  <button type="button" (click)="inc(item)">+</button>
+                  <button
+                    type="button"
+                    (click)="inc(item)"
+                    [disabled]="item.variantInactive || item.bundleInactive"
+                  >+</button>
                 </div>
                 <button type="button" class="link-remove" (click)="removeLine(item)">Xóa</button>
               </div>
@@ -107,7 +117,7 @@
             type="button"
             appearance="primary"
             size="m"
-            [disabled]="selectionHasHiddenPrice$ | async"
+            [disabled]="(selectionHasHiddenPrice$ | async) || (selectionHasUnavailableLine$ | async)"
             (click)="checkoutFromDrawer()"
           >
             Thanh toán

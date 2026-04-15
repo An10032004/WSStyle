@@ -31,6 +31,7 @@ import {
   isMinOrderQtyType,
 } from '../../utils/order-limit-precedence';
 import { ruleMatchesTargeting } from '../../utils/rule-targeting';
+import { isVariantAvailableForSale } from '../../utils/variant-availability';
 
 @Component({
   selector: 'app-product-detail',
@@ -209,13 +210,18 @@ export class ProductDetailComponent implements OnInit {
 
   /** Chặn thêm giỏ khi vi phạm MOQ hoặc vượt max SL (theo dòng SP) */
   get orderLimitBuyBlocked(): boolean {
-    return this.isMoqViolation || this.isMaxQtyViolation;
+    return this.isMoqViolation || this.isMaxQtyViolation || this.isSelectedVariantInactive;
   }
 
   /** True khi biến thể đang chọn tồn kho bằng 0 hoặc âm */
   get isSelectedVariantOutOfStock(): boolean {
     const qty = this.selectedVariant?.stockQuantity;
     return qty != null && qty <= 0;
+  }
+
+  /** Biến thể đã ngừng bán (admin INACTIVE). */
+  get isSelectedVariantInactive(): boolean {
+    return !!this.selectedVariant && !isVariantAvailableForSale(this.selectedVariant);
   }
 
   /** Thông báo info khi có MOQ theo dòng SP và khách đã đạt ngưỡng */
@@ -240,6 +246,9 @@ export class ProductDetailComponent implements OnInit {
 
   /** Trần số lượng trên PDP: tồn kho ∧ max quy tắc (nếu có) */
   private get effectiveQuantityCap(): number {
+    if (this.isSelectedVariantInactive) {
+      return Math.max(1, this.quantity);
+    }
     const stock = this.selectedVariant?.stockQuantity ?? 0;
     const stockCap = stock > 0 ? stock : 999;
     if (this.activeMaxQtyLimit) {
@@ -560,9 +569,12 @@ export class ProductDetailComponent implements OnInit {
       });
       this.availableColors = Array.from(colors);
 
-      // Auto-select the first variant if available
+      // Auto-select: ưu tiên biến thể còn mở bán
       if (this.variants.length > 0) {
-        this.selectVariant(this.variants[0]);
+        const firstOpen =
+          this.variants.find((v) => isVariantAvailableForSale(v)) ??
+          this.variants[0];
+        this.selectVariant(firstOpen);
       } else {
         this.refreshProductBundles(undefined);
       }
@@ -650,12 +662,14 @@ export class ProductDetailComponent implements OnInit {
       return;
     }
 
-    const matched = this.variants.find(v => {
+    const candidates = this.variants.filter((v) => {
       const colorMatch = !v.color || v.color === this.selectedColor;
       const sizeMatch = !v.size || v.size === this.selectedSize;
       const weightMatch = !v.weight || v.weight === this.selectedWeight;
       return colorMatch && sizeMatch && weightMatch;
     });
+    const matched =
+      candidates.find((v) => isVariantAvailableForSale(v)) ?? candidates[0];
 
     if (matched) {
       this.applyVariant(matched);
@@ -712,6 +726,32 @@ export class ProductDetailComponent implements OnInit {
     }
     
     this.cdr.detectChanges();
+  }
+
+  /** Còn ít nhất một biến thể đang mở bán (theo màu / size / cân). */
+  colorHasOpenSale(color: string): boolean {
+    return this.variants.some(
+      (v) => (!v.color || v.color === color) && isVariantAvailableForSale(v),
+    );
+  }
+
+  sizeHasOpenSale(size: string): boolean {
+    return this.variants.some(
+      (v) =>
+        (!v.color || v.color === this.selectedColor) &&
+        (!v.size || v.size === size) &&
+        isVariantAvailableForSale(v),
+    );
+  }
+
+  weightHasOpenSale(weight: string): boolean {
+    return this.variants.some(
+      (v) =>
+        (!v.color || v.color === this.selectedColor) &&
+        (!v.size || v.size === this.selectedSize) &&
+        (!v.weight || v.weight === weight) &&
+        isVariantAvailableForSale(v),
+    );
   }
 
   getColorHex(color: string): string {
@@ -787,6 +827,15 @@ export class ProductDetailComponent implements OnInit {
        return;
     }
 
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể thêm vào giỏ.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
     if (this.selectedVariant) {
         this.cart.addToCart(this.product, this.selectedVariant, qty);
         // Toast success
@@ -802,6 +851,15 @@ export class ProductDetailComponent implements OnInit {
     if (this.isSelectionIncomplete) {
        this.alerts.open('Vui lòng chọn đầy đủ phiên bản.', { appearance: 'warning' }).subscribe();
        return;
+    }
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể mua.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
     }
     if (this.selectedVariant) {
         this.cart.addToCart(this.product, this.selectedVariant, this.quantity);
@@ -841,6 +899,15 @@ export class ProductDetailComponent implements OnInit {
 
   addToCart() {
     if (!this.product) return;
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể thêm vào giỏ.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
     if (this.variants.length > 0 && !this.selectedVariant) {
       this.alerts
         .open('Vui lòng chọn đủ màu / size (hoặc biến thể) trước khi thêm vào giỏ hàng.', {
