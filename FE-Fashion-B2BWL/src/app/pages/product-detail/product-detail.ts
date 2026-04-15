@@ -20,7 +20,7 @@ import { QuantityBreakTableComponent } from '../../shared/components/quantity-br
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown, TuiDialogService, TuiDialog, TuiAlertService, TuiNotification } from '@taiga-ui/core';
 import { TuiCarousel, TuiPagination, TuiBadge, TuiAccordion, TuiRating } from '@taiga-ui/kit';
 import { TuiTextareaModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { take } from 'rxjs';
 import { distinctUntilChanged, finalize, map, skip } from 'rxjs/operators';
@@ -73,7 +73,8 @@ export class ProductDetailComponent implements OnInit {
   private readonly cart = inject(CartService);
   private readonly dialogs = inject(TuiDialogService);
   private readonly alerts = inject(TuiAlertService);
-  
+  private readonly transloco = inject(TranslocoService);
+
   user$ = this.auth.user$;
   /** Các bundleId đang có trong giỏ (để gắn nhãn «Đã có trong giỏ» trên từng combo). */
   cartBundleIds$ = this.cart.cart$.pipe(
@@ -128,6 +129,11 @@ export class ProductDetailComponent implements OnInit {
   selectedHeight: number | undefined;
   
   availableWeights: string[] = [];
+
+  /** Nhãn 3 chiều (lưu trên sản phẩm hoặc mặc định i18n). */
+  variantDimLabel1 = '';
+  variantDimLabel2 = '';
+  variantDimLabel3 = '';
 
   // Pricing Rules
   @ViewChild('reviewDialog') reviewDialog!: TemplateRef<any>;
@@ -430,6 +436,30 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
+  /** Đọc `product.variantDimensionLabels` (JSON mảng 3 phần tử) hoặc nhãn mặc định. */
+  private refreshVariantDimensionLabels(): void {
+    this.variantDimLabel1 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_COLOR');
+    this.variantDimLabel2 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_SIZE');
+    this.variantDimLabel3 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_WEIGHT');
+    const raw = this.product?.variantDimensionLabels;
+    if (!raw) return;
+    try {
+      const a = JSON.parse(raw) as unknown;
+      if (!Array.isArray(a)) return;
+      if (String(a[0] ?? '').trim()) {
+        this.variantDimLabel1 = String(a[0]).trim();
+      }
+      if (String(a[1] ?? '').trim()) {
+        this.variantDimLabel2 = String(a[1]).trim();
+      }
+      if (String(a[2] ?? '').trim()) {
+        this.variantDimLabel3 = String(a[2]).trim();
+      }
+    } catch {
+      /* giữ mặc định */
+    }
+  }
+
   private loadProduct() {
     const idParam = this.route.snapshot.paramMap.get('id');
     const userId = this.auth.currentUserValue?.id;
@@ -437,6 +467,7 @@ export class ProductDetailComponent implements OnInit {
       const id = parseInt(idParam);
       this.api.getProductById(id, userId).subscribe((p) => {
         this.product = p;
+        this.refreshVariantDimensionLabels();
         this.productBundles = [];
         this.productBundlesLoaded = false;
         this.relatedProducts = [];

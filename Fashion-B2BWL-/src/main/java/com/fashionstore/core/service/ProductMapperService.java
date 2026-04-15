@@ -7,10 +7,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.fashionstore.core.repository.ProductVariantRepository;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -20,6 +25,7 @@ import org.springframework.data.domain.PageImpl;
 public class ProductMapperService {
 
     private final RuleCoreService ruleCoreService;
+    private final ProductVariantRepository productVariantRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<ProductResponseDTO> toDTOs(List<Product> products, User user) {
@@ -32,8 +38,11 @@ public class ProductMapperService {
         List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
         List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
 
+        List<Integer> productIds = products.stream().map(Product::getId).filter(Objects::nonNull).toList();
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+
         return products.stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts))
                 .toList();
     }
 
@@ -46,31 +55,55 @@ public class ProductMapperService {
         List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
         List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
 
+        List<Integer> productIds = productsPage.getContent().stream().map(Product::getId).filter(Objects::nonNull).toList();
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+
         List<ProductResponseDTO> dtos = productsPage.getContent().stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts))
                 .toList();
 
         return new PageImpl<>(dtos, productsPage.getPageable(), productsPage.getTotalElements());
     }
 
     public ProductResponseDTO toDTO(Product product, User user) {
-        return toDTO(product, user, 
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(
+                product.getId() == null ? List.of() : List.of(product.getId()));
+        return toDTO(product, user,
             ruleCoreService.getAllActiveHidePriceRules(),
             ruleCoreService.getAllActiveSaleCampaigns(),
             ruleCoreService.getAllActivePricingRules(),
             ruleCoreService.getAllActiveTaxRules(),
-            ruleCoreService.getAllActiveNetTermRules()
+            ruleCoreService.getAllActiveNetTermRules(),
+            variantCounts
         );
     }
 
-    public ProductResponseDTO toDTO(Product product, User user, 
+    private Map<Integer, Integer> fetchVariantCountsByProductIds(List<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = productVariantRepository.countByProductIdGrouped(productIds);
+        Map<Integer, Integer> out = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] != null && row[1] != null) {
+                out.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
+            }
+        }
+        return out;
+    }
+
+    public ProductResponseDTO toDTO(Product product, User user,
                                     List<HidePriceRule> hidePriceRules,
                                     List<SaleCampaign> campaigns,
                                     List<PricingRule> pricingRules,
                                     List<TaxDisplayRule> taxRules,
-                                    List<NetTermRule> netTermRules) {
+                                    List<NetTermRule> netTermRules,
+                                    Map<Integer, Integer> variantCountsByProductId) {
         Integer productId = product.getId();
         Integer categoryId = product.getCategoryId();
+        int variantCount = variantCountsByProductId == null || productId == null
+                ? 0
+                : variantCountsByProductId.getOrDefault(productId, 0);
 
         ProductResponseDTO dto = ProductResponseDTO.builder()
                 .id(product.getId())
@@ -84,6 +117,8 @@ public class ProductMapperService {
                 .brand(product.getBrand())
                 .material(product.getMaterial())
                 .origin(product.getOrigin())
+                .variantDimensionLabels(product.getVariantDimensionLabels())
+                .variantCount(variantCount)
                 .hidePrice(false)
                 .hideAddToCart(false)
                 .isNetTermEligible(false)

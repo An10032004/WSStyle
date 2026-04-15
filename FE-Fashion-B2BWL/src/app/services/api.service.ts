@@ -76,6 +76,10 @@ export interface Product {
   quantityBreaksJson?: string;
   /** Khớp cột DB `is_sale` (tạo/cập nhật sản phẩm). */
   isSale?: boolean;
+  /** JSON mảng tối đa 3 nhãn (color / size / weight) cho PDP và admin. */
+  variantDimensionLabels?: string | null;
+  /** Số biến thể (backend đếm, không cần tải hết SKU khi vào trang). */
+  variantCount?: number;
   isNetTermEligible?: boolean;
   netTermDays?: number;
   images?: any[];

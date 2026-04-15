@@ -115,7 +115,7 @@
         </app-quantity-break-table>
 
         <div class="variant-selector" *ngIf="availableColors.length > 0">
-          <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
+          <div class="selector-label">{{ variantDimLabel1 }} | <span>{{ selectedColor || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
           <div class="swatch-group">
             <div 
               class="color-circle" 
@@ -133,7 +133,7 @@
         </div>
 
         <div class="variant-selector" *ngIf="availableSizes.length > 0">
-          <div class="selector-label">Kích thước | <span>{{ selectedSize || 'Chưa chọn' }}</span></div>
+          <div class="selector-label">{{ variantDimLabel2 }} | <span>{{ selectedSize || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
           <div class="size-options">
             <button 
               class="size-btn" 
@@ -148,7 +148,7 @@
         </div>
 
         <div class="variant-selector" *ngIf="availableWeights.length > 0">
-          <div class="selector-label">Cân nặng | <span>{{ selectedWeight || 'Chưa chọn' }}</span></div>
+          <div class="selector-label">{{ variantDimLabel3 }} | <span>{{ selectedWeight || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
           <div class="size-options">
             <button 
               class="size-btn" 

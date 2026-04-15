@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,4 +23,10 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
      * Tìm biến thể theo SKU
      */
     Optional<ProductVariant> findBySku(String sku);
+
+    /**
+     * Đếm biến thể theo từng sản phẩm (một query — dùng cho danh sách SP).
+     */
+    @Query("SELECT pv.productId, COUNT(pv) FROM ProductVariant pv WHERE pv.productId IN :ids GROUP BY pv.productId")
+    List<Object[]> countByProductIdGrouped(@Param("ids") Collection<Integer> ids);
 }

@@ -64,6 +64,13 @@ public class Product {
     @Builder.Default
     private Boolean isSale = false;
 
+    /**
+     * JSON mảng tối đa 3 chuỗi: nhãn hiển thị cho 3 chiều (map với color / size / weight trên variant).
+     * Ví dụ: {@code ["Màu vải","Cỡ áo","Cân nặng"]}. Null = storefront dùng nhãn mặc định i18n.
+     */
+    @Column(name = "variant_dimension_labels", columnDefinition = "TEXT")
+    private String variantDimensionLabels;
+
     // --- Quan hệ 1-N với ProductVariant ---
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties("product")

@@ -39,6 +39,12 @@ public class ProductResponseDTO {
     // Bulk Info
     private String quantityBreaksJson;
 
+    /** JSON array of up to 3 display labels for variant dimensions (maps to color / size / weight). */
+    private String variantDimensionLabels;
+
+    /** Số biến thể (đếm từ DB, không cần tải hết SKU). */
+    private Integer variantCount;
+
     // Net Term Info
     private Integer netTermDays;
     private Boolean isNetTermEligible;

@@ -99,6 +99,7 @@ public class ProductService {
                 .imageUrl(trimToEmpty(request.getImageUrl()))
                 .imageUrls(trimToEmpty(request.getImageUrls()))
                 .isSale(Boolean.TRUE.equals(request.getIsSale()))
+                .variantDimensionLabels(trimToNull(request.getVariantDimensionLabels()))
                 .shopId(1)
                 .build();
 
@@ -132,6 +133,9 @@ public class ProductService {
         if (request.getIsSale() != null) {
             product.setIsSale(request.getIsSale());
         }
+        if (request.getVariantDimensionLabels() != null) {
+            product.setVariantDimensionLabels(trimToNull(request.getVariantDimensionLabels()));
+        }
 
         return productRepository.save(product);
     }
@@ -148,6 +152,15 @@ public class ProductService {
             return "";
         }
         return s.strip();
+    }
+
+    /** Chuỗi rỗng sau trim → null (để cột nullable gọn). */
+    private static String trimToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.strip();
+        return t.isEmpty() ? null : t;
     }
 
     /**
