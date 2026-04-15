@@ -19,6 +19,7 @@ import { ApiService, Category, TranslationRequest } from '../../services/api.ser
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
+import { readApiErrorMessage } from '../../utils/auth-http.util';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -289,7 +290,7 @@ export class CategoryListComponent implements OnInit {
         return;
       }
     }
-    const msg = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    const msg = readApiErrorMessage(err, err?.message || 'Lỗi hệ thống');
     this.alerts.open(msg, { appearance: 'error' }).subscribe();
   }
 
@@ -347,35 +348,50 @@ export class CategoryListComponent implements OnInit {
         parentId: this.formData.parentId
       };
       
-      this.api.updateCategory(this.editingId, globalUpdate).subscribe(() => {
-        // 2. Save Translation for Name
-        const req: TranslationRequest = {
-           resourceId: this.editingId!,
-           resourceType: 'CATEGORY',
-           languageCode: this.currentLanguage,
-           translatedName: this.formData.name
-        };
-        
-        this.api.saveTranslation(req).subscribe(() => {
-           this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
-           this.showForm = false;
-           this.loadData();
-        });
+      this.api.updateCategory(this.editingId, globalUpdate).subscribe({
+        next: () => {
+          const req: TranslationRequest = {
+            resourceId: this.editingId!,
+            resourceType: 'CATEGORY',
+            languageCode: this.currentLanguage,
+            translatedName: this.formData.name,
+          };
+
+          this.api.saveTranslation(req).subscribe({
+            next: () => {
+              this.alerts
+                .open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, {
+                  appearance: 'success',
+                })
+                .subscribe();
+              this.showForm = false;
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err),
+          });
+        },
+        error: (err) => this.handleApiError(err),
       });
     } else {
       // Normal save mode (vi or New)
       const body = { name: this.formData.name, parentId: this.formData.parentId };
       if (this.editingId) {
-        this.api.updateCategory(this.editingId, body).subscribe(() => {
-          this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
-          this.showForm = false;
-          this.loadData();
+        this.api.updateCategory(this.editingId, body).subscribe({
+          next: () => {
+            this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
+            this.showForm = false;
+            this.loadData();
+          },
+          error: (err) => this.handleApiError(err),
         });
       } else {
-        this.api.createCategory(body).subscribe(() => {
-          this.alerts.open('Tạo thành công', { appearance: 'success' }).subscribe();
-          this.showForm = false;
-          this.loadData();
+        this.api.createCategory(body).subscribe({
+          next: () => {
+            this.alerts.open('Tạo thành công', { appearance: 'success' }).subscribe();
+            this.showForm = false;
+            this.loadData();
+          },
+          error: (err) => this.handleApiError(err),
         });
       }
     }

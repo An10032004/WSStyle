@@ -32,4 +32,7 @@ public class ProductRequest {
     private String imageUrl;
 
     private String imageUrls;
+
+    /** null = mặc định false khi tạo; khi cập nhật null = giữ nguyên giá trị cũ. */
+    private Boolean isSale;
 }

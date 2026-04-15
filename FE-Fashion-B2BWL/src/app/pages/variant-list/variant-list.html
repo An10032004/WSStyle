@@ -13,7 +13,6 @@
       <h4 style="display: flex; align-items: center; gap: 8px">
         <tui-icon [icon]="editingId ? '@tui.pencil' : '@tui.plus'"></tui-icon>
         {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('VARIANT.ADD' | transloco) }}
-        {{ editingId ? ('PRODUCT.EDIT' | transloco) : ('VARIANT.ADD' | transloco) }}
       </h4>
       <div class="form-grid">
         <label tuiLabel class="form-field">
@@ -197,6 +196,18 @@
   }
 
   @if (!showForm && !showDetails) {
+    <div class="variant-grid-toolbar" *ngIf="gridVisible">
+      <label tuiLabel class="quick-filter-label">Tìm nhanh (SKU, tên sản phẩm, màu, kích cỡ…)</label>
+      <tui-textfield tuiTextfieldSize="m" class="quick-filter-field">
+        <input
+          tuiTextfield
+          type="search"
+          [ngModel]="gridQuickFilter"
+          (ngModelChange)="onQuickFilterChange($event)"
+          placeholder="Nhập để lọc các dòng hiển thị…"
+        />
+      </tui-textfield>
+    </div>
     <div class="grid-wrapper">
       <ag-grid-angular
         *ngIf="gridVisible"

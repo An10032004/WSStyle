@@ -64,11 +64,15 @@ public class GlobalExceptionHandler {
         Throwable rootCause = ex.getRootCause() != null ? ex.getRootCause() : ex;
         String errorMessage = rootCause.getMessage() != null ? rootCause.getMessage().toLowerCase() : "";
 
-        if (errorMessage.contains("duplicate entry")) {
+        if (errorMessage.contains("duplicate entry")
+                || errorMessage.contains("unique constraint")
+                || errorMessage.contains("duplicate key value")) {
             if (errorMessage.contains("sku")) {
                 msg = "Thao tác thất bại: Mã SKU này đã tồn tại.";
             } else if (errorMessage.contains("barcode")) {
                 msg = "Thao tác thất bại: Mã vạch (Barcode) này đã tồn tại.";
+            } else if (errorMessage.contains("product_code")) {
+                msg = "Thao tác thất bại: Mã sản phẩm (product code) này đã tồn tại. Vui lòng chọn mã khác.";
             } else if (errorMessage.contains("email")) {
                 msg = "Thao tác thất bại: Email này đã được đăng ký.";
             } else if (errorMessage.contains("phone")) {
@@ -76,8 +80,17 @@ public class GlobalExceptionHandler {
             } else {
                 msg = "Thao tác thất bại: Dữ liệu không hợp lệ. Nguyên nhân: " + errorMessage;
             }
-        } else if (errorMessage.contains("foreign key constraint") || errorMessage.contains("cannot delete or update a parent row")) {
-            msg = "Thao tác thất bại: Dữ liệu này đang chứa dữ liệu liên quan hợp lệ (Ví dụ: Danh mục đang có Sản phẩm). Vui lòng dọn dẹp dữ liệu con trước!";
+        } else if (errorMessage.contains("foreign key constraint")
+                || errorMessage.contains("cannot delete or update a parent row")
+                || errorMessage.contains("violates foreign key constraint")) {
+            if (errorMessage.contains("category_id")) {
+                msg = "Thao tác thất bại: Danh mục (category) bạn chọn không tồn tại hoặc không hợp lệ.";
+            } else {
+                msg = "Thao tác thất bại: Dữ liệu này đang chứa dữ liệu liên quan hợp lệ (Ví dụ: Danh mục đang có Sản phẩm). Vui lòng dọn dẹp dữ liệu con trước!";
+            }
+        } else if (errorMessage.contains("doesn't have a default value")) {
+            msg = "Thao tác thất bại: Thiếu giá trị cho một hoặc nhiều cột bắt buộc trên database (ví dụ: is_sale). "
+                    + "Cần cập nhật entity/API hoặc thêm DEFAULT trên cột. Chi tiết: " + rootCause.getMessage();
         } else {
             msg = "Thao tác thất bại: Dữ liệu đang có ràng buộc hoặc không hợp lệ. Lỗi hệ thống: " + errorMessage;
         }

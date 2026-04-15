@@ -1,5 +1,17 @@
 @use '../category-list/category-list' as *;
 
+.variant-grid-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  max-width: 420px;
+
+  .quick-filter-field {
+    width: 100%;
+  }
+}
+
 .grid-wrapper {
   background: #fff;
   // border-radius: 12px;

@@ -59,6 +59,11 @@ public class Product {
     @Column(name = "origin")
     private String origin;
 
+    /** Cột bắt buộc trên DB (MySQL strict): phải map và gán mặc định khi tạo sản phẩm. */
+    @Column(name = "is_sale", nullable = false)
+    @Builder.Default
+    private Boolean isSale = false;
+
     // --- Quan hệ 1-N với ProductVariant ---
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties("product")

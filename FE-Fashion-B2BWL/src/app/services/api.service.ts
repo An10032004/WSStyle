@@ -74,6 +74,8 @@ export interface Product {
   campaignBanner?: string;
   campaignName?: string;
   quantityBreaksJson?: string;
+  /** Khớp cột DB `is_sale` (tạo/cập nhật sản phẩm). */
+  isSale?: boolean;
   isNetTermEligible?: boolean;
   netTermDays?: number;
   images?: any[];

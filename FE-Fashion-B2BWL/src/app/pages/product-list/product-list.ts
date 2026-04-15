@@ -22,6 +22,7 @@ import { ApiService, Product, Category, TranslationRequest } from '../../service
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
+import { readApiErrorMessage } from '../../utils/auth-http.util';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -262,7 +263,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    const msg = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    const msg = readApiErrorMessage(err, err?.message || 'Lỗi hệ thống');
     this.alerts.open(msg, { appearance: 'error' }).subscribe();
   }
 
@@ -386,9 +387,12 @@ export class ProductListComponent implements OnInit, OnDestroy {
       })
       .subscribe((response) => {
         if (response) {
-          this.api.deleteProduct(p.id).subscribe(() => {
-            this.alerts.open('Đã xóa sản phẩm', { appearance: 'success' }).subscribe();
-            this.loadData();
+          this.api.deleteProduct(p.id).subscribe({
+            next: () => {
+              this.alerts.open('Đã xóa sản phẩm', { appearance: 'success' }).subscribe();
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err),
           });
         }
       });

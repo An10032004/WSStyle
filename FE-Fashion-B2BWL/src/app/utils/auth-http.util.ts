@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
 /**
- * Đọc {@code message} từ body JSON kiểu AuthResponse khi API trả 4xx/5xx.
+ * Đọc {@code message} từ body JSON kiểu ApiResponse / AuthResponse khi API trả 4xx/5xx.
  */
 export function readAuthApiMessage(err: unknown, fallback: string): string {
   if (!(err instanceof HttpErrorResponse)) {
@@ -16,3 +16,6 @@ export function readAuthApiMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/** Alias — dùng cho mọi endpoint trả {@code ApiResponse} có {@code message}. */
+export const readApiErrorMessage = readAuthApiMessage;

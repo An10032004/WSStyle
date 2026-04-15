@@ -21,7 +21,8 @@ import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, ProductVariant, Product, TranslationRequest } from '../../services/api.service';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { LanguageService } from '../../services/language.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
+import { readApiErrorMessage } from '../../utils/auth-http.util';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -38,6 +39,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
   theme = themeQuartz;
   localeText: any = AG_GRID_LOCALE_VI;
   gridVisible = true;
+
+  /** Tìm nhanh toàn lưới (quick filter), gồm cột sản phẩm theo tên. */
+  gridQuickFilter = '';
 
   products: Product[] = [];
 
@@ -135,16 +139,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
       });
     });
     this.loadData();
-    this.loadProducts();
   }
 
   ngOnDestroy(): void {
     if (this.langSub) this.langSub.unsubscribe();
   }
 
+  /** Chỉ tải lại danh sách sản phẩm (form chọn SP); grid dùng {@link loadData}. */
   loadProducts(): void {
     this.api.getProducts().subscribe((data) => {
       this.products = data;
+      this.cdr.detectChanges();
     });
   }
 
@@ -177,7 +182,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    const msg = err?.error?.message || err?.message || 'Lỗi hệ thống';
+    const msg =
+      readApiErrorMessage(err, err?.message || 'Lỗi hệ thống');
     this.alerts.open(msg, { appearance: 'error' }).subscribe();
   }
 
@@ -203,13 +209,34 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
+    if (this.gridQuickFilter) {
+      this.gridApi.setGridOption('quickFilterText', this.gridQuickFilter);
+    }
+  }
+
+  onQuickFilterChange(value: string): void {
+    this.gridQuickFilter = value ?? '';
+    this.gridApi?.setGridOption('quickFilterText', this.gridQuickFilter);
+    this.cdr.markForCheck();
   }
 
   loadData(): void {
-    this.api.getProductVariants().subscribe((data) => {
-      this.rowData = data;
-      this.loadTranslations();
-      this.cdr.detectChanges();
+    forkJoin({
+      variants: this.api.getProductVariants(),
+      products: this.api.getProducts(),
+    }).subscribe({
+      next: ({ variants, products }) => {
+        this.products = products;
+        this.rowData = variants;
+        this.loadTranslations();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.alerts
+          .open('Không tải được danh sách biến thể hoặc sản phẩm.', { appearance: 'error' })
+          .subscribe();
+        this.cdr.detectChanges();
+      },
     });
   }
 
@@ -235,14 +262,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
           return `<span class="${cls}">${text}</span>`;
         },
       },
-      { 
-        headerName: this.transloco.translate('VARIANT.PRODUCT'), 
-        field: 'productId', 
-        width: 250, 
-        sortable: true, 
+      {
+        headerName: this.transloco.translate('VARIANT.PRODUCT'),
+        colId: 'productDisplay',
+        minWidth: 250,
+        flex: 1,
+        sortable: true,
         filter: true,
-        valueFormatter: (params) => this.getProductDisplay(params.value),
-        tooltipValueGetter: (params: any) => this.getProductDisplay(params.value)
+        /** Lọc / quick filter theo tên + mã SP, không chỉ theo productId. */
+        valueGetter: (params) => this.getProductDisplay(params.data?.productId ?? null),
+        valueFormatter: (params) => (params.value as string) || '',
+        tooltipValueGetter: (params: any) => (params.value as string) || '',
       },
       { headerName: this.transloco.translate('VARIANT.STOCK'), field: 'stockQuantity', width: 100, sortable: true },
       { 
@@ -300,7 +330,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
       data.forEach(t => {
         if (t.translatedName) this.productTranslations.set(t.resourceId, t.translatedName);
       });
-      if (this.gridApi) this.gridApi.refreshCells({ columns: ['productId'] });
+      if (this.gridApi) this.gridApi.refreshCells({ columns: ['productDisplay'] });
     });
 
     // Fetch Variant Translations
@@ -426,9 +456,12 @@ export class VariantListComponent implements OnInit, OnDestroy {
       })
       .subscribe((response) => {
         if (response) {
-          this.api.deleteProductVariant(v.id).subscribe(() => {
-            this.alerts.open('Đã xóa biến thể', { appearance: 'success' }).subscribe();
-            this.loadData();
+          this.api.deleteProductVariant(v.id).subscribe({
+            next: () => {
+              this.alerts.open('Đã xóa biến thể', { appearance: 'success' }).subscribe();
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err),
           });
         }
       });
