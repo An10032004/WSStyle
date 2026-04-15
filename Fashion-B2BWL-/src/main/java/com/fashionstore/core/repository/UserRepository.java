@@ -20,9 +20,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.customerGroup WHERE u.email = :email")
     Optional<User> findByEmailWithCustomerGroup(@Param("email") String email);
 
-    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.customerGroup WHERE u.role IN :roles")
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.customerGroup WHERE u.role IN :roles AND u.deletedAt IS NULL")
     List<User> findByRoleInWithCustomerGroup(@Param("roles") List<String> roles);
 
-    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.customerGroup")
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.customerGroup WHERE u.deletedAt IS NULL")
     List<User> findAllWithCustomerGroup();
 }

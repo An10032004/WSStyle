@@ -13,6 +13,9 @@
     <h3>ĐĂNG KÝ</h3>
     <p class="subtitle">Tham gia cộng đồng thời trang WSSTYLE ngay hôm nay</p>
 
+    <div *ngIf="successMsg" class="success-alert">
+      {{ successMsg }}
+    </div>
     <div *ngIf="errorMsg" class="error-alert">
       {{ errorMsg }}
     </div>
@@ -36,7 +39,7 @@
         <!-- (Validation messages removed for brevity in chunk, assumed to stay same as previous) -->
         <div *ngIf="registerForm.get('email')?.errors?.['required'] && registerForm.get('email')?.touched" class="field-error">Email không được để trống.</div>
         <div *ngIf="registerForm.get('email')?.errors?.['email'] && registerForm.get('email')?.touched" class="field-error">Định dạng email chưa đúng.</div>
-        <div *ngIf="registerForm.get('email')?.hasError('emailExists') && registerForm.get('email')?.touched" class="field-error">Email đã được đăng ký.</div>
+        <div *ngIf="registerForm.get('email')?.hasError('emailExists') && registerForm.get('email')?.touched" class="field-error">Email không hợp lệ.</div>
       </div>
 
       <div class="form-field">

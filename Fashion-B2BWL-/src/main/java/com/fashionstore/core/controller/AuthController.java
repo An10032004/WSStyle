@@ -1,5 +1,7 @@
 package com.fashionstore.core.controller;
 
+import com.fashionstore.core.constant.AuthMessages;
+import com.fashionstore.core.dto.auth.LoginAttemptResult;
 import com.fashionstore.core.dto.request.ChangePasswordRequest;
 import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
@@ -8,11 +10,13 @@ import com.fashionstore.core.dto.response.ApiResponse;
 import com.fashionstore.core.dto.response.AuthResponse;
 import com.fashionstore.core.dto.response.CustomerGroupSummaryDTO;
 import com.fashionstore.core.dto.response.UserResponse;
+import com.fashionstore.core.model.AccountStatus;
 import com.fashionstore.core.model.CustomerGroup;
 import com.fashionstore.core.model.RefreshToken;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.service.JwtService;
 import com.fashionstore.core.service.RefreshTokenService;
+import com.fashionstore.core.exception.InvalidEmailException;
 import com.fashionstore.core.service.RoleService;
 import com.fashionstore.core.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +48,11 @@ public class AuthController {
                     .message("User registered successfully")
                     .user(mapToUserResponse(user))
                     .build());
+        } catch (InvalidEmailException e) {
+            return ResponseEntity.badRequest().body(AuthResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(AuthResponse.builder()
                     .success(false)
@@ -54,24 +63,31 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        return userService.authenticate(request)
-                .map(user -> {
-                    String accessToken = jwtService.generateToken(user.getEmail());
-                    RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
-                    
-                    return ResponseEntity.ok(AuthResponse.builder()
-                            .success(true)
-                            .message("Login successful")
-                            .user(mapToUserResponse(user))
-                            .accessToken(accessToken)
-                            .refreshToken(refreshToken.getToken())
-                            .expiresIn(jwtService.getExpirationTime())
-                            .build());
-                })
-                .orElse(ResponseEntity.status(401).body(AuthResponse.builder()
-                        .success(false)
-                        .message("Invalid email or password")
-                        .build()));
+        LoginAttemptResult result = userService.attemptLogin(request);
+        if (result.isSuccess()) {
+            var user = result.user();
+            String accessToken = jwtService.generateToken(user.getEmail());
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+            return ResponseEntity.ok(AuthResponse.builder()
+                    .success(true)
+                    .message("Login successful")
+                    .user(mapToUserResponse(user))
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken.getToken())
+                    .expiresIn(jwtService.getExpirationTime())
+                    .build());
+        }
+        if (result.emailNotAllowed()) {
+            return ResponseEntity.status(401).body(AuthResponse.builder()
+                    .success(false)
+                    .message(AuthMessages.INVALID_EMAIL)
+                    .build());
+        }
+        return ResponseEntity.status(401).body(AuthResponse.builder()
+                .success(false)
+                .message(AuthMessages.INVALID_CREDENTIALS)
+                .build());
     }
 
     /**
@@ -110,12 +126,31 @@ public class AuthController {
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
+        if (requestRefreshToken == null || requestRefreshToken.isBlank()) {
+            return ResponseEntity.status(401).body(AuthResponse.builder()
+                    .success(false)
+                    .message(AuthMessages.INVALID_REFRESH_SESSION)
+                    .build());
+        }
 
         return refreshTokenService.findByToken(requestRefreshToken)
-                .map(refreshTokenService::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> userService.getUserById(user.getId()))
-                .map(user -> {
+                .map(rt -> {
+                    try {
+                        return refreshTokenService.verifyExpiration(rt);
+                    } catch (RuntimeException ex) {
+                        log.debug("Refresh token verify failed: {}", ex.getMessage());
+                        return null;
+                    }
+                })
+                .map(rt -> {
+                    User u = rt.getUser();
+                    if (u == null || !u.isLoginAllowed()) {
+                        return ResponseEntity.<AuthResponse>status(401).body(AuthResponse.builder()
+                                .success(false)
+                                .message(AuthMessages.INVALID_EMAIL)
+                                .build());
+                    }
+                    User user = userService.getUserById(u.getId());
                     String token = jwtService.generateToken(user.getEmail());
                     return ResponseEntity.ok(AuthResponse.builder()
                             .success(true)
@@ -126,7 +161,10 @@ public class AuthController {
                             .expiresIn(jwtService.getExpirationTime())
                             .build());
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+                .orElse(ResponseEntity.status(401).body(AuthResponse.builder()
+                        .success(false)
+                        .message(AuthMessages.INVALID_REFRESH_SESSION)
+                        .build()));
     }
 
     private static CustomerGroupSummaryDTO toCustomerGroupSummary(CustomerGroup group) {
@@ -199,6 +237,8 @@ public class AuthController {
                 .companyName(user.getCompanyName())
                 .taxCode(user.getTaxCode())
                 .registrationStatus(user.getRegistrationStatus())
+                .accountStatus(
+                        user.getAccountStatus() != null ? user.getAccountStatus().name() : AccountStatus.ACTIVE.name())
             .customerGroup(toCustomerGroupSummary(user.getCustomerGroup()))
             .tags(user.getTags())
                 .permissions(permissions)

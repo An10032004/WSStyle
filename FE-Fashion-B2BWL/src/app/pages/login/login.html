@@ -13,6 +13,9 @@
     <h3>ĐĂNG NHẬP</h3>
     <p class="subtitle">Chào mừng bạn quay trở lại với WSSTYLE</p>
 
+    <div *ngIf="successMsg" class="success-alert">
+      {{ successMsg }}
+    </div>
     <div *ngIf="errorMsg" class="error-alert">
       {{ errorMsg }}
     </div>

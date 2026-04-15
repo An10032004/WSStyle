@@ -1,8 +1,12 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.constant.AuthMessages;
+import com.fashionstore.core.dto.auth.LoginAttemptResult;
 import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
 import com.fashionstore.core.dto.request.UserRequest;
+import com.fashionstore.core.exception.InvalidEmailException;
+import com.fashionstore.core.model.AccountStatus;
 import com.fashionstore.core.model.CustomerGroup;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.repository.UserRepository;
@@ -14,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 import java.util.List;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +28,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final CustomerGroupService customerGroupService;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     public List<User> getAllUsers() {
         return userRepository.findAllWithCustomerGroup();
@@ -39,13 +45,16 @@ public class UserService {
 
     @Transactional
     public User createUser(UserRequest request) {
+        if (request.getEmail() != null && userRepository.findByEmail(request.getEmail().trim()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
         CustomerGroup group = null;
         if (request.getCustomerGroupId() != null) {
             group = customerGroupService.getGroupById(request.getCustomerGroupId());
         }
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(request.getEmail() != null ? request.getEmail().trim() : null)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
@@ -56,6 +65,7 @@ public class UserService {
                         request.getRegistrationStatus() != null ? request.getRegistrationStatus() : "APPROVED")
                 .companyName(request.getCompanyName())
                 .taxCode(request.getTaxCode())
+                .accountStatus(parseAccountStatusOrDefault(request.getAccountStatus()))
                 .build();
         return userRepository.save(user);
     }
@@ -83,18 +93,25 @@ public class UserService {
         user.setRegistrationStatus(request.getRegistrationStatus());
         user.setCompanyName(request.getCompanyName());
         user.setTaxCode(request.getTaxCode());
+        if (request.getAccountStatus() != null && !request.getAccountStatus().isBlank()) {
+            user.setAccountStatus(parseAccountStatusOrDefault(request.getAccountStatus()));
+        }
 
         return userRepository.save(user);
     }
 
     @Transactional
     public User register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already exists: " + request.getEmail());
+        String email = request.getEmail() == null ? "" : request.getEmail().trim();
+        if (email.isEmpty()) {
+            throw new InvalidEmailException();
+        }
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new InvalidEmailException();
         }
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
@@ -102,23 +119,36 @@ public class UserService {
                 .registrationStatus("APPROVED")
                 .companyName(request.getCompanyName())
                 .taxCode(request.getTaxCode())
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
         return userRepository.save(user);
     }
 
-    public Optional<User> authenticate(LoginRequest request) {
-        log.debug("Authenticating user: {}", request.getEmail());
+    /**
+     * Đăng nhập: tài khoản xóa mềm / ngừng / {@code active=false} → {@link LoginAttemptResult#invalidEmail()}.
+     */
+    public LoginAttemptResult attemptLogin(LoginRequest request) {
+        String rawEmail = request.getEmail();
+        String email = rawEmail == null ? "" : rawEmail.trim();
+        log.debug("Authenticating user: {}", email);
 
-        return userRepository.findByEmailWithCustomerGroup(request.getEmail())
-                .filter(user -> {
-                    boolean matches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
-                    if (!matches) {
-                        log.warn("Authentication failed for user: {} - Invalid credentials", request.getEmail());
-                    } else {
-                        log.info("User {} authenticated successfully", request.getEmail());
-                    }
-                    return matches;
-                });
+        Optional<User> opt = userRepository.findByEmailWithCustomerGroup(email);
+        if (opt.isEmpty()) {
+            log.warn("Authentication failed for {}: user not found", email);
+            return LoginAttemptResult.invalidCredentials();
+        }
+        User user = opt.get();
+        if (!user.isLoginAllowed()) {
+            log.warn("Login blocked for {}: active={}, accountStatus={}, deletedAt={}",
+                    email, user.isActive(), user.getAccountStatus(), user.getDeletedAt());
+            return LoginAttemptResult.invalidEmail();
+        }
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            log.warn("Authentication failed for user: {} - Invalid credentials", email);
+            return LoginAttemptResult.invalidCredentials();
+        }
+        log.info("User {} authenticated successfully", email);
+        return LoginAttemptResult.success(user);
     }
 
     @Transactional
@@ -134,9 +164,17 @@ public class UserService {
         return userRepository.findByPhone(phone).isPresent();
     }
 
+    /**
+     * Xóa mềm: đánh dấu đã xóa, thu hồi refresh token, không cho đăng nhập.
+     */
     @Transactional
-    public void deleteUser(Integer id) {
-        userRepository.deleteById(id);
+    public void softDeleteUser(Integer id) {
+        User user = getUserById(id);
+        user.setDeletedAt(Instant.now());
+        user.setActive(false);
+        user.setAccountStatus(AccountStatus.SUSPENDED);
+        userRepository.save(user);
+        refreshTokenService.deleteByUserId(id);
     }
 
     /**
@@ -152,10 +190,24 @@ public class UserService {
         }
         User user = userRepository.findByEmail(email.trim())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        if (!user.isLoginAllowed()) {
+            throw new RuntimeException(AuthMessages.INVALID_EMAIL);
+        }
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new RuntimeException("Current password is incorrect");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    private static AccountStatus parseAccountStatusOrDefault(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return AccountStatus.ACTIVE;
+        }
+        try {
+            return AccountStatus.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return AccountStatus.ACTIVE;
+        }
     }
 }

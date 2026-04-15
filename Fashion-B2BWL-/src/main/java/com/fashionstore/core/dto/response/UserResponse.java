@@ -14,6 +14,8 @@ public class UserResponse {
     private String companyName;
     private String taxCode;
     private String registrationStatus;
+    /** ACTIVE | SUSPENDED */
+    private String accountStatus;
     private String permissions;
     /** Nhóm khách (pricing rules GROUP) — có thể null nếu admin chưa gán */
     private CustomerGroupSummaryDTO customerGroup;

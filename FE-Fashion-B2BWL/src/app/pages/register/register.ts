@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, AsyncValidatorFn } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -8,6 +8,7 @@ import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { AuthService } from '../../services/auth.service';
 import { ApiService } from '../../services/api.service';
+import { readAuthApiMessage } from '../../utils/auth-http.util';
 import { debounceTime, switchMap, take, first, of, Observable, map } from 'rxjs';
 
 @Component({
@@ -37,6 +38,7 @@ export class RegisterComponent {
   private readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly registerForm = this.fb.group({
     email: [
@@ -93,6 +95,7 @@ export class RegisterComponent {
   }
 
   errorMsg: string | null = null;
+  successMsg: string | null = null;
   loading = false;
 
   onSubmit(): void {
@@ -103,20 +106,30 @@ export class RegisterComponent {
 
     this.loading = true;
     this.errorMsg = null;
-    
+    this.successMsg = null;
+
     this.auth.register(this.registerForm.value).subscribe({
       next: (res) => {
         if (res.success) {
-          this.router.navigate(['/storefront']);
-        } else {
-          this.errorMsg = res.message;
+          this.errorMsg = null;
+          this.successMsg = 'Đăng ký thành công. Đang chuyển vào cửa hàng…';
           this.loading = false;
+          this.cdr.markForCheck();
+          setTimeout(() => void this.router.navigate(['/storefront']), 600);
+        } else {
+          this.errorMsg = res.message?.trim() || 'Đăng ký thất bại.';
+          this.loading = false;
+          this.cdr.markForCheck();
         }
       },
       error: (err) => {
-        this.errorMsg = 'An unexpected error occurred. Please try again.';
+        this.errorMsg = readAuthApiMessage(
+          err,
+          'Không thể hoàn tất đăng ký. Vui lòng thử lại sau.'
+        );
         this.loading = false;
-      }
+        this.cdr.markForCheck();
+      },
     });
   }
 }

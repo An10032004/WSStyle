@@ -46,7 +46,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Integer id) {
-        userService.deleteUser(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "User deleted successfully", null));
+        userService.softDeleteUser(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "User soft-deleted successfully", null));
     }
 }
