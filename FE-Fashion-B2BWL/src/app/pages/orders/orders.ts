@@ -153,7 +153,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
         <div *ngIf="selectedOrder?.paymentMethod === 'NET_TERMS' && selectedOrder?.paymentStatus !== 'PAID'" style="width:100%; padding:12px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:8px; margin-bottom:12px;">
           <strong>Ghi nhận thanh toán công nợ (NET_TERMS)</strong>
-          <p style="margin:8px 0 12px; font-size:13px; color:#0c4a6e;">Khác với thu tiền QR trước giao hàng: chỉ ghi nhận khi bạn đã đối chiếu sao kê / chứng từ và xác nhận khách đã thanh toán kỳ công nợ.</p>
+          <p style="margin:8px 0 12px; font-size:13px; color:#0c4a6e;">Khác với thu tiền QR trước giao hàng: chỉ ghi nhận khi bạn đã đối chiếu sao kê / chứng từ và xác nhận khách đã thanh toán kỳ công nợ. Khi khách bấm «Báo đã chuyển» trên Hồ sơ, hệ thống gửi tin vào <strong>Tin nhắn</strong> (inbox admin) để bạn biết cần đối soát.</p>
+          <p *ngIf="selectedOrder?.paymentStatus === 'AWAITING_CONFIRMATION'" style="margin:0 0 12px; font-size:12px; color:#92400e; background:#fffbeb; padding:8px 10px; border-radius:6px; border:1px solid #fcd34d;">
+            <strong>Đang chờ bạn:</strong> Trạng thái thanh toán là AWAITING_CONFIRMATION — khách đã báo đã chuyển. Đối soát xong thì tick và bấm «Ghi nhận thanh toán công nợ».
+          </p>
           <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:13px; margin-bottom:12px;">
             <input tuiCheckbox type="checkbox" [(ngModel)]="netTermsPaymentAck" />
             <span>Tôi đã đối chiếu và xác nhận khoản thanh toán công nợ này.</span>

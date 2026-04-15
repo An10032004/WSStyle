@@ -119,6 +119,13 @@ import {
             </div>
           </div>
           <div class="profile-details">
+            <div class="debt-explainer" *ngIf="debt.items.length">
+              <p>
+                <strong>Cách thanh toán:</strong> Chuyển khoản đúng số tiền theo hướng dẫn của shop (stk / nội dung CK do shop cung cấp).
+                Sau khi đã chuyển, bấm <strong>«Báo đã chuyển»</strong> — shop nhận tin trên mục <strong>Tin nhắn</strong> và đối soát.
+                Khi shop xác nhận đã nhận tiền, dòng đơn sẽ hết nợ.
+              </p>
+            </div>
             <div class="detail-item">
               <label>Số đơn công nợ quá hạn</label>
               <p>{{ debt.overdueCount }}</p>
@@ -129,12 +136,14 @@ import {
             <div class="detail-item debt-row" *ngFor="let d of debt.items">
               <div class="debt-info">
                 <label>Đơn #{{ d.orderId }}</label>
-                <p>{{ debtStatusLabel(d.daysLeft) }} - Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+                <p>{{ debtStatusLabel(d.daysLeft) }} — Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+                <p class="debt-amount" *ngIf="d.totalAmount != null">Số tiền: <strong>{{ d.totalAmount | number:'1.0-0' }} ₫</strong></p>
               </div>
               <button tuiButton type="button" size="s" appearance="primary" *ngIf="d.paymentStatus !== 'PAID' && d.paymentStatus !== 'AWAITING_CONFIRMATION'" (click)="payDebt(d.orderId)">
-                Thanh toán
+                Báo đã chuyển
               </button>
-              <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Đang xử lý</tui-badge>
+              <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Chờ shop xác nhận</tui-badge>
+              <tui-badge *ngIf="d.paymentStatus === 'PAID'" appearance="success" size="s">Đã thanh toán</tui-badge>
             </div>
           </div>
         </div>
@@ -303,9 +312,14 @@ import {
       p { font-size: 15px; color: #333; margin: 0; font-weight: 600; }
     }
     
-    .debt-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+    .debt-explainer {
+      margin-bottom: 16px; padding: 12px 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; font-size: 13px; line-height: 1.45; color: #0c4a6e;
+      p { margin: 0; }
+    }
+    .debt-amount { margin: 6px 0 0; font-size: 13px; color: #444; }
+    .debt-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 12px; flex-wrap: wrap; }
     .debt-row:last-child { border-bottom: none; }
-    .debt-info { display: flex; flex-direction: column; }
+    .debt-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
     .orders-card { .card-header { margin-bottom: 24px; } }
     .order-list { display: flex; flex-direction: column; gap: 16px; }
@@ -691,9 +705,14 @@ export class ProfileComponent {
   payDebt(orderId: number): void {
     this.api.updatePaymentStatus(orderId, 'AWAITING_CONFIRMATION').pipe(
       tap(() => {
-        this.alerts.open('Yêu cầu thanh toán đang được xử lý.', { label: 'Thành công', appearance: 'success' }).subscribe();
+        this.alerts
+          .open(
+            'Shop đã nhận thông báo trên Tin nhắn và sẽ đối soát chuyển khoản. Trạng thái đơn hiển thị «Chờ shop xác nhận» cho đến khi shop ghi nhận thanh toán công nợ.',
+            { label: 'Đã gửi', appearance: 'success', autoClose: 8000 },
+          )
+          .subscribe();
         this.refreshDebt$.next();
-      })
+      }),
     ).subscribe();
   }
 

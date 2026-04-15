@@ -10,6 +10,8 @@ import com.fashionstore.core.model.OrderItem;
 import com.fashionstore.core.model.Product;
 import com.fashionstore.core.model.ProductVariant;
 import com.fashionstore.core.model.User;
+import com.fashionstore.core.model.ChatMessage;
+import com.fashionstore.core.repository.ChatMessageRepository;
 import com.fashionstore.core.repository.OrderRepository;
 import com.fashionstore.core.repository.ProductVariantRepository;
 import com.fashionstore.core.repository.UserRepository;
@@ -39,10 +41,15 @@ public class OrderService {
     private final ShippingRuleService shippingRuleService;
     private final NetTermRuleService netTermRuleService;
     private final TaxDisplayRuleService taxDisplayRuleService;
+    private final ChatMessageRepository chatMessageRepository;
 
     /** Bật API debt-summary và chặn đặt hàng khi quá hạn; tắt khi cấu hình flow riêng (app.net-term.debt-check.enabled=false). */
     @Value("${app.net-term.debt-check.enabled:true}")
     private boolean netTermDebtCheckEnabled;
+
+    /** User nhận tin nhắn hệ thống khi khách báo thanh toán công nợ (trùng inbox trang Tin nhắn admin). */
+    @Value("${app.admin.inbox-user-id:1}")
+    private int adminInboxUserId;
 
     @Transactional
     public Order createOrder(OrderRequest request) {
@@ -258,6 +265,7 @@ public class OrderService {
     @Transactional
     public Order updatePaymentStatus(Integer id, String paymentStatus) {
         Order order = requireOrderWithItems(id);
+        String previousPaymentStatus = order.getPaymentStatus();
         order.setPaymentStatus(paymentStatus);
         if ("PAID".equalsIgnoreCase(paymentStatus)) {
             order.setPaidAmount(order.getTotalAmount());
@@ -265,7 +273,42 @@ public class OrderService {
             // Chỉ ghi nhận thanh toán — không đổi status giao hàng (PENDING/PROCESSING/…) và không trừ tồn.
             // Trừ kho và tiến trình xử lý đơn chỉ qua updateOrderStatus (vd. PROCESSING).
         }
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        notifyAdminNetTermsPaymentClaim(saved, paymentStatus, previousPaymentStatus);
+        return saved;
+    }
+
+    /**
+     * Khách báo đã chuyển khoản công nợ (AWAITING_CONFIRMATION) — gửi tin vào inbox admin để đối soát / bấm xác nhận trên Quản lý đơn.
+     * Chỉ gửi một lần khi chuyển sang AWAITING (tránh spam nếu gọi API trùng).
+     */
+    private void notifyAdminNetTermsPaymentClaim(Order order, String paymentStatus, String previousPaymentStatus) {
+        if (paymentStatus == null || !"AWAITING_CONFIRMATION".equalsIgnoreCase(paymentStatus.trim())) {
+            return;
+        }
+        if (previousPaymentStatus != null
+                && "AWAITING_CONFIRMATION".equalsIgnoreCase(previousPaymentStatus.trim())) {
+            return;
+        }
+        String method = order.getPaymentMethod() != null ? order.getPaymentMethod().trim().toUpperCase() : "";
+        if (!"NET_TERMS".equals(method)) {
+            return;
+        }
+        if (order.getUser() == null || order.getUser().getId() == null) {
+            return;
+        }
+        String customerName = order.getUser().getFullName() != null ? order.getUser().getFullName() : ("KH #" + order.getUser().getId());
+        String body = String.format(
+                "[Công nợ] Khách «%s» vừa báo đã thanh toán / cần đối soát — Đơn #%d. Vào Quản lý đơn → chọn đơn → tick xác nhận và bấm «Ghi nhận thanh toán công nợ» khi đã nhận đủ tiền.",
+                customerName,
+                order.getId());
+        ChatMessage msg = ChatMessage.builder()
+                .senderId(order.getUser().getId())
+                .receiverId(adminInboxUserId)
+                .message(body)
+                .isRead(false)
+                .build();
+        chatMessageRepository.save(msg);
     }
 
     /**
@@ -372,6 +415,7 @@ public class OrderService {
                 .daysLeft(daysLeft)
                 .debtStatus(debtStatus)
                 .paymentStatus(order.getPaymentStatus())
+                .totalAmount(order.getTotalAmount())
                 .build();
     }
 

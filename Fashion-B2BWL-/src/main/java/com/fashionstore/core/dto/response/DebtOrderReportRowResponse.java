@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -20,5 +21,7 @@ public class DebtOrderReportRowResponse {
     private long daysLeft;
     private String debtStatus; // CON_HAN | SAP_DEN_HAN | QUA_HAN
     private String paymentStatus;
+    /** Tổng giá trị đơn (NET_TERMS) — hiển thị cho khách / báo cáo. */
+    private BigDecimal totalAmount;
 }
 

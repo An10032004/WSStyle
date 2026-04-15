@@ -214,6 +214,8 @@ export interface DebtOrderReportRow {
   daysLeft: number;
   debtStatus: 'CON_HAN' | 'SAP_DEN_HAN' | 'QUA_HAN';
   paymentStatus?: string;
+  /** Tổng tiền đơn NET_TERMS (backend BigDecimal → number). */
+  totalAmount?: number;
 }
 
 export interface DebtSummary {

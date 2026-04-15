@@ -59,25 +59,33 @@ import { firstValueFrom } from 'rxjs';
 
         <div class="table-container" style="margin-top:28px;">
            <h2 class="tui-text_h6">Net Terms Debt Report</h2>
+           <p class="debt-report-hint">Cột «Thanh toán»: trạng thái thu nợ. <strong>Chờ xác nhận</strong> = khách đã báo chuyển khoản, admin cần vào Quản lý đơn và ghi nhận. <strong>Đã xác nhận thu</strong> = hoàn tất.</p>
            <table class="tui-table">
              <thead>
                <tr class="tui-table__tr">
                  <th class="tui-table__th">Order</th>
                  <th class="tui-table__th">Customer</th>
                  <th class="tui-table__th">Group</th>
+                 <th class="tui-table__th">Amount</th>
                  <th class="tui-table__th">Due Date</th>
                  <th class="tui-table__th">Days Left</th>
-                 <th class="tui-table__th">Status</th>
+                 <th class="tui-table__th">Hạn nợ</th>
+                 <th class="tui-table__th">Thanh toán</th>
                </tr>
              </thead>
              <tbody>
-               <tr *ngFor="let d of debtRows()" class="tui-table__tr">
+               <tr *ngFor="let d of debtRows()" class="tui-table__tr" [class.debt-row-awaiting]="isDebtAwaitingConfirm(d)" [class.debt-row-paid]="isDebtPaid(d)">
                  <td class="tui-table__td">#{{ d.orderId }}</td>
                  <td class="tui-table__td">{{ d.customerName || '-' }}</td>
                  <td class="tui-table__td">{{ d.customerGroupName || '-' }}</td>
+                 <td class="tui-table__td">{{ d.totalAmount != null ? (d.totalAmount | number:'1.0-0') + ' ₫' : '—' }}</td>
                  <td class="tui-table__td">{{ d.dueDate | date:'dd/MM/yyyy' }}</td>
                  <td class="tui-table__td">{{ d.daysLeft }}</td>
                  <td class="tui-table__td">{{ d.debtStatus }}</td>
+                 <td class="tui-table__td">
+                   <span>{{ debtPaymentLabel(d) }}</span>
+                   <span class="debt-remind" *ngIf="isDebtAwaitingConfirm(d)"> — Nhắc: vào Quản lý đơn để xác nhận</span>
+                 </td>
                </tr>
              </tbody>
            </table>
@@ -124,7 +132,11 @@ import { firstValueFrom } from 'rxjs';
     .data .value { font-size: 24px; font-weight: bold; }
     .details-section { background: #fff; border-radius: 16px; border: 1px solid #eee; padding: 24px; }
     .table-container h2 { margin-bottom: 20px; }
+    .debt-report-hint { font-size: 13px; color: #555; margin: -8px 0 16px; line-height: 1.45; }
     table { width: 100%; border-collapse: collapse; }
+    tr.debt-row-awaiting { background: #fffbeb; }
+    tr.debt-row-paid { background: #ecfdf5; }
+    .debt-remind { font-size: 12px; color: #92400e; font-weight: 600; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -173,5 +185,21 @@ export class AdvancedReportsComponent {
     if (start <= 0) return 0;
     const sold = v?.soldQuantity ?? 0;
     return Math.round((sold / start) * 100);
+  }
+
+  debtPaymentLabel(d: DebtOrderReportRow): string {
+    const ps = (d.paymentStatus || '').toUpperCase();
+    if (ps === 'PAID') return 'Đã xác nhận thu';
+    if (ps === 'AWAITING_CONFIRMATION') return 'Chờ xác nhận (khách đã báo CK)';
+    if (ps === 'PENDING') return 'Chưa báo trả';
+    return d.paymentStatus || '—';
+  }
+
+  isDebtAwaitingConfirm(d: DebtOrderReportRow): boolean {
+    return (d.paymentStatus || '').toUpperCase() === 'AWAITING_CONFIRMATION';
+  }
+
+  isDebtPaid(d: DebtOrderReportRow): boolean {
+    return (d.paymentStatus || '').toUpperCase() === 'PAID';
   }
 }
