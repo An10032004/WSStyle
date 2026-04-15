@@ -8,6 +8,7 @@ import { TuiComboBoxModule, TuiTextfieldControllerModule, TuiSelectModule } from
 import { ApiService, Coupon, Category, Product, CustomerGroup } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
 @Component({
   standalone: true,
@@ -77,11 +78,7 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               <td class="tui-table__td"><strong>{{ item.code }}</strong></td>
               <td class="tui-table__td">{{ item.discountValue | number }}</td>
               <td class="tui-table__td">
-                <span class="tui-badge" 
-                  [class.tui-badge_primary]="item.status === 'ACTIVE'"
-                  [class.tui-badge_error]="item.status === 'INACTIVE'">
-                  {{ item.status }}
-                </span>
+                <span [class]="couponStatusPillClass(item.status)">{{ 'ENUMS.' + item.status | transloco }}</span>
               </td>
               <td class="tui-table__td">{{ item.startDate | date:'short' }}</td>
               <td class="tui-table__td">{{ item.endDate | date:'short' }}</td>
@@ -215,6 +212,10 @@ export class CouponsComponent {
       await firstValueFrom(this.api.createCoupon(this.newCoupon));
     }
     this.refresh();
+  }
+
+  couponStatusPillClass(status: string | undefined): string {
+    return adminLifecycleStatusPillClass(status);
   }
 
   async deleteCoupon(id: number | undefined) {

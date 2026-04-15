@@ -16,6 +16,7 @@
     "VARIANTS": "Variant Management",
     "RULE_ENGINE": "Rule Engine",
     "STAFF": "Staff Management",
+    "CUSTOMERS": "Customers & agents",
     "HELP": "Help & Support"
   },
   "SIDEBAR": {
@@ -94,7 +95,8 @@
      "CANCEL": "Cancel",
      "VIEW": "View",
      "DELETE": "Delete",
-     "CLOSE": "Close"
+     "CLOSE": "Close",
+     "REJECT": "Reject"
   },
   "RULE": {
     "PRICING_TITLE": "Pricing & Discounts Management",
@@ -142,11 +144,12 @@
     "PHONE": "Phone Number",
     "GROUP_DETAIL": "Customer Group Details",
     "USER_DETAIL": "User Account Details",
-    "FORM_DETAIL": "Wholesale registration detail"
+    "FORM_DETAIL": "Wholesale registration detail",
+    "ASSIGNED_ROLE": "Assigned permission role"
   },
   "ENUMS": {
-    "ACTIVE": "✅ Active",
-    "INACTIVE": "❌ Inactive",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive",
     "B2B_PRICE": "B2B Pricing",
     "QUANTITY_BREAK": "Quantity Break",
     "ALL": "All",
@@ -165,11 +168,11 @@
     "RETAIL": "Retail Customer",
     "WHOLESALE": "Wholesale / B2B",
     "GUEST": "Guest User",
-    "PENDING": "⌛ Pending Review",
-    "APPROVED": "✅ Approved",
-    "REJECTED": "❌ Rejected",
-    "ADMIN": "🛡️ Administrator",
-    "STAFF": "🧑‍💼 Staff Member"
+    "PENDING": "Pending review",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected",
+    "ADMIN": "Administrator",
+    "STAFF": "Staff member"
   },
   "ORDER": {
     "TITLE": "Order Management",
@@ -185,6 +188,28 @@
     "DATE": "Created Date",
     "ITEMS": "Order Items",
     "TRANSACTIONS": "Payment History"
+  },
+  "ORDER_STATUS": {
+    "PENDING": "Pending",
+    "PROCESSING": "Processing",
+    "SHIPPED": "Shipped",
+    "COMPLETED": "Completed",
+    "APPROVED": "Approved",
+    "CANCELLED": "Cancelled",
+    "REJECTED": "Rejected"
+  },
+  "PAYMENT_STATUS": {
+    "PAID": "Paid",
+    "REFUNDED": "Refunded",
+    "AWAITING_CONFIRMATION": "Awaiting confirmation",
+    "FAILED": "Failed",
+    "PENDING": "Unpaid",
+    "UNPAID": "Unpaid"
+  },
+  "REGISTRATION_STATUS": {
+    "PENDING": "Pending review",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected"
   },
   "SAAS": {
     "PLANS_TITLE": "SaaS Plans Management",

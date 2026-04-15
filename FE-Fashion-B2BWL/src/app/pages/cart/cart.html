@@ -3,10 +3,10 @@
 <div class="cart-page">
   <div class="container">
     <div class="breadcrumb">
-      <a routerLink="/storefront">Home</a> / <span>Your Shopping Cart</span>
+      <a routerLink="/storefront">Trang chủ</a> / <span>Giỏ hàng của bạn</span>
     </div>
 
-    <h1 class="page-title">Shopping Cart</h1>
+    <h1 class="page-title">Giỏ hàng</h1>
 
     <ng-container *ngIf="(cartLayout$ | async) as layout; else loading">
       <div class="cart-layout" *ngIf="layout.items.length > 0; else emptyCart">
@@ -23,10 +23,10 @@
                   (ngModelChange)="toggleAll($event)"
                 />
               </span>
-              <span class="col-prod">Product</span>
-              <span class="col-price">Price</span>
-              <span class="col-qty">Quantity</span>
-              <span class="col-total">Subtotal</span>
+              <span class="col-prod">Sản phẩm</span>
+              <span class="col-price">Đơn giá</span>
+              <span class="col-qty">Số lượng</span>
+              <span class="col-total">Tạm tính</span>
               <span class="col-actions"></span>
             </div>
 
@@ -71,20 +71,20 @@
           </div>
 
           <div class="cart-footer">
-            <button tuiButton appearance="flat" size="m" routerLink="/shop">
-              <tui-icon icon="@tui.chevron-left"></tui-icon> Continue Shopping
+            <button tuiButton appearance="flat" size="m" routerLink="/shop" iconStart="@tui.chevron-left">
+              Tiếp tục mua sắm
             </button>
-            <button tuiButton appearance="secondary-grayscale" size="m" (click)="clear()">Clear Cart</button>
+            <button tuiButton appearance="secondary-grayscale" size="m" (click)="clear()">Xóa giỏ hàng</button>
           </div>
         </div>
 
         <!-- Order Summary Side Panel -->
         <div class="cart-summary">
           <div class="summary-card">
-            <h3 class="summary-title">Summary</h3>
+            <h3 class="summary-title">Tóm tắt</h3>
             
             <div class="summary-row">
-              <span>Total Items</span>
+              <span>Số mặt hàng</span>
               <strong>{{ totalItems$ | async }}</strong>
             </div>
 
@@ -99,7 +99,7 @@
             </div>
 
             <div class="summary-row">
-              <span>Subtotal</span>
+              <span>Tạm tính</span>
               <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
@@ -110,44 +110,44 @@
                   <tui-icon icon="@tui.tags" style="color: #10b981; font-size: 18px;"></tui-icon>
                   <span style="font-weight: 600; font-size: 14px; text-transform: uppercase; color: #10b981;">{{ coupon.code }}</span>
                 </div>
-                <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 11px; text-decoration: underline;">Change</button>
+                <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 11px; text-decoration: underline;">Đổi mã</button>
               </div>
               <ng-template #couponInput>
                 <div style="display: flex; gap: 8px; width: 100%;">
-                  <input type="text" [(ngModel)]="couponCode" placeholder="Promo code" 
+                  <input type="text" [(ngModel)]="couponCode" placeholder="Mã giảm giá" 
                     style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; background: #fff;">
-                  <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Apply</button>
+                  <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Áp dụng</button>
                 </div>
               </ng-template>
             </div>
 
             <div class="summary-row discount" *ngIf="(discountAmount$ | async) as discount">
               <span style="color: #10b981; font-weight: 500;">
-                Discount <span *ngIf="(appliedCoupon$ | async) as c">(-{{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
+                Giảm giá <span *ngIf="(appliedCoupon$ | async) as c">(-{{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
               </span>
               <strong style="color: #10b981;">- {{ discount | number:'1.0-0' }} ₫</strong>
             </div>
 
             <div class="summary-row after-discount" *ngIf="(appliedCoupon$ | async)" style="margin-bottom: 8px;">
-              <span style="font-size: 13px; font-weight: 600;">Price after coupon</span>
+              <span style="font-size: 13px; font-weight: 600;">Sau giảm giá</span>
               <strong style="font-size: 15px; color: #333;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
             <div class="summary-row">
-              <span>Estimated shipping</span>
+              <span>Phí vận chuyển (ước tính)</span>
               <ng-container *ngIf="(shippingFee$ | async) as shipFee">
-                <span class="free" *ngIf="shipFee === 0">FREE</span>
+                <span class="free" *ngIf="shipFee === 0">Miễn phí</span>
                 <strong *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
               </ng-container>
             </div>
 
             <div class="summary-row" *ngIf="(taxQuote$ | async) as taxQuote">
-              <span *ngIf="taxQuote.applied">Tax ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
+              <span *ngIf="taxQuote.applied">Thuế ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
               <strong *ngIf="taxQuote.applied">{{ taxQuote.taxAmount | number:'1.0-0' }} ₫</strong>
             </div>
             
             <div class="summary-row total">
-              <span>Grand Total</span>
+              <span>Tổng thanh toán</span>
               <span class="total-price-val">{{ grandTotal$ | async | number:'1.0-0' }} ₫</span>
             </div>
             </ng-container>
@@ -181,15 +181,15 @@
             <div class="validation-section" *ngIf="(validationResults$ | async) as results">
                <div class="invalid-msg" *ngIf="(isBlockedByDebt$ | async)">
                  <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
-                 Bạn có công nợ quá hạn. Vui lòng vào hồ sơ để thanh toán trước khi checkout.
+                 <span>Bạn có công nợ quá hạn. Vui lòng vào hồ sơ để thanh toán trước khi thanh toán.</span>
                </div>
                <div class="valid-msg" *ngIf="results.length === 0 || results.every(r => r.success)">
                  <tui-icon icon="@tui.check-circle" class="success-icon"></tui-icon>
-                 Your order is eligible for checkout.
+                 <span>Đơn hàng đủ điều kiện để thanh toán.</span>
                </div>
                <div class="invalid-msg" *ngFor="let res of results" [hidden]="res.success">
                  <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
-                 {{ res.message }}
+                 <span>{{ res.message }}</span>
                </div>
             </div>
 
@@ -200,11 +200,11 @@
               [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async) || (selectionHasHiddenPrice$ | async)"
               (click)="goToCheckout()"
             >
-              CHECKOUT NOW
+              Thanh toán ngay
             </button>
 
             <div class="payment-methods">
-              <p>We accept:</p>
+              <p>Chúng tôi chấp nhận:</p>
               <div class="method-icons">
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo">
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay">
@@ -221,18 +221,18 @@
 <ng-template #emptyCart>
   <div class="empty-state">
     <div class="empty-icon">
-       <tui-icon icon="@tui.shopping-bag"></tui-icon>
+      <tui-icon icon="@tui.shopping-bag"></tui-icon>
     </div>
-    <h2>Your cart is empty</h2>
-    <p>Looks like you haven't added anything to your cart yet.<br>Explore our latest arrivals and find something you love!</p>
-    <button tuiButton size="l" appearance="primary" routerLink="/shop">EXPLORE SHOP</button>
+    <h2>Giỏ hàng trống</h2>
+    <p>Bạn chưa thêm sản phẩm nào.<br>Hãy khám phá cửa hàng và chọn món bạn thích!</p>
+    <button tuiButton size="l" appearance="primary" routerLink="/shop">Vào cửa hàng</button>
   </div>
 </ng-template>
 
 <ng-template #loading>
   <div class="loading-state">
     <div class="container py-120 text-center">
-       <p class="text-xl font-bold">Synchronizing your cart...</p>
+       <p class="text-xl font-bold">Đang đồng bộ giỏ hàng...</p>
     </div>
   </div>
 </ng-template>
@@ -266,12 +266,13 @@
         <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
         <div class="qb-trigger" *ngIf="getQB(item).length > 0 && !item.isFixedPrice">
           <button
-            tuiIconButton
+            tuiButton
             type="button"
             size="xs"
             appearance="flat"
-            icon="@tui.info"
+            iconStart="@tui.info"
             [tuiDropdown]="cartQbDropdown"
+            title="Bảng giá theo số lượng"
           ></button>
           <ng-template #cartQbDropdown>
             <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
@@ -297,11 +298,11 @@
         {{ item.quantity }}
       </div>
       <div class="qty-picker" *ngIf="item.bundleId == null">
-        <button (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
+        <button type="button" (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
           <tui-icon icon="@tui.minus"></tui-icon>
         </button>
         <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
-        <button (click)="updateQuantity(item, item.quantity + 1)">
+        <button type="button" (click)="updateQuantity(item, item.quantity + 1)">
           <tui-icon icon="@tui.plus"></tui-icon>
         </button>
       </div>
@@ -313,6 +314,7 @@
     <div class="col-actions">
       <button
         *ngIf="item.bundleId == null"
+        type="button"
         class="remove-btn"
         (click)="removeItem(item)"
         title="Xóa"

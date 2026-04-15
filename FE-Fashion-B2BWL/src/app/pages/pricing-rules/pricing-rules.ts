@@ -31,6 +31,7 @@ import { ActionRendererComponent } from '../../shared/components/action-renderer
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { QuantityBreakEditorComponent } from './quantity-break-editor';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { adminLifecycleStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -225,9 +226,9 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
         headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
         width: 130,
         cellRenderer: (params: any) => {
-          const color = params.value === 'ACTIVE' ? 'success' : 'neutral';
-          const text = params.value === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động';
-          return `<span style="padding: 4px 12px; border-radius: 16px; background: ${params.value === 'ACTIVE' ? '#ecfdf5' : '#f3f4f6'}; color: ${params.value === 'ACTIVE' ? '#10b981' : '#6b7280'}; font-size: 12px; font-weight: 600;">${text}</span>`;
+          const v = params.value;
+          const text = v === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động';
+          return `<span class="${adminLifecycleStatusPillClass(v)}">${escapeHtml(text)}</span>`;
         }
       },
       { 

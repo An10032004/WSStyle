@@ -229,10 +229,11 @@ export class VariantListComponent implements OnInit, OnDestroy {
         field: 'status',
         width: 120,
         cellRenderer: (params: any) => {
-          const status = params.value === 'ACTIVE' ? '✅' : '❌';
-          const text = params.value === 'ACTIVE' ? 'Kích hoạt' : 'Ngừng bán';
-          return `<span>${status} ${text}</span>`;
-        }
+          const active = params.value === 'ACTIVE';
+          const text = active ? 'Kích hoạt' : 'Ngừng bán';
+          const cls = active ? 'admin-status-pill admin-status-pill--active' : 'admin-status-pill admin-status-pill--inactive';
+          return `<span class="${cls}">${text}</span>`;
+        },
       },
       { 
         headerName: this.transloco.translate('VARIANT.PRODUCT'), 

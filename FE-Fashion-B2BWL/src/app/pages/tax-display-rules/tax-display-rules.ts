@@ -29,6 +29,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { adminLifecycleStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 import { TaxDisplayEditorComponent } from './tax-display-editor';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -149,8 +150,12 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
       { 
         field: 'status', 
         headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
-        width: 120,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value)
+        width: 140,
+        cellRenderer: (params: any) => {
+          const v = params.value;
+          const label = this.transloco.translate('ENUMS.' + v);
+          return `<span class="${adminLifecycleStatusPillClass(v)}">${escapeHtml(label)}</span>`;
+        }
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),

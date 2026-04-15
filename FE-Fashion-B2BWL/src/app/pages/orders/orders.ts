@@ -17,6 +17,11 @@ import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { TuiButton, TuiDialogService, TuiAlertService } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
+import {
+  adminOrderStatusPillClass,
+  adminPaymentStatusPillClass,
+  escapeHtml,
+} from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -70,9 +75,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           </div>
           <div class="detail-item">
             <span class="label">{{ 'ORDER.STATUS' | transloco }}:</span>
-            <tui-badge size="s" [appearance]="getStatusAppearance(selectedOrder.status)">
-              {{ selectedOrder.status }}
-            </tui-badge>
+            <span [class]="orderStatusPillClass(selectedOrder.status)">{{ orderStatusLabel(selectedOrder.status) }}</span>
           </div>
           <div class="detail-item">
             <span class="label">{{ 'ORDER.PAYMENT_METHOD' | transloco }}:</span>
@@ -80,9 +83,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           </div>
           <div class="detail-item">
             <span class="label">{{ 'ORDER.PAYMENT_STATUS' | transloco }}:</span>
-            <tui-badge size="s" [appearance]="getPaymentStatusAppearance(selectedOrder.paymentStatus)">
-              {{ selectedOrder.paymentStatus }}
-            </tui-badge>
+            <span [class]="paymentStatusPillClass(selectedOrder.paymentStatus)">{{ paymentStatusLabel(selectedOrder.paymentStatus) }}</span>
           </div>
           <div class="detail-item">
             <span class="label">{{ 'ORDER.TOTAL' | transloco }}:</span>
@@ -276,13 +277,21 @@ export class OrdersComponent implements OnInit, OnDestroy {
         field: 'status',
         headerValueGetter: () => this.transloco.translate('ORDER.STATUS'),
         width: 130,
-        cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${this.getStatusAppearance(params.value)}">${params.value}</span>`
+        cellRenderer: (params: any) => {
+          const v = params.value;
+          const label = this.orderStatusLabel(v);
+          return `<span class="${adminOrderStatusPillClass(v)}">${escapeHtml(label)}</span>`;
+        }
       },
       {
         field: 'paymentStatus',
         headerValueGetter: () => this.transloco.translate('ORDER.PAYMENT_STATUS'),
         width: 170,
-        cellRenderer: (params: any) => `<span class="tui-badge tui-badge_${this.getPaymentStatusAppearance(params.value)}">${params.value}</span>`
+        cellRenderer: (params: any) => {
+          const v = params.value;
+          const label = this.paymentStatusLabel(v);
+          return `<span class="${adminPaymentStatusPillClass(v)}">${escapeHtml(label)}</span>`;
+        }
       },
       {
         field: 'totalAmount',
@@ -379,26 +388,28 @@ export class OrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  getStatusAppearance(status: string): string {
-    switch (status) {
-      case 'COMPLETED':
-      case 'APPROVED': return 'success';
-      case 'PENDING': return 'warning';
-      case 'PROCESSING': return 'info';
-      case 'CANCELLED':
-      case 'REJECTED': return 'danger';
-      default: return 'neutral';
-    }
+  orderStatusPillClass(status: string | undefined): string {
+    return adminOrderStatusPillClass(status);
   }
 
-  getPaymentStatusAppearance(status: string): string {
-    switch (status) {
-      case 'PAID': return 'success';
-      case 'REFUNDED': return 'neutral';
-      case 'AWAITING_CONFIRMATION': return 'warning';
-      case 'FAILED': return 'danger';
-      default: return 'neutral';
-    }
+  paymentStatusPillClass(status: string | undefined): string {
+    return adminPaymentStatusPillClass(status);
+  }
+
+  orderStatusLabel(code: string | null | undefined): string {
+    const c = (code || '').toUpperCase();
+    if (!c) return '';
+    const key = `ORDER_STATUS.${c}`;
+    const t = this.transloco.translate(key);
+    return t !== key ? t : String(code);
+  }
+
+  paymentStatusLabel(code: string | null | undefined): string {
+    const c = (code || '').toUpperCase();
+    if (!c) return '';
+    const key = `PAYMENT_STATUS.${c}`;
+    const t = this.transloco.translate(key);
+    return t !== key ? t : String(code);
   }
 
   updatePaymentStatus(id: number, status: string): void {

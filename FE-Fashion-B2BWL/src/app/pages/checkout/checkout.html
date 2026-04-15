@@ -16,42 +16,42 @@
       
       <!-- Checkout Form Section -->
       <div class="checkout-main">
-        <h1 class="checkout-title">Checkout Details</h1>
+        <h1 class="checkout-title">Thông tin thanh toán</h1>
         
         <form [formGroup]="checkoutForm" (ngSubmit)="onSubmit()">
           
           <!-- Shipping Section -->
           <div class="checkout-card">
             <h3 class="card-title">
-              <tui-icon icon="@tui.truck"></tui-icon> 1. Shipping Information
+              1. Thông tin giao hàng
             </h3>
             
             <div class="form-grid">
               <div class="form-field full">
-                <label tuiLabel>FULL NAME</label>
+                <label tuiLabel>HỌ VÀ TÊN</label>
                 <tui-textfield tuiTextfieldSize="m">
-                  <input tuiTextfield formControlName="fullName" placeholder="Enter your full name">
+                  <input tuiTextfield formControlName="fullName" placeholder="Nhập họ và tên">
                 </tui-textfield>
               </div>
               
               <div class="form-field">
-                <label tuiLabel>PHONE NUMBER</label>
+                <label tuiLabel>SỐ ĐIỆN THOẠI</label>
                 <tui-textfield tuiTextfieldSize="m">
                   <input tuiTextfield formControlName="phone" placeholder="0123456789">
                 </tui-textfield>
               </div>
 
               <div class="form-field full">
-                <label tuiLabel>SHIPPING ADDRESS</label>
+                <label tuiLabel>ĐỊA CHỈ GIAO HÀNG</label>
                 <tui-textfield tuiTextfieldSize="m">
-                  <input tuiTextfield formControlName="shippingAddress" placeholder="123 Street, District, City">
+                  <input tuiTextfield formControlName="shippingAddress" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành">
                 </tui-textfield>
               </div>
 
               <div class="form-field full">
-                <label tuiLabel>ORDER NOTE (OPTIONAL)</label>
+                <label tuiLabel>GHI CHÚ ĐƠN HÀNG (TÙY CHỌN)</label>
                 <tui-textfield tuiTextfieldSize="m">
-                  <input tuiTextfield formControlName="note" placeholder="Note for the seller or carrier">
+                  <input tuiTextfield formControlName="note" placeholder="Ghi chú cho người bán hoặc đơn vị vận chuyển">
                 </tui-textfield>
               </div>
             </div>
@@ -60,12 +60,11 @@
           <!-- Payment Section -->
           <div class="checkout-card">
             <h3 class="card-title">
-              <tui-icon icon="@tui.credit-card"></tui-icon> 2. Payment Method
+              2. Phương thức thanh toán
             </h3>
             
             <div class="payment-options">
                <div class="payment-option" *ngIf="(isBlockedByDebt$ | async)" style="border:1px solid #fecaca; background:#fef2f2;">
-                 <tui-icon icon="@tui.triangle-alert" class="payment-icon"></tui-icon>
                  <div class="payment-text">
                    <strong style="color:#b91c1c">Bạn có công nợ quá hạn</strong>
                    <span>Vui lòng thanh toán đơn công nợ trước khi tiếp tục đặt đơn mới.</span>
@@ -78,10 +77,9 @@
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'COD'"
                   (click)="setPaymentMethodIfAllowed('COD')"
                >
-                 <tui-icon icon="@tui.hand-coins" class="payment-icon"></tui-icon>
                  <div class="payment-text">
-                   <strong>Cash On Delivery (COD)</strong>
-                   <span>Pay when you receive the order</span>
+                   <strong>Thanh toán khi nhận hàng (COD)</strong>
+                   <span>Trả tiền khi nhận được hàng</span>
                  </div>
                </div>
 
@@ -94,7 +92,7 @@
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay" class="payment-img">
                  <div class="payment-text">
                    <strong>VNPAY</strong>
-                   <span>Pay via VNPAY QR or Bank Transfer</span>
+                   <span>Quét mã QR VNPAY hoặc chuyển khoản ngân hàng</span>
                  </div>
                </div>
 
@@ -107,7 +105,7 @@
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo" class="payment-img">
                  <div class="payment-text">
                    <strong>MoMo</strong>
-                   <span>Pay with MoMo e-wallet</span>
+                   <span>Thanh toán qua ví MoMo</span>
                  </div>
                </div>
 
@@ -118,10 +116,9 @@
                   [class.active]="checkoutForm.get('paymentMethod')?.value === 'NET_TERMS'"
                   (click)="setPaymentMethodIfAllowed('NET_TERMS')"
                >
-                 <tui-icon icon="@tui.handshake" class="payment-icon"></tui-icon>
                  <div class="payment-text">
-                   <strong>NET TERMS (Công nợ)</strong>
-                   <span>Pay in {{ netTermDays$ | async }} days</span>
+                   <strong>Công nợ (Net terms)</strong>
+                   <span>Thanh toán trong {{ netTermDays$ | async }} ngày</span>
                  </div>
                </div>
             </div>
@@ -132,7 +129,7 @@
       <!-- Order Summary Section -->
       <div class="checkout-sidebar">
         <div class="summary-card-sticky">
-          <h3 class="summary-title">Order Summary</h3>
+          <h3 class="summary-title">Tóm tắt đơn hàng</h3>
           
           <div class="summary-items" *ngIf="(cart$ | async) as items">
             <div class="summary-item" *ngFor="let item of items">
@@ -150,11 +147,13 @@
                   <div class="price-val" *ngIf="!item.hidePrice">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</div>
                   <div class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</div>
                   <div class="qb-trigger" *ngIf="getQB(item).length > 0">
-                    <tui-icon
-                      icon="@tui.info"
-                      style="cursor: pointer; opacity: 0.6; font-size: 14px;"
+                    <button
+                      tuiButton
+                      type="button"
+                      size="xs"
+                      appearance="flat"
                       [tuiDropdown]="checkoutQbDropdown"
-                    ></tui-icon>
+                    >Bảng giá theo SL</button>
                     <ng-template #checkoutQbDropdown>
                       <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
                         <app-quantity-break-table 
@@ -181,7 +180,7 @@
           <div class="summary-calc">
              <ng-container *ngIf="(selectionHasHiddenPrice$ | async) !== true; else checkoutTotalsHidden">
              <div class="calc-row">
-               <span>Subtotal</span>
+               <span>Tạm tính</span>
                <strong>{{ subtotal$ | async | number:'1.0-0' }} ₫</strong>
              </div>
 
@@ -189,48 +188,47 @@
              <div class="calc-row coupon-calc-row" style="margin: 8px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; padding: 10px 0;">
                <div *ngIf="appliedCoupon$ | async as coupon; else couponInput" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                  <div style="display: flex; gap: 8px; align-items: center;">
-                   <tui-icon icon="@tui.tags" style="color: #10b981; font-size: 16px;"></tui-icon>
                    <span style="font-weight: 600; font-size: 13px; text-transform: uppercase; color: #10b981;">{{ coupon.code }}</span>
                  </div>
-                 <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 10px; text-decoration: underline;">Change</button>
+                 <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 10px; text-decoration: underline;">Đổi mã</button>
                </div>
                <ng-template #couponInput>
                  <div style="display: flex; gap: 8px; width: 100%;">
-                   <input type="text" [(ngModel)]="couponCode" placeholder="Promo code" 
+                   <input type="text" [(ngModel)]="couponCode" placeholder="Mã giảm giá" 
                      style="flex: 1; padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; outline: none; background: #fff;">
-                   <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Apply</button>
+                   <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Áp dụng</button>
                  </div>
                </ng-template>
              </div>
 
              <div class="calc-row discount" *ngIf="(discountAmount$ | async) as discount">
                <span style="color: #10b981; font-weight: 500;">
-                 Discount <span *ngIf="(appliedCoupon$ | async) as c">({{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
+                 Giảm giá <span *ngIf="(appliedCoupon$ | async) as c">({{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
                </span>
                <strong style="color: #10b981;">- {{ discount | number:'1.0-0' }} ₫</strong>
              </div>
 
              <div class="calc-row after-discount" *ngIf="(appliedCoupon$ | async)" style="margin-bottom: 8px;">
-               <span style="font-size: 13px; color: #666;">Price after coupon</span>
+               <span style="font-size: 13px; color: #666;">Sau giảm giá</span>
                <strong style="font-size: 14px;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
              </div>
 
              <div class="calc-row">
-               <span>Shipping</span>
-               <span class="free" *ngIf="(shippingFee$ | async) === 0; else showFee">FREE</span>
+               <span>Phí vận chuyển</span>
+               <span class="free" *ngIf="(shippingFee$ | async) === 0; else showFee">Miễn phí</span>
                <ng-template #showFee>
                  <strong>{{ shippingFee$ | async | number:'1.0-0' }} ₫</strong>
                </ng-template>
              </div>
              <div class="calc-row" *ngIf="(taxQuote$ | async) as taxQuote">
                <ng-container *ngIf="taxQuote.applied">
-                 <span>Tax ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
+                 <span>Thuế ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
                  <strong>{{ taxQuote.taxAmount | number:'1.0-0' }} ₫</strong>
                </ng-container>
              </div>
              <div class="summary-divider"></div>
              <div class="calc-row total">
-               <span>Grand Total</span>
+               <span>Tổng thanh toán</span>
                <span class="total-val">{{ totalPrice$ | async | number:'1.0-0' }} ₫</span>
              </div>
              </ng-container>
@@ -249,12 +247,12 @@
             (click)="onSubmit()"
           >
             <tui-loader [showLoader]="isPlacingOrder" [inheritColor]="true" [overlay]="true">
-              PLACE ORDER NOW
+              Đặt hàng ngay
             </tui-loader>
           </button>
 
           <p class="final-agreement">
-            By placing your order, you agree to our Terms of Use and Privacy Policy.
+            Bằng việc đặt hàng, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của chúng tôi.
           </p>
         </div>
       </div>
@@ -266,9 +264,9 @@
 <ng-template #paymentDialog let-observer>
   <div class="payment-qr-container">
     <div class="qr-header">
-      <div class="header-badge">SECURE CHECKOUT</div>
-      <h4>Complete Your Payment</h4>
-      <p>Scan the VietQR below using any banking app to finish your purchase.</p>
+      <div class="header-badge">Thanh toán an toàn</div>
+      <h4>Hoàn tất thanh toán</h4>
+      <p>Quét mã VietQR bằng ứng dụng ngân hàng để hoàn tất thanh toán.</p>
     </div>
 
     <div class="qr-wrapper">
@@ -277,17 +275,17 @@
 
     <div class="payment-details">
       <div class="detail-row">
-        <span>Amount to Pay</span>
+        <span>Số tiền cần chuyển</span>
         <div class="val-group">
           <strong class="amount">{{ currentOrder?.totalAmount | number:'1.0-0' }} ₫</strong>
-          <button tuiIconButton type="button" size="xs" appearance="flat" icon="@tui.copy" (click)="copyToClipboard(currentOrder?.totalAmount?.toString(), 'Amount')"></button>
+          <button tuiButton type="button" size="xs" appearance="flat" (click)="copyToClipboard(currentOrder?.totalAmount?.toString(), 'Amount')">Sao chép</button>
         </div>
       </div>
       <div class="detail-row">
-        <span>Transfer Content</span>
+        <span>Nội dung chuyển khoản</span>
         <div class="val-group">
           <code>Thanh toan don hang #{{ currentOrder?.id }}</code>
-          <button tuiIconButton type="button" size="xs" appearance="flat" icon="@tui.copy" (click)="copyToClipboard('Thanh toan don hang #' + currentOrder?.id, 'Content')"></button>
+          <button tuiButton type="button" size="xs" appearance="flat" (click)="copyToClipboard('Thanh toan don hang #' + currentOrder?.id, 'Content')">Sao chép</button>
         </div>
       </div>
     </div>

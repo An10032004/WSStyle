@@ -11,12 +11,12 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiRadio,
-  TuiDataListWrapper,
-  TuiBadge
+  TuiDataListWrapper
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services/api.service';
+import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
 @Component({
   selector: 'app-tax-display-editor',
@@ -32,7 +32,6 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
     TuiDataList, 
     TuiDataListWrapper, 
     TuiTextfieldControllerModule, 
-    TuiBadge,
     TuiTextfield,
     TuiAppearance,
     TuiMultiSelectModule,
@@ -68,9 +67,7 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
 
               <div class="status-toggle">
                 <span class="label">{{ 'RULE.STATUS' | transloco }}</span>
-                <tui-badge [appearance]="data.status === 'ACTIVE' ? 'success' : 'neutral'" size="m">
-                   {{ 'ENUMS.' + (data.status || 'ACTIVE') | transloco }}
-                </tui-badge>
+                <span [class]="taxRuleStatusPillClass(data.status)">{{ 'ENUMS.' + (data.status || 'ACTIVE') | transloco }}</span>
               </div>
             </div>
           </div>
@@ -173,6 +170,10 @@ export class TaxDisplayEditorComponent {
   stringifyGroup = (item: any) => item?.name || '';
   stringifyCategory = (item: any) => item?.name || '';
   stringifyProduct = (item: any) => item?.name || '';
+
+  taxRuleStatusPillClass(status: string | null | undefined): string {
+    return adminLifecycleStatusPillClass(status || 'ACTIVE');
+  }
 
   ngOnChanges() {
     if (this.data.designConfig) {

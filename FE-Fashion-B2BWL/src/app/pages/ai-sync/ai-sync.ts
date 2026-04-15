@@ -2,7 +2,6 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@
 import { CommonModule } from '@angular/common';
 import { ApiService, Product, AIProductSync } from '../../services/api.service';
 import { TuiButton, TuiAlertService, TuiLoader } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
 import { TranslocoModule } from '@jsverse/transloco';
 import { AgGridAngular } from 'ag-grid-angular';
 import { 
@@ -13,6 +12,7 @@ import {
   GridReadyEvent 
 } from 'ag-grid-community';
 import { forkJoin } from 'rxjs';
+import { adminAiSyncPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -22,7 +22,6 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule,
     TuiButton,
-    TuiBadge,
     TuiLoader,
     TranslocoModule,
     AgGridAngular
@@ -96,9 +95,8 @@ export class AiSyncComponent implements OnInit {
       width: 150,
       cellRenderer: (params: any) => {
         const hasContent = !!params.data.content;
-        const appearance = hasContent ? 'success' : 'neutral';
         const text = hasContent ? 'Đã viết mô tả' : 'Đang chờ';
-        return `<span class="tui-badge tui-badge_${appearance}">${text}</span>`;
+        return `<span class="${adminAiSyncPillClass(hasContent)}">${escapeHtml(text)}</span>`;
       }
     },
     { field: 'lastSyncedAt', headerName: 'Cập nhật cuối', width: 180, valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '-' },

@@ -11,10 +11,10 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [CommonModule, TuiButton, TranslocoModule],
   template: `
     <div style="display:flex; gap:8px; align-items:center; height:100%;">
-      <button *ngIf="params?.onView" tuiButton appearance="secondary" size="s" iconStart="@tui.eye" (click)="onView()">{{ 'PRODUCT.VIEW' | transloco }}</button>
-      <button *ngIf="params?.onEdit" tuiButton appearance="secondary" size="s" iconStart="@tui.pencil" (click)="onEdit()">{{ 'PRODUCT.EDIT' | transloco }}</button>
-      <button *ngIf="params?.onReject" tuiButton appearance="accent" size="s" iconStart="@tui.x" (click)="onReject()">Reject</button>
-      <button *ngIf="params?.onDelete" tuiButton appearance="accent" size="s" iconStart="@tui.trash-2" (click)="onDelete()">{{ 'PRODUCT.DELETE' | transloco }}</button>
+      <button *ngIf="params?.onView" tuiButton appearance="secondary" size="s" (click)="onView()">{{ 'PRODUCT.VIEW' | transloco }}</button>
+      <button *ngIf="params?.onEdit" tuiButton appearance="secondary" size="s" (click)="onEdit()">{{ 'PRODUCT.EDIT' | transloco }}</button>
+      <button *ngIf="params?.onReject" tuiButton appearance="accent" size="s" (click)="onReject()">{{ 'COMMON.REJECT' | transloco }}</button>
+      <button *ngIf="params?.onDelete" tuiButton appearance="accent" size="s" (click)="onDelete()">{{ 'PRODUCT.DELETE' | transloco }}</button>
     </div>
   `,
   styles: [`

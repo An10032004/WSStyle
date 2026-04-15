@@ -155,13 +155,23 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
         field: 'hidePrice', 
         headerValueGetter: () => this.transloco.translate('RULE.HIDE_PRICE'), 
         width: 120,
-        cellRenderer: (params: any) => params.value ? '✅' : '❌'
+        cellRenderer: (params: any) => {
+          const on = !!params.value;
+          const cls = on ? 'admin-status-pill admin-status-pill--on' : 'admin-status-pill admin-status-pill--off';
+          const text = on ? 'Bật' : 'Tắt';
+          return `<span class="${cls}">${text}</span>`;
+        },
       },
-      { 
-        field: 'status', 
-        headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
-        width: 120,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value)
+      {
+        field: 'status',
+        headerValueGetter: () => this.transloco.translate('RULE.STATUS'),
+        width: 140,
+        cellRenderer: (params: any) => {
+          const active = params.value === 'ACTIVE';
+          const text = this.transloco.translate('ENUMS.' + params.value);
+          const cls = active ? 'admin-status-pill admin-status-pill--active' : 'admin-status-pill admin-status-pill--inactive';
+          return `<span class="${cls}">${text}</span>`;
+        },
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),

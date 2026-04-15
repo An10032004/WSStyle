@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService, TuiDropdown } from '@taiga-ui/core';
+import { TuiButton, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService, TuiDropdown } from '@taiga-ui/core';
 import { TuiInputNumber, TuiDataListWrapper, TuiPagination } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, Product, ProductVariant, Category } from '../../services/api.service';
@@ -34,7 +34,6 @@ interface QuickOrderItem {
     FormsModule, 
     TranslocoModule, 
     TuiButton, 
-    TuiIcon, 
     TuiTextfield, 
     TuiLabel, 
     TuiInputNumber,

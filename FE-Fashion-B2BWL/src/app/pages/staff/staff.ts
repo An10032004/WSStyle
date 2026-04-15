@@ -13,7 +13,6 @@ import {
   TuiButton, 
   TuiTextfield, 
   TuiLabel, 
-  TuiIcon,
   TuiDataList,
   TuiAlertService,
   TuiDialogService
@@ -40,7 +39,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield
   ],
   templateUrl: './staff.html',
   styleUrls: ['./staff.scss'],

@@ -16,6 +16,7 @@
     "VARIANTS": "Quản lý biến thể",
     "RULE_ENGINE": "Lõi quy tắc",
     "STAFF": "Quản lý nhân viên",
+    "CUSTOMERS": "Tài khoản khách & đại lý",
     "HELP": "Trợ giúp & Hỗ trợ"
   },
   "SIDEBAR": {
@@ -41,7 +42,7 @@
     "LANGUAGE": "Ngôn ngữ",
     "SELECT_LANGUAGE": "Chọn ngôn ngữ",
     "VIETNAMESE": "Tiếng Việt",
-    "ENGLISH": "English"
+    "ENGLISH": "Tiếng Anh"
   },
   "PRODUCT": {
     "TITLE": "Quản lý sản phẩm",
@@ -98,7 +99,8 @@
      "CANCEL": "Hủy",
      "VIEW": "Xem",
      "DELETE": "Xóa",
-     "CLOSE": "Đóng"
+     "CLOSE": "Đóng",
+     "REJECT": "Từ chối"
   },
   "RULE": {
     "PRICING_TITLE": "Quản lý Bảng giá & Chiết khấu",
@@ -146,11 +148,12 @@
     "PHONE": "Số điện thoại",
     "GROUP_DETAIL": "Chi tiết nhóm khách hàng",
     "USER_DETAIL": "Chi tiết tài khoản người dùng",
-    "FORM_DETAIL": "Chi tiết đăng ký đại lý mua sỉ"
+    "FORM_DETAIL": "Chi tiết đăng ký đại lý mua sỉ",
+    "ASSIGNED_ROLE": "Quyền được gán"
   },
   "ENUMS": {
-    "ACTIVE": "✅ Đang hoạt động",
-    "INACTIVE": "❌ Ngừng hoạt động",
+    "ACTIVE": "Đang hoạt động",
+    "INACTIVE": "Ngừng hoạt động",
     "B2B_PRICE": "Bảng giá B2B",
     "QUANTITY_BREAK": "Giảm giá số lượng",
     "ALL": "Tất cả",
@@ -166,14 +169,14 @@
     "MIN_ORDER_QUANTITY": "Số lượng đơn hàng tối thiểu",
     "MAX_ORDER_QUANTITY": "Số lượng đơn hàng tối đa",
     "OVER_MONTHLY_SPEND": "Vượt mức chi tiêu tháng",
-    "RETAIL": "Khách lẻ (Retail)",
+    "RETAIL": "Khách lẻ",
     "WHOLESALE": "Khách sỉ (B2B)",
     "GUEST": "Khách vãng lai",
-    "PENDING": "⌛ Chờ duyệt",
-    "APPROVED": "✅ Đã duyệt",
-    "REJECTED": "❌ Đã từ chối",
-    "ADMIN": "🛡️ Quản trị viên",
-    "STAFF": "🧑‍💼 Nhân viên"
+    "PENDING": "Chờ duyệt",
+    "APPROVED": "Đã duyệt",
+    "REJECTED": "Đã từ chối",
+    "ADMIN": "Quản trị viên",
+    "STAFF": "Nhân viên"
   },
   "ORDER": {
     "TITLE": "Quản lý đơn hàng",
@@ -189,6 +192,28 @@
     "DATE": "Ngày tạo",
     "ITEMS": "Sản phẩm",
     "TRANSACTIONS": "Lịch sử giao dịch"
+  },
+  "ORDER_STATUS": {
+    "PENDING": "Chờ xử lý",
+    "PROCESSING": "Đang xử lý",
+    "SHIPPED": "Đang giao hàng",
+    "COMPLETED": "Hoàn thành",
+    "APPROVED": "Đã duyệt",
+    "CANCELLED": "Đã hủy",
+    "REJECTED": "Từ chối"
+  },
+  "PAYMENT_STATUS": {
+    "PAID": "Đã thanh toán",
+    "REFUNDED": "Đã hoàn tiền",
+    "AWAITING_CONFIRMATION": "Chờ xác nhận CK",
+    "FAILED": "Thanh toán thất bại",
+    "PENDING": "Chưa thanh toán",
+    "UNPAID": "Chưa thanh toán"
+  },
+  "REGISTRATION_STATUS": {
+    "PENDING": "Chờ duyệt đăng ký",
+    "APPROVED": "Đã duyệt",
+    "REJECTED": "Từ chối đăng ký"
   },
   "SAAS": {
     "PLANS_TITLE": "Quản lý Gói cước SaaS",

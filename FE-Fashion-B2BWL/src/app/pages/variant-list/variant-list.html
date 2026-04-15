@@ -31,12 +31,16 @@
             tuiTextfieldSize="m"
           >
             <tui-data-list *tuiDataList>
-              <button tuiOption value="ACTIVE">✅ Kích hoạt</button>
-              <button tuiOption value="INACTIVE">❌ Ngừng bán</button>
+              <button tuiOption value="ACTIVE">Kích hoạt</button>
+              <button tuiOption value="INACTIVE">Ngừng bán</button>
             </tui-data-list>
           </tui-select>
           <ng-template #statusContent let-status>
-            {{ status === 'ACTIVE' ? '✅ Kích hoạt' : '❌ Ngừng bán' }}
+            <span
+              class="admin-status-pill"
+              [class.admin-status-pill--active]="status === 'ACTIVE'"
+              [class.admin-status-pill--inactive]="status !== 'ACTIVE'"
+            >{{ status === 'ACTIVE' ? 'Kích hoạt' : 'Ngừng bán' }}</span>
           </ng-template>
         </label>
         <label tuiLabel class="form-field">
@@ -169,7 +173,13 @@
          <p><strong>Giá bán riêng:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedVariant.price ? (selectedVariant.price | number) : 'Theo giá gốc' }} VND</span></p>
          
          <p><strong>Mã vạch:&nbsp;</strong> {{ selectedVariant.barcode || 'N/A' }}</p>
-         <p><strong>Trạng thái:&nbsp;</strong> {{ selectedVariant.status === 'ACTIVE' ? '✅ Kích hoạt' : '❌ Ngừng bán' }}</p>
+         <p><strong>Trạng thái:&nbsp;</strong>
+           <span
+             class="admin-status-pill"
+             [class.admin-status-pill--active]="selectedVariant.status === 'ACTIVE'"
+             [class.admin-status-pill--inactive]="selectedVariant.status !== 'ACTIVE'"
+           >{{ selectedVariant.status === 'ACTIVE' ? 'Kích hoạt' : 'Ngừng bán' }}</span>
+         </p>
          
          <div class="form-field full-width" *ngIf="selectedVariant.imageUrl || (parseImageUrls(selectedVariant.imageUrls).length > 0)" style="margin-top: 16px">
             <strong>Bộ sưu tập ảnh:&nbsp;</strong>

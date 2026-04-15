@@ -19,6 +19,7 @@ import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, Bundle, BundleItem, ProductVariant, Product } from '../../services/api.service';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { adminLifecycleStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -93,8 +94,9 @@ export class BundlesComponent implements OnInit {
       field: 'status', 
       width: 150,
       cellRenderer: (p: any) => {
-        const active = p.value === 'ACTIVE';
-        return `<span class="badge ${active ? 'badge-success' : 'badge-secondary'}">${active ? '✅ Hoạt động' : '❌ Tạm ngưng'}</span>`;
+        const v = p.value;
+        const label = v === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm ngưng';
+        return `<span class="${adminLifecycleStatusPillClass(v)}">${escapeHtml(label)}</span>`;
       }
     },
     { 

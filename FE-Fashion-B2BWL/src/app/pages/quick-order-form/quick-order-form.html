@@ -23,7 +23,6 @@
 
   <div class="active-rules-info" *ngIf="appliedOrderLimits.length > 0">
     <div class="rule-box">
-      <tui-icon icon="@tui.info" class="rule-icon"></tui-icon>
       <div class="rule-content">
         <div class="rule-title">Chính sách đặt hàng áp dụng:</div>
         <div class="rule-list">
@@ -43,7 +42,7 @@
 
   <div class="filter-section">
     <div class="filter-group">
-      <label tuiLabel="Product Category">
+      <label tuiLabel="Danh mục sản phẩm">
         <tui-select
           class="category-select"
           [(ngModel)]="selectedCategory"
@@ -65,15 +64,14 @@
         </tui-select>
       </label>
 
-      <label tuiLabel="Product Search">
+      <label tuiLabel="Tìm kiếm">
         <tui-textfield 
           tuiTextfieldSize="m" 
           [tuiTextfieldCleaner]="true"
-          iconStart="@tui.search"
         >
           <input
             tuiTextfield
-            placeholder="Search by name or SKU..."
+            placeholder="Tìm theo tên hoặc mã SKU..."
             [(ngModel)]="searchQuery"
             (ngModelChange)="filterProducts()"
           />
@@ -87,12 +85,12 @@
       <thead>
         <tr>
           <th width="30"></th>
-          <th width="80">Image</th>
-          <th>Product name</th>
-          <th width="100">Stock</th>
-          <th width="220">Price</th>
-          <th width="150">Product SKU</th>
-          <th width="150">Quantity</th>
+          <th width="80">Ảnh</th>
+          <th>Tên sản phẩm</th>
+          <th width="100">Tồn kho</th>
+          <th width="220">Giá</th>
+          <th width="150">Mã SKU</th>
+          <th width="150">Số lượng</th>
         </tr>
       </thead>
       <tbody>
@@ -100,15 +98,14 @@
           <tr [class.expanded]="item.isExpanded">
             <td>
               <button
-                tuiIconButton
+                tuiButton
                 type="button"
-                size="s"
+                size="xs"
                 appearance="flat"
                 (click)="toggleExpand(item)"
                 class="expand-btn"
-                [class.rotated]="item.isExpanded"
-                icon="@tui.chevron-down"
               >
+                {{ item.isExpanded ? 'Thu gọn' : 'Chi tiết' }}
               </button>
             </td>
             <td>
@@ -132,13 +129,8 @@
             <td>
               <div class="selection-toggle" (click)="toggleExpand(item)">
                 <span class="selection-text" [class.active]="item.totalSelected > 0">
-                  {{ item.totalSelected }} variant(s) selected
+                  Đã chọn {{ item.totalSelected }} phân loại
                 </span>
-                <tui-icon 
-                  [icon]="'@tui.chevron-down'" 
-                  class="chevron-animated" 
-                  [class.rotated]="item.isExpanded">
-                </tui-icon>
               </div>
             </td>
           </tr>
@@ -151,12 +143,12 @@
                   <thead>
                     <tr class="v-header">
                       <th width="30"></th>
-                      <th width="80">Image</th>
-                      <th>Variant</th>
-                      <th width="100">Stock</th>
-                      <th width="220">Price</th>
-                      <th width="150">SKU</th>
-                      <th width="150">Quantity</th>
+                      <th width="80">Ảnh</th>
+                      <th>Phân loại</th>
+                      <th width="100">Tồn kho</th>
+                      <th width="220">Giá</th>
+                      <th width="150">Mã SKU</th>
+                      <th width="150">Số lượng</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -186,13 +178,12 @@
                         <!-- QUANTITY BREAK POPUP -->
                         <div class="qb-info-trigger" *ngIf="getQB(item.product).length > 0">
                            <button
-                             tuiIconButton
+                             tuiButton
                              type="button"
                              size="xs"
                              appearance="flat"
-                             icon="@tui.info"
                              [tuiDropdown]="qbDropdown"
-                           ></button>
+                           >Bảng giá theo SL</button>
                            <ng-template #qbDropdown>
                              <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
                                <app-quantity-break-table 
@@ -211,11 +202,11 @@
                       <td>
                          <div class="quantity-input-container">
                             <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item, v)">
-                              <tui-icon icon="@tui.minus"></tui-icon>
+                              −
                             </button>
                             <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item, v)" class="qty-input">
                             <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item, v)">
-                              <tui-icon icon="@tui.plus"></tui-icon>
+                              +
                             </button>
                          </div>
                       </td>
@@ -240,19 +231,19 @@
   <div class="summary-footer" *ngIf="totalItemsSelected > 0">
     <div class="footer-inner">
       <div class="footer-stats">
-        <span class="count-tag">{{ totalItemsSelected }} item(s) selected</span>
-        <span class="total-tag" *ngIf="!hasHiddenPriceInSelection">Cart total: <strong>{{ totalAmount | number }}đ</strong></span>
-        <span class="total-tag" *ngIf="hasHiddenPriceInSelection">Cart total: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong></span>
+        <span class="count-tag">Đã chọn {{ totalItemsSelected }} mẫu</span>
+        <span class="total-tag" *ngIf="!hasHiddenPriceInSelection">Tạm tính: <strong>{{ totalAmount | number }}đ</strong></span>
+        <span class="total-tag" *ngIf="hasHiddenPriceInSelection">Tạm tính: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong></span>
       </div>
       <div class="footer-actions">
-        <button tuiButton type="button" (click)="addToCart()" appearance="outline">Add to Cart</button>
-        <button tuiButton type="button" (click)="checkout()" appearance="primary">Checkout Now</button>
+        <button tuiButton type="button" (click)="addToCart()" appearance="outline">Thêm vào giỏ</button>
+        <button tuiButton type="button" (click)="checkout()" appearance="primary">Thanh toán ngay</button>
       </div>
     </div>
   </div>
 
   <div *ngIf="loading && products.length === 0" class="loading-overlay">
-    <tui-icon icon="@tui.loader"></tui-icon>
-    <p>Loading products...</p>
+    <span>Đang tải…</span>
+    <p>Đang tải sản phẩm…</p>
   </div>
 </div>

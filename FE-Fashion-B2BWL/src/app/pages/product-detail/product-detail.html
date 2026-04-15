@@ -32,7 +32,7 @@
       <div class="info-section">
         <div class="brand-link">Thương hiệu: <span>{{ brandName }}</span></div>
         <h1 class="product-name">{{ product.name }}</h1>
-        <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
+        <div class="sku-info">Mã SKU: {{ selectedVariant?.sku || product.productCode }}</div>
 
         <div class="pricing-card" [class.rule-active]="isB2BApplied">
           <div class="rule-badge" *ngIf="isB2BApplied">
@@ -231,7 +231,7 @@
             <span class="val">{{ brandName }}</span>
           </div>
           <div class="spec-row">
-            <span class="label">SKU</span>
+            <span class="label">Mã SKU</span>
             <span class="val">{{ selectedVariant?.sku || product.productCode }}</span>
           </div>
         </div>

@@ -22,8 +22,8 @@
         <span class="logo-d">WSSTYL</span><span class="logo-n">E</span>
       </a>
       <div class="header-tabs">
-        <a href="javascript:void(0)" class="tab active">Shopping</a>
-        <a href="javascript:void(0)" class="tab">Style</a>
+        <a href="javascript:void(0)" class="tab active">Mua sắm</a>
+        <a href="javascript:void(0)" class="tab">Phong cách</a>
       </div>
     </div>
 
@@ -74,7 +74,7 @@
     </div>
 
     <div class="header-right">
-      <button class="icon-circle" title="Notifications">
+      <button class="icon-circle" type="button" title="Thông báo">
         <tui-icon icon="@tui.bell"></tui-icon>
       </button>
       
@@ -107,9 +107,9 @@
         </button>
         <ng-template #userMenu>
           <tui-data-list>
-            <button tuiOption routerLink="/profile">Profile</button>
-            <button *ngIf="hasAdminAccess()" tuiOption routerLink="/dashboard">Admin Dashboard</button>
-            <button tuiOption (click)="logout()">Logout</button>
+            <button tuiOption routerLink="/profile">Hồ sơ</button>
+            <button *ngIf="hasAdminAccess()" tuiOption routerLink="/dashboard">Quản trị</button>
+            <button tuiOption (click)="logout()">Đăng xuất</button>
           </tui-data-list>
         </ng-template>
       </div>

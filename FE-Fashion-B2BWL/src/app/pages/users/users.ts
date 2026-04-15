@@ -14,7 +14,6 @@ import {
   TuiButton, 
   TuiTextfield, 
   TuiLabel, 
-  TuiIcon,
   TuiDataList,
   TuiAlertService,
   TuiDialogService
@@ -31,6 +30,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { adminRegistrationStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -40,7 +40,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
-    TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield
   ],
   templateUrl: './users.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -190,8 +190,8 @@ export class UsersComponent implements OnInit, OnDestroy {
         width: 120,
         cellRenderer: (params: any) => {
           const status = params.value;
-          const color = status === 'APPROVED' ? 'success' : (status === 'PENDING' ? 'warning' : 'danger');
-          return `<span class="tui-badge tui-badge_${color}">${status}</span>`;
+          const label = this.registrationStatusLabel(status);
+          return `<span class="${adminRegistrationStatusPillClass(status)}">${escapeHtml(label)}</span>`;
         }
       },
       { 
@@ -363,5 +363,13 @@ export class UsersComponent implements OnInit, OnDestroy {
   getGroupName(id: number | null): string {
     const g = this.customerGroups.find(x => x.id === id);
     return g ? g.name : 'None';
+  }
+
+  registrationStatusLabel(code: string | null | undefined): string {
+    const c = (code || '').toUpperCase();
+    if (!c) return '';
+    const key = `REGISTRATION_STATUS.${c}`;
+    const t = this.transloco.translate(key);
+    return t !== key ? t : String(code);
   }
 }

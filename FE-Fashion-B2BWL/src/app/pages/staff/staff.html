@@ -9,7 +9,6 @@
       type="button"
       appearance="primary"
       size="m"
-      iconStart="@tui.plus"
       (click)="onAdd()"
     >
       {{ 'COMMON.ADD' | transloco }}
@@ -55,7 +54,6 @@
           {{ 'MEMBER.EMAIL' | transloco }}
           <tui-textfield>
             <input tuiTextfield type="email" [(ngModel)]="formData.email" />
-            <tui-icon icon="@tui.mail" />
           </tui-textfield>
         </label>
 
@@ -63,7 +61,6 @@
           {{ 'MEMBER.PASSWORD' | transloco }}
           <tui-textfield>
             <input tuiTextfield type="password" [(ngModel)]="formData.password" />
-            <tui-icon icon="@tui.lock" />
           </tui-textfield>
         </label>
 
@@ -71,7 +68,6 @@
           {{ 'MEMBER.NAME' | transloco }}
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.fullName" />
-            <tui-icon icon="@tui.user" />
           </tui-textfield>
         </label>
 
@@ -79,7 +75,6 @@
           {{ 'MEMBER.PHONE' | transloco }}
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.phone" />
-            <tui-icon icon="@tui.phone" />
           </tui-textfield>
         </label>
 
@@ -145,7 +140,6 @@
 <!-- VIEW DETAIL -->
 <ng-template #adminDeleteDialog let-observer>
   <div style="display:flex; gap:12px;">
-    <tui-icon icon="@tui.lock" style="font-size:24px; color:#ef4444"></tui-icon>
     <div>
       <h3 style="margin:0 0 8px 0;">Không thể xóa Admin</h3>
       <p style="margin:0 0 12px 0; color:#444;">Tài khoản Admin là vai trò hệ thống và không được phép xóa. Nếu cần, hãy thay đổi vai trò hoặc vô hiệu hóa tài khoản.</p>

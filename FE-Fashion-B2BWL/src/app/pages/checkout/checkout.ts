@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CartService, CartItem } from '../../services/cart.service';
-import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiTextfield, TuiDialogService, TuiDropdown } from '@taiga-ui/core';
+import { TuiButton, TuiFormatNumberPipe, TuiLabel, TuiAlertService, TuiLoader, TuiTextfield, TuiDialogService, TuiDropdown } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
 import { combineLatest, debounceTime, map, of, shareReplay, startWith, switchMap, take } from 'rxjs';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -19,7 +19,7 @@ import { buildOrderItemPricingNote } from '../../utils/order-pricing-snapshot';
   standalone: true,
   imports: [
     CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
-    TuiButton, TuiIcon, TuiBadge, TuiLoader, TuiTextfield,
+    TuiButton, TuiBadge, TuiLoader, TuiTextfield,
     TuiFormatNumberPipe, TuiLabel, TranslocoModule,
     StorefrontHeaderComponent, StorefrontFooterComponent,
     QuantityBreakTableComponent, TuiDropdown

@@ -2,7 +2,6 @@
   <div class="header-section" style="padding: 16px">
     <h2 class="title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
     <button tuiButton type="button" size="m" (click)="onAdd()">
-      <tui-icon icon="@tui.plus"></tui-icon>
       {{ 'COMMON.ADD' | transloco }}
     </button>
   </div>
@@ -115,7 +114,6 @@
 
 <ng-template #deleteDialog let-observer>
   <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
-    <tui-icon icon="@tui.triangle-alert" style="font-size: 24px; color: #d97706;"></tui-icon>
     <div>
       <h3 style="margin: 0 0 8px;">Xác nhận xóa</h3>
       <p style="margin: 0; color: #666;">Bạn có chắc chắn muốn xóa người dùng <strong>{{ deleteTargetName }}</strong> này không?</p>
@@ -129,7 +127,6 @@
 
 <ng-template #deleteErrorDialog let-observer>
   <div style="display:flex; gap:12px;">
-    <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>
     <div>
       <h3 style="margin:0 0 8px 0;">Thao tác thất bại</h3>
       <p style="margin:0 0 12px 0; color:#444;">Không thể hoàn tất thao tác. Chi tiết lỗi:</p>
@@ -143,7 +140,6 @@
 
 <ng-template #adminDeleteDialog let-observer>
   <div style="display:flex; gap:12px;">
-    <tui-icon icon="@tui.lock" style="font-size:24px; color:#ef4444"></tui-icon>
     <div>
       <h3 style="margin:0 0 8px 0;">Không thể xóa Admin</h3>
       <p style="margin:0 0 12px 0; color:#444;">Tài khoản Admin là vai trò hệ thống và không được phép xóa. Nếu cần, hãy thay đổi vai trò hoặc vô hiệu hóa tài khoản.</p>
@@ -156,7 +152,6 @@
 
 <ng-template #duplicateEmailDialog let-observer>
   <div style="display:flex; gap:12px;">
-    <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>
     <div>
       <h3 style="margin:0 0 8px 0;">Email đã tồn tại</h3>
       <p style="margin:0 0 12px 0; color:#444;">{{ duplicateEmailMessage }}</p>
