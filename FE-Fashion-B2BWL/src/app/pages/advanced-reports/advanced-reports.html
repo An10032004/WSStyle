@@ -1,0 +1,125 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="tui-text_h3">{{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}</h1>
+      <div class="range-badge">
+        <span class="range-human">Khoảng thời gian: <strong>{{ rangeLabelVi() }}</strong></span>
+        <span class="range-iso">Tham số API (yyyy-mm-dd): {{ rangeStart() }} → {{ rangeEnd() }}</span>
+      </div>
+    </div>
+    <div class="filters">
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="setRange('7days')">7 ngày gần nhất</button>
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="setRange('30days')">30 ngày gần nhất</button>
+      <button tuiButton type="button" size="s" appearance="primary" (click)="refresh()">Làm mới</button>
+    </div>
+  </div>
+
+  <div class="report-summary" *ngIf="report() as r">
+    <div class="summary-card">
+      <div class="icon-box"><tui-icon icon="@tui.dollar-sign"></tui-icon></div>
+      <div class="data">
+        <span class="label">Tổng doanh thu (đã thu)</span>
+        <span class="value">{{ r.totalRevenue | number }}đ</span>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="icon-box"><tui-icon icon="@tui.shopping-cart"></tui-icon></div>
+      <div class="data">
+        <span class="label">Số đơn trong kỳ</span>
+        <span class="value">{{ r.totalOrders }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="details-section">
+    <p *ngIf="report() && !dailySalesRows().length" class="report-hint report-hint--muted">
+      Trong khoảng ngày đã chọn, <strong>không có ngày nào</strong> có đơn PAID được tính vào doanh thu — bảng theo ngày sẽ ẩn. Thử mở rộng khoảng ngày hoặc kiểm tra trạng thanh toán đơn hàng.
+    </p>
+
+    <div class="report-block" *ngIf="dailySalesRows().length">
+      <h2 class="tui-text_h6">Các ngày có doanh thu (đơn PAID)</h2>
+      <p class="report-hint">
+        Mỗi dòng là một <strong>ngày tạo đơn</strong> trong khoảng đã chọn, có ít nhất một đơn được tính doanh thu (PAID, không hủy / không hoàn đã đóng — cùng quy tắc tổng doanh thu phía trên).
+        Cột <strong>SL hàng</strong> là tổng quantity các dòng hàng; cột <strong>Đơn trong ngày</strong>: bấm từng dòng để mở chi tiết đơn (trang Quản lý đơn).
+      </p>
+      <div class="grid-wrap grid-wrap--daily">
+        <ag-grid-angular
+          [theme]="theme"
+          [rowData]="dailySalesRows()"
+          [columnDefs]="dailySalesColDefs"
+          [defaultColDef]="defaultColDef"
+          [localeText]="localeText"
+          [pagination]="false"
+          [suppressCellFocus]="true"
+          domLayout="autoHeight"
+        />
+      </div>
+    </div>
+
+    <div class="report-block">
+      <h2 class="tui-text_h6">Sản phẩm bán chạy</h2>
+      <p class="report-hint">
+        Top theo số lượng bán trong kỳ (từ đơn hàng). Cột doanh thu chỉ cộng phần đơn đã thanh toán (PAID), đồng bộ với báo cáo tổng.
+      </p>
+      <div class="grid-wrap">
+        <ag-grid-angular
+          [theme]="theme"
+          [rowData]="bestSellerRows()"
+          [columnDefs]="bestSellerColDefs"
+          [defaultColDef]="defaultColDef"
+          [localeText]="localeText"
+          [pagination]="true"
+          [paginationPageSize]="10"
+          [paginationPageSizeSelector]="[10, 20, 50, 100]"
+          [suppressCellFocus]="true"
+          domLayout="normal"
+        />
+      </div>
+    </div>
+
+    <div class="report-block">
+      <h2 class="tui-text_h6">Công nợ Net Terms</h2>
+      <p class="debt-report-hint">
+        Cột «Thanh toán»: trạng thái thu nợ. <strong>Chờ xác nhận</strong> = khách đã báo chuyển khoản, admin cần vào Quản lý đơn và ghi nhận.
+        <strong>Đã xác nhận thu</strong> = hoàn tất.
+      </p>
+      <div class="grid-wrap">
+        <ag-grid-angular
+          [theme]="theme"
+          [rowData]="debtRows()"
+          [columnDefs]="debtColDefs"
+          [defaultColDef]="defaultColDef"
+          [localeText]="localeText"
+          [pagination]="true"
+          [paginationPageSize]="10"
+          [paginationPageSizeSelector]="[10, 20, 50, 100]"
+          [getRowClass]="debtRowClass"
+          [suppressCellFocus]="true"
+          domLayout="normal"
+        />
+      </div>
+    </div>
+
+    <div class="report-block">
+      <h2 class="tui-text_h6">Biến thể — bán &amp; tồn kho</h2>
+      <p class="report-hint">
+        <strong>Doanh thu trong kỳ</strong>: chỉ tính từ các dòng đơn đã <strong>PAID</strong> trong khoảng ngày đã chọn; không gồm đơn hủy / từ chối / hoàn đã đóng (theo quy tắc backend).
+        <strong>Tồn đầu kỳ (ước lượng)</strong> = đã bán trong kỳ + tồn hiện tại; giả định không có nhập thêm trong kỳ.
+      </p>
+      <div class="grid-wrap">
+        <ag-grid-angular
+          [theme]="theme"
+          [rowData]="variantRows()"
+          [columnDefs]="variantColDefs"
+          [defaultColDef]="defaultColDef"
+          [localeText]="localeText"
+          [pagination]="true"
+          [paginationPageSize]="15"
+          [paginationPageSizeSelector]="[10, 15, 25, 50, 100]"
+          [suppressCellFocus]="true"
+          domLayout="normal"
+        />
+      </div>
+    </div>
+  </div>
+</div>

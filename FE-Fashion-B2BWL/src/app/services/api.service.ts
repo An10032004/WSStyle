@@ -359,11 +359,27 @@ export interface AIProductSync {
   shopId: number;
 }
 
+export interface SalesReportPaidOrderLine {
+  orderId: number;
+  customerLabel: string;
+  amount: number;
+}
+
 export interface SalesReport {
   totalRevenue: number;
   totalOrders: number;
   bestSellers: { name: string; quantity: number; revenue: number }[];
-  revenueByDate: { date: string; amount: number }[];
+  /** Mỗi ngày có đơn PAID: doanh thu + số đơn + tổng SL dòng hàng. */
+  revenueByDate: {
+    date: string;
+    amount: number;
+    paidOrderCount?: number;
+    itemsSoldQuantity?: number;
+    /** Mỗi đơn PAID một dòng: #id · tên · tiền. */
+    paidOrdersSummary?: string;
+    /** Danh sách đơn (mở Quản lý đơn theo orderId). */
+    paidOrders?: SalesReportPaidOrderLine[];
+  }[];
 }
 
 export interface VariantReportRow {
@@ -879,7 +895,58 @@ export class ApiService {
 
   // ─── Reports & Analytics ──────────────────────────────
   getSalesReport(startDate?: string, endDate?: string): Observable<SalesReport> {
-    return this.http.get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
+    return this.http
+      .get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } })
+      .pipe(map((r) => this.normalizeSalesReport(r.data)));
+  }
+
+  /** Chuẩn hóa snake_case / thiếu field từ API cũ. */
+  private normalizeSalesReport(raw: SalesReport | undefined): SalesReport {
+    if (!raw) {
+      return {
+        totalRevenue: 0,
+        totalOrders: 0,
+        bestSellers: [],
+        revenueByDate: [],
+      };
+    }
+    const rows = raw.revenueByDate;
+    if (!rows?.length) return raw;
+    return {
+      ...raw,
+      revenueByDate: rows.map((row) => {
+        const r = row as Record<string, unknown>;
+        const paid = r['paidOrderCount'] ?? r['paid_order_count'];
+        const items = r['itemsSoldQuantity'] ?? r['items_sold_quantity'];
+        const summary = r['paidOrdersSummary'] ?? r['paid_orders_summary'];
+        const paidOrdersRaw = r['paidOrders'] ?? r['paid_orders'];
+        let paidOrders: SalesReportPaidOrderLine[] | undefined;
+        if (Array.isArray(paidOrdersRaw) && paidOrdersRaw.length) {
+          paidOrders = paidOrdersRaw.map((line) => {
+            const o = line as Record<string, unknown>;
+            const id = o['orderId'] ?? o['order_id'];
+            const label = o['customerLabel'] ?? o['customer_label'] ?? '';
+            const amt = o['amount'];
+            return {
+              orderId: Number(id),
+              customerLabel: String(label),
+              amount: amt != null && amt !== '' ? Number(amt) : 0,
+            };
+          });
+        }
+        return {
+          date: String(row.date ?? ''),
+          amount: Number(row.amount ?? 0),
+          paidOrderCount: paid != null && paid !== '' ? Number(paid) : (row.paidOrderCount ?? 0),
+          itemsSoldQuantity: items != null && items !== '' ? Number(items) : (row.itemsSoldQuantity ?? 0),
+          paidOrdersSummary:
+            summary != null && summary !== ''
+              ? String(summary)
+              : row.paidOrdersSummary,
+          paidOrders: paidOrders ?? row.paidOrders,
+        };
+      }),
+    };
   }
 
   getVariantReport(startDate?: string, endDate?: string): Observable<VariantReport> {

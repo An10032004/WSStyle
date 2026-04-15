@@ -1,6 +1,8 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { distinctUntilChanged, map } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   AllCommunityModule,
@@ -225,6 +227,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   defaultColDef: ColDef = { resizable: true, minWidth: 100 };
   localeText: any = AG_GRID_LOCALE_VI;
   private langSub?: Subscription;
+  private querySub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -232,12 +235,25 @@ export class OrdersComponent implements OnInit, OnDestroy {
     private transloco: TranslocoService,
     private languageService: LanguageService,
     private dialogs: TuiDialogService,
-    private alerts: TuiAlertService
+    private alerts: TuiAlertService,
+    private route: ActivatedRoute,
+    private router: Router,
   ) { }
 
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
+    this.querySub = this.route.queryParamMap
+      .pipe(
+        map((qm) => qm.get('orderId')),
+        distinctUntilChanged(),
+      )
+      .subscribe((orderIdStr) => {
+        if (!orderIdStr) return;
+        const id = Number.parseInt(orderIdStr, 10);
+        if (!Number.isFinite(id) || id < 1) return;
+        this.openOrderFromQueryParam(id);
+      });
     this.langSub = this.transloco.selectTranslation().subscribe(() => {
       this.localeText = this.languageService.currentLanguage === 'vi' ? AG_GRID_LOCALE_VI : {};
       if (this.gridApi) {
@@ -248,7 +264,10 @@ export class OrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void { this.langSub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.langSub?.unsubscribe();
+    this.querySub?.unsubscribe();
+  }
 
   loadData(): void {
     this.api.getOrders().subscribe(data => {
@@ -319,6 +338,34 @@ export class OrdersComponent implements OnInit, OnDestroy {
       this.dialogs.open(this.viewDialogTemplate, { size: 'l', label: this.transloco.translate('ORDER.TITLE') })
         .subscribe();
       this.cdr.detectChanges();
+    });
+  }
+
+  /** Mở chi tiết đơn khi có `?orderId=` (ví dụ từ Báo cáo nâng cao). */
+  private openOrderFromQueryParam(orderId: number): void {
+    this.api.getOrderById(orderId).subscribe({
+      next: (fullOrder) => {
+        this.selectedOrder = fullOrder;
+        this.netTermsPaymentAck = false;
+        this.dialogs.open(this.viewDialogTemplate, { size: 'l', label: this.transloco.translate('ORDER.TITLE') }).subscribe();
+        this.cdr.detectChanges();
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { orderId: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      },
+      error: () => {
+        this.alerts.open(`Không tải được đơn #${orderId}.`, { appearance: 'error' }).subscribe();
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { orderId: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+        this.cdr.detectChanges();
+      },
     });
   }
 

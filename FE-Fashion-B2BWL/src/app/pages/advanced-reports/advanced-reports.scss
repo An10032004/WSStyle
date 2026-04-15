@@ -1,0 +1,189 @@
+.page-container {
+  padding: 32px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.range-badge {
+  font-size: 13px;
+  color: var(--tui-text-02, #666);
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.range-human {
+  display: block;
+}
+
+.range-iso {
+  display: block;
+  font-size: 12px;
+  color: #888;
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.summary-card {
+  background: #fff;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #eee;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.icon-box {
+  background: #f0f4ff;
+  color: #3f51b5;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.data .label {
+  display: block;
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 4px;
+}
+
+.data .value {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.details-section {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #eee;
+  padding: 24px;
+}
+
+.report-block {
+  margin-top: 32px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.report-block h2 {
+  margin: 0 0 8px;
+}
+
+.report-hint {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  max-width: 960px;
+}
+
+.report-hint--muted {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.grid-wrap {
+  width: 100%;
+  min-height: 360px;
+  height: 420px;
+
+  ::ng-deep ag-grid-angular {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.debt-report-hint {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px;
+  line-height: 1.45;
+  max-width: 960px;
+}
+
+:host ::ng-deep .ag-debt-awaiting {
+  background-color: #fffbeb !important;
+}
+
+:host ::ng-deep .ag-debt-paid {
+  background-color: #ecfdf5 !important;
+}
+
+/** Bảng theo ngày: không giữ khối trắng cố định; grid cao theo số dòng. */
+.grid-wrap--daily {
+  min-height: 0;
+  height: auto;
+
+  ::ng-deep ag-grid-angular {
+    width: 100%;
+    height: auto;
+    min-height: 120px;
+  }
+}
+
+:host ::ng-deep .ag-cell-wrap-pre {
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+/* Nút tạo bằng cellRenderer — cần ::ng-deep để style áp vào DOM trong AG Grid. */
+:host ::ng-deep ag-grid-angular .daily-paid-orders-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+:host ::ng-deep ag-grid-angular .daily-paid-order-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  margin: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafbff;
+  color: #1a237e;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: #e8eaf6;
+    border-color: #c5cae9;
+  }
+}
+
+:host ::ng-deep ag-grid-angular .daily-paid-orders-fallback {
+  white-space: pre-wrap;
+  line-height: 1.35;
+  font-size: 13px;
+}

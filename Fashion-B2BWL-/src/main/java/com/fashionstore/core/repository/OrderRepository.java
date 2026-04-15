@@ -28,6 +28,19 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     Page<Order> findByUserId(Integer userId, Pageable pageable);
     List<Order> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
+    /**
+     * Đơn trong khoảng thời gian + eager items & variant (báo cáo doanh thu / biến thể).
+     */
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        LEFT JOIN FETCH o.user u
+        LEFT JOIN FETCH o.items i
+        LEFT JOIN FETCH i.productVariant pv
+        LEFT JOIN FETCH pv.product
+        WHERE o.createdAt BETWEEN :start AND :end
+        """)
+    List<Order> findByCreatedAtBetweenWithItemsForReport(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
     @org.springframework.data.jpa.repository.Query("""
         SELECT o FROM Order o
         LEFT JOIN FETCH o.user u

@@ -1,193 +1,366 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton } from '@taiga-ui/core';
+import { AgGridAngular } from 'ag-grid-angular';
+import {
+  AllCommunityModule,
+  ColDef,
+  ICellRendererParams,
+  ModuleRegistry,
+  RowClassParams,
+  themeQuartz,
+} from 'ag-grid-community';
+import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { ApiService, DebtOrderReportRow, SalesReport, VariantReportRow } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
+ModuleRegistry.registerModules([AllCommunityModule]);
+
 @Component({
   standalone: true,
-  imports: [CommonModule, TranslocoModule, TuiIcon, TuiButton],
-  template: `
-    <div class="page-container" *transloco="let t">
-      <div class="page-header">
-        <h1 class="tui-text_h3">{{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}</h1>
-        <div class="filters">
-           <button tuiButton type="button" size="s" appearance="secondary" (click)="setRange('7days')">Last 7 Days</button>
-           <button tuiButton type="button" size="s" appearance="secondary" (click)="setRange('30days')">Last 30 Days</button>
-           <button tuiButton type="button" size="s" appearance="primary" (click)="refresh()">Refresh</button>
-        </div>
-      </div>
-
-      <div class="report-summary" *ngIf="report() as r">
-        <div class="summary-card">
-          <div class="icon-box"><tui-icon icon="@tui.dollar-sign"></tui-icon></div>
-          <div class="data">
-             <span class="label">Total Revenue</span>
-             <span class="value">{{ r.totalRevenue | number }}đ</span>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="icon-box"><tui-icon icon="@tui.shopping-cart"></tui-icon></div>
-          <div class="data">
-             <span class="label">Total Orders</span>
-             <span class="value">{{ r.totalOrders }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="details-section">
-        <div class="table-container">
-           <h2 class="tui-text_h6">Best Selling Products</h2>
-           <table class="tui-table">
-             <thead>
-               <tr class="tui-table__tr">
-                 <th class="tui-table__th">Product Name</th>
-                 <th class="tui-table__th">Quantity</th>
-                 <th class="tui-table__th">Revenue</th>
-               </tr>
-             </thead>
-             <tbody>
-               <tr *ngFor="let item of report()?.bestSellers" class="tui-table__tr">
-                 <td class="tui-table__td">{{ item.name }}</td>
-                 <td class="tui-table__td">{{ item.quantity }}</td>
-                 <td class="tui-table__td">{{ item.revenue | number }}đ</td>
-               </tr>
-             </tbody>
-           </table>
-        </div>
-
-        <div class="table-container" style="margin-top:28px;">
-           <h2 class="tui-text_h6">Net Terms Debt Report</h2>
-           <p class="debt-report-hint">Cột «Thanh toán»: trạng thái thu nợ. <strong>Chờ xác nhận</strong> = khách đã báo chuyển khoản, admin cần vào Quản lý đơn và ghi nhận. <strong>Đã xác nhận thu</strong> = hoàn tất.</p>
-           <table class="tui-table">
-             <thead>
-               <tr class="tui-table__tr">
-                 <th class="tui-table__th">Order</th>
-                 <th class="tui-table__th">Customer</th>
-                 <th class="tui-table__th">Group</th>
-                 <th class="tui-table__th">Amount</th>
-                 <th class="tui-table__th">Due Date</th>
-                 <th class="tui-table__th">Days Left</th>
-                 <th class="tui-table__th">Hạn nợ</th>
-                 <th class="tui-table__th">Thanh toán</th>
-               </tr>
-             </thead>
-             <tbody>
-               <tr *ngFor="let d of debtRows()" class="tui-table__tr" [class.debt-row-awaiting]="isDebtAwaitingConfirm(d)" [class.debt-row-paid]="isDebtPaid(d)">
-                 <td class="tui-table__td">#{{ d.orderId }}</td>
-                 <td class="tui-table__td">{{ d.customerName || '-' }}</td>
-                 <td class="tui-table__td">{{ d.customerGroupName || '-' }}</td>
-                 <td class="tui-table__td">{{ d.totalAmount != null ? (d.totalAmount | number:'1.0-0') + ' ₫' : '—' }}</td>
-                 <td class="tui-table__td">{{ d.dueDate | date:'dd/MM/yyyy' }}</td>
-                 <td class="tui-table__td">{{ d.daysLeft }}</td>
-                 <td class="tui-table__td">{{ d.debtStatus }}</td>
-                 <td class="tui-table__td">
-                   <span>{{ debtPaymentLabel(d) }}</span>
-                   <span class="debt-remind" *ngIf="isDebtAwaitingConfirm(d)"> — Nhắc: vào Quản lý đơn để xác nhận</span>
-                 </td>
-               </tr>
-             </tbody>
-           </table>
-        </div>
-        
-        <div class="table-container" style="margin-top:28px;">
-           <h2 class="tui-text_h6">Variant Sales & Inventory</h2>
-           <table class="tui-table">
-             <thead>
-               <tr class="tui-table__tr">
-                 <th class="tui-table__th">SKU</th>
-                 <th class="tui-table__th">Product</th>
-                 <th class="tui-table__th">Stock Before</th>
-                 <th class="tui-table__th">Sold Quantity</th>
-                 <th class="tui-table__th">% Sold</th>
-                 <th class="tui-table__th">Revenue</th>
-                 <th class="tui-table__th">Current Stock</th>
-               </tr>
-             </thead>
-             <tbody>
-               <tr *ngFor="let v of variantRows()" class="tui-table__tr">
-                 <td class="tui-table__td">{{ v.sku || '-' }}</td>
-                 <td class="tui-table__td">{{ v.productName || '-' }}</td>
-                 <td class="tui-table__td">{{ startingStock(v) }}</td>
-                 <td class="tui-table__td">{{ v.soldQuantity || 0 }}</td>
-                 <td class="tui-table__td">{{ soldPercent(v) }}%</td>
-                 <td class="tui-table__td">{{ v.revenue | number }}đ</td>
-                 <td class="tui-table__td">{{ v.currentStock || 0 }}</td>
-               </tr>
-             </tbody>
-           </table>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .page-container { padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .filters { display: flex; gap: 12px; }
-    .report-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
-    .summary-card { background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #eee; display: flex; gap: 20px; align-items: center; }
-    .icon-box { background: #f0f4ff; color: #3f51b5; padding: 12px; border-radius: 12px; }
-    .data .label { display: block; font-size: 14px; color: #777; margin-bottom: 4px; }
-    .data .value { font-size: 24px; font-weight: bold; }
-    .details-section { background: #fff; border-radius: 16px; border: 1px solid #eee; padding: 24px; }
-    .table-container h2 { margin-bottom: 20px; }
-    .debt-report-hint { font-size: 13px; color: #555; margin: -8px 0 16px; line-height: 1.45; }
-    table { width: 100%; border-collapse: collapse; }
-    tr.debt-row-awaiting { background: #fffbeb; }
-    tr.debt-row-paid { background: #ecfdf5; }
-    .debt-remind { font-size: 12px; color: #92400e; font-weight: 600; }
-  `],
+  selector: 'app-advanced-reports',
+  imports: [CommonModule, TranslocoModule, TuiIcon, TuiButton, AgGridAngular],
+  templateUrl: './advanced-reports.html',
+  styleUrl: './advanced-reports.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdvancedReportsComponent {
+export class AdvancedReportsComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+
   readonly report = signal<SalesReport | null>(null);
   readonly debtRows = signal<DebtOrderReportRow[]>([]);
   readonly variantRows = signal<VariantReportRow[]>([]);
-  
-  startDate = '';
-  endDate = '';
+
+  readonly rangeStart = signal('');
+  readonly rangeEnd = signal('');
+
+  readonly bestSellerRows = computed(() => this.report()?.bestSellers ?? []);
+
+  /** Các ngày có ít nhất một đơn PAID (doanh thu > 0 theo ngày tạo đơn). */
+  readonly dailySalesRows = computed(() => this.report()?.revenueByDate ?? []);
+
+  /** Hiển thị khoảng ngày theo lịch Việt Nam (dd/mm/yyyy). */
+  readonly rangeLabelVi = computed(() => {
+    const s = this.rangeStart();
+    const e = this.rangeEnd();
+    if (!s || !e) return '';
+    try {
+      const d0 = new Date(s + 'T12:00:00');
+      const d1 = new Date(e + 'T12:00:00');
+      if (Number.isNaN(d0.getTime()) || Number.isNaN(d1.getTime())) return `${s} → ${e}`;
+      const opt: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      };
+      return `${d0.toLocaleDateString('vi-VN', opt)} → ${d1.toLocaleDateString('vi-VN', opt)}`;
+    } catch {
+      return `${s} → ${e}`;
+    }
+  });
+
+  readonly theme = themeQuartz;
+  readonly localeText: Record<string, string> = AG_GRID_LOCALE_VI as unknown as Record<string, string>;
+
+  readonly defaultColDef: ColDef = {
+    sortable: true,
+    filter: true,
+    resizable: true,
+    floatingFilter: true,
+    suppressHeaderMenuButton: true,
+  };
+
+  dailySalesColDefs: ColDef[] = [];
+  bestSellerColDefs: ColDef[] = [];
+  debtColDefs: ColDef[] = [];
+  variantColDefs: ColDef[] = [];
+
+  debtRowClass = (params: RowClassParams<DebtOrderReportRow>): string | undefined => {
+    const d = params.data;
+    if (!d) return undefined;
+    if (this.isDebtAwaitingConfirm(d)) return 'ag-debt-awaiting';
+    if (this.isDebtPaid(d)) return 'ag-debt-paid';
+    return undefined;
+  };
 
   constructor() {
-    this.refresh();
+    this.applyDayRange(30);
+    void this.refresh();
   }
 
-  async refresh() {
-    const data = await firstValueFrom(this.api.getSalesReport(this.startDate, this.endDate));
+  ngOnInit(): void {
+    this.buildColumnDefs();
+  }
+
+  private buildColumnDefs(): void {
+    this.dailySalesColDefs = [
+      {
+        field: 'date',
+        headerName: 'Ngày',
+        minWidth: 168,
+        maxWidth: 220,
+        filter: 'agTextColumnFilter',
+        headerTooltip:
+          'Ngày tạo đơn (theo server). Chỉ liệt kê ngày có ít nhất một đơn đủ điều kiện PAID và được tính doanh thu.',
+        valueFormatter: (p) => this.formatYmdToVi(p.value as string),
+      },
+      {
+        field: 'paidOrderCount',
+        headerName: 'Đơn PAID',
+        width: 118,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip: 'Số đơn thanh toán PAID (được tính doanh thu) trong ngày.',
+        valueFormatter: (p) => String(p.value ?? 0),
+      },
+      {
+        field: 'itemsSoldQuantity',
+        headerName: 'SL hàng',
+        width: 100,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip: 'Tổng quantity tất cả dòng hàng trong các đơn PAID của ngày.',
+        valueFormatter: (p) => String(p.value ?? 0),
+      },
+      {
+        colId: 'paidOrdersDetail',
+        headerName: 'Đơn trong ngày',
+        flex: 1,
+        minWidth: 260,
+        filter: 'agTextColumnFilter',
+        wrapText: true,
+        autoHeight: true,
+        headerTooltip: 'Bấm từng dòng để mở chi tiết đơn (trang Quản lý đơn).',
+        valueGetter: (p) => {
+          const d = p.data as SalesReport['revenueByDate'][number] | undefined;
+          if (!d) return '';
+          if (d.paidOrders?.length) {
+            return d.paidOrders.map((o) => `#${o.orderId} ${o.customerLabel}`).join(' | ');
+          }
+          return d.paidOrdersSummary ?? '';
+        },
+        cellRenderer: (p: ICellRendererParams<SalesReport['revenueByDate'][number]>) =>
+          this.renderDailyPaidOrdersCell(p),
+      },
+      {
+        field: 'amount',
+        headerName: 'Doanh thu',
+        minWidth: 140,
+        maxWidth: 180,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip: 'Tổng totalAmount các đơn PAID có ngày tạo = cột Ngày.',
+        valueFormatter: (p) => this.formatVnd(p.value as number),
+      },
+    ];
+
+    this.bestSellerColDefs = [
+      {
+        field: 'name',
+        headerName: 'Tên sản phẩm',
+        flex: 2,
+        minWidth: 180,
+        filter: 'agTextColumnFilter',
+      },
+      {
+        field: 'quantity',
+        headerName: 'SL bán',
+        width: 130,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+      },
+      {
+        field: 'revenue',
+        headerName: 'Doanh thu (trong kỳ)',
+        width: 180,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip:
+          'Tổng tiền hàng đã bán trong khoảng ngày đã chọn; chỉ tính phần đơn đã thanh toán (PAID), đồng bộ backend.',
+        valueFormatter: (p) => this.formatVnd(p.value as number),
+      },
+    ];
+
+    this.debtColDefs = [
+      {
+        field: 'orderId',
+        headerName: 'Đơn',
+        width: 110,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        valueFormatter: (p) => (p.value != null ? `#${p.value}` : '—'),
+      },
+      {
+        field: 'customerName',
+        headerName: 'Khách hàng',
+        flex: 1,
+        minWidth: 160,
+        filter: 'agTextColumnFilter',
+        valueFormatter: (p) => (p.value ? String(p.value) : '—'),
+      },
+      {
+        field: 'customerGroupName',
+        headerName: 'Nhóm KH',
+        width: 140,
+        filter: 'agTextColumnFilter',
+        valueFormatter: (p) => (p.value ? String(p.value) : '—'),
+      },
+      {
+        field: 'totalAmount',
+        headerName: 'Số tiền',
+        width: 150,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        valueFormatter: (p) =>
+          p.value != null && p.value !== undefined ? `${this.formatNumber0(p.value as number)} ₫` : '—',
+      },
+      {
+        field: 'dueDate',
+        headerName: 'Hạn thanh toán',
+        width: 140,
+        filter: 'agTextColumnFilter',
+        valueFormatter: (p) => this.formatDateCell(p.value as string | undefined),
+      },
+      {
+        field: 'daysLeft',
+        headerName: 'Còn (ngày)',
+        width: 120,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+      },
+      {
+        field: 'debtStatus',
+        headerName: 'Hạn nợ',
+        width: 130,
+        filter: 'agTextColumnFilter',
+      },
+      {
+        colId: 'paymentLabel',
+        headerName: 'Thanh toán',
+        flex: 1,
+        minWidth: 220,
+        filter: 'agTextColumnFilter',
+        valueGetter: (p) => this.debtPaymentLabel(p.data),
+        valueFormatter: (p) => {
+          const base = String(p.value ?? '—');
+          const d = p.data as DebtOrderReportRow;
+          if (this.isDebtAwaitingConfirm(d)) {
+            return `${base} — Nhắc: vào Quản lý đơn để xác nhận`;
+          }
+          return base;
+        },
+      },
+    ];
+
+    this.variantColDefs = [
+      {
+        field: 'sku',
+        headerName: 'SKU',
+        width: 140,
+        filter: 'agTextColumnFilter',
+        valueFormatter: (p) => (p.value ? String(p.value) : '—'),
+      },
+      {
+        field: 'productName',
+        headerName: 'Sản phẩm',
+        flex: 1,
+        minWidth: 180,
+        filter: 'agTextColumnFilter',
+        valueFormatter: (p) => (p.value ? String(p.value) : '—'),
+      },
+      {
+        colId: 'startingStock',
+        headerName: 'Tồn đầu kỳ (ước lượng)',
+        width: 200,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip:
+          'Đã bán trong kỳ + Tồn hiện tại. Giả định không có nhập kho thêm giữa hai mốc ngày đã chọn.',
+        valueGetter: (p) => this.startingStock(p.data as VariantReportRow),
+      },
+      {
+        field: 'soldQuantity',
+        headerName: 'Đã bán (kỳ)',
+        width: 130,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        valueFormatter: (p) => String(p.value ?? 0),
+      },
+      {
+        colId: 'soldPct',
+        headerName: '% bán / tồn đầu',
+        width: 150,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip: 'Đã bán ÷ Tồn đầu kỳ (ước lượng) × 100. Nếu tồn đầu = 0 thì hiển thị 0%.',
+        valueGetter: (p) => this.soldPercent(p.data as VariantReportRow),
+        valueFormatter: (p) => `${p.value ?? 0}%`,
+      },
+      {
+        field: 'revenue',
+        headerName: 'Doanh thu (trong kỳ)',
+        width: 190,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        headerTooltip:
+          'Chỉ cộng từ đơn PAID trong khoảng ngày; không tính đơn hủy / từ chối / hoàn đã đóng (theo backend).',
+        valueFormatter: (p) => this.formatVnd(p.value as number),
+      },
+      {
+        field: 'currentStock',
+        headerName: 'Tồn hiện tại',
+        width: 130,
+        filter: 'agNumberColumnFilter',
+        type: 'numericColumn',
+        valueFormatter: (p) => String(p.value ?? 0),
+      },
+    ];
+  }
+
+  private applyDayRange(days: number): void {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - days);
+    this.rangeStart.set(start.toISOString().split('T')[0]);
+    this.rangeEnd.set(end.toISOString().split('T')[0]);
+  }
+
+  async refresh(): Promise<void> {
+    const s = this.rangeStart();
+    const e = this.rangeEnd();
+    const data = await firstValueFrom(this.api.getSalesReport(s, e));
     this.report.set(data);
-    const debt = await firstValueFrom(this.api.getDebtReport(this.startDate, this.endDate));
+    const debt = await firstValueFrom(this.api.getDebtReport(s, e));
     this.debtRows.set(debt || []);
-    const variants = await firstValueFrom(this.api.getVariantReport(this.startDate, this.endDate));
+    const variants = await firstValueFrom(this.api.getVariantReport(s, e));
     this.variantRows.set(variants?.items || []);
   }
 
-  setRange(type: '7days' | '30days') {
-    const end = new Date();
-    const start = new Date();
-    if (type === '7days') start.setDate(end.getDate() - 7);
-    if (type === '30days') start.setDate(end.getDate() - 30);
-    
-    this.startDate = start.toISOString().split('T')[0];
-    this.endDate = end.toISOString().split('T')[0];
-    this.refresh();
+  setRange(type: '7days' | '30days'): void {
+    this.applyDayRange(type === '7days' ? 7 : 30);
+    void this.refresh();
   }
 
-  // Compute estimated starting stock for the period. NOTE: this assumes no restocks returns.
-  startingStock(v: VariantReportRow): number {
-    const sold = v?.soldQuantity ?? 0;
-    const current = v?.currentStock ?? 0;
+  startingStock(v: VariantReportRow | undefined): number {
+    if (!v) return 0;
+    const sold = v.soldQuantity ?? 0;
+    const current = v.currentStock ?? 0;
     return sold + current;
   }
 
-  soldPercent(v: VariantReportRow): number {
+  soldPercent(v: VariantReportRow | undefined): number {
+    if (!v) return 0;
     const start = this.startingStock(v);
     if (start <= 0) return 0;
-    const sold = v?.soldQuantity ?? 0;
+    const sold = v.soldQuantity ?? 0;
     return Math.round((sold / start) * 100);
   }
 
-  debtPaymentLabel(d: DebtOrderReportRow): string {
+  debtPaymentLabel(d: DebtOrderReportRow | undefined): string {
+    if (!d) return '—';
     const ps = (d.paymentStatus || '').toUpperCase();
     if (ps === 'PAID') return 'Đã xác nhận thu';
     if (ps === 'AWAITING_CONFIRMATION') return 'Chờ xác nhận (khách đã báo CK)';
@@ -201,5 +374,81 @@ export class AdvancedReportsComponent {
 
   isDebtPaid(d: DebtOrderReportRow): boolean {
     return (d.paymentStatus || '').toUpperCase() === 'PAID';
+  }
+
+  /** Điều hướng sang Quản lý đơn và mở popup chi tiết (query `orderId`). */
+  goToOrder(orderId: number): void {
+    void this.router.navigate(['/admin', 'orders'], { queryParams: { orderId } });
+  }
+
+  private renderDailyPaidOrdersCell(
+    p: ICellRendererParams<SalesReport['revenueByDate'][number]>,
+  ): HTMLElement | string {
+    const orders = p.data?.paidOrders;
+    if (orders?.length) {
+      const wrap = document.createElement('div');
+      wrap.className = 'daily-paid-orders-cell';
+      for (const line of orders) {
+        const row = document.createElement('div');
+        row.className = 'daily-paid-order-row';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'daily-paid-order-link';
+        btn.textContent = `#${line.orderId} · ${line.customerLabel} · ${this.formatVnd(line.amount)}`;
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          this.goToOrder(line.orderId);
+        });
+        row.appendChild(btn);
+        wrap.appendChild(row);
+      }
+      return wrap;
+    }
+    const summary = p.data?.paidOrdersSummary;
+    if (summary) {
+      const div = document.createElement('div');
+      div.className = 'daily-paid-orders-fallback';
+      div.textContent = summary;
+      return div;
+    }
+    return '—';
+  }
+
+  private formatVnd(n: number | null | undefined): string {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    return `${new Intl.NumberFormat('vi-VN').format(Number(n))} đ`;
+  }
+
+  private formatNumber0(n: number): string {
+    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
+  }
+
+  private formatDateCell(iso: string | undefined): string {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return iso;
+    }
+  }
+
+  /** Chuỗi yyyy-MM-dd → hiển thị lịch Việt (có thứ). */
+  private formatYmdToVi(ymd: string | undefined): string {
+    if (!ymd) return '—';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+    if (!m) return ymd;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    const dt = new Date(y, mo - 1, d);
+    if (Number.isNaN(dt.getTime())) return ymd;
+    return dt.toLocaleDateString('vi-VN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   }
 }
