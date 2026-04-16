@@ -10,8 +10,8 @@ import { MaskitoDirective } from '@maskito/angular';
 import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, ProductVariant, Product, Category } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
-import { Subscription, forkJoin, concat, EMPTY, of } from 'rxjs';
-import { finalize, map, tap } from 'rxjs/operators';
+import { Subscription, forkJoin, concat, EMPTY, of, throwError } from 'rxjs';
+import { catchError, finalize, map, tap } from 'rxjs/operators';
 import { readApiErrorMessage } from '../../utils/auth-http.util';
 import {
   parseVariantDimensionSlotsFromJson,
@@ -156,6 +156,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
     if (val === null || val === undefined) return 0;
     const str = String(val);
     return Number(str.replace(/[\.,]/g, ''));
+  }
+
+  /**
+   * Chuẩn hóa id biến thể cho so sánh / API.
+   * Tránh lệch kiểu (number vs string) khiến `activeIds` và `variantsRaw` không khớp → DELETE nhầm rồi UPDATE 404.
+   */
+  private normalizePositiveVariantId(value: unknown): number | undefined {
+    if (value == null) return undefined;
+    const n = typeof value === 'number' ? value : Number(String(value).trim());
+    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return undefined;
+    return n;
   }
 
   ngOnInit(): void {
@@ -715,7 +726,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   private variantToCombinationRow(v: ProductVariant, label: string): CombinationTableRow {
     return {
-      id: v.id,
+      id: this.normalizePositiveVariantId(v.id),
       label,
       dim1: v.color ?? '',
       dim2: v.size ?? '',
@@ -759,14 +770,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   private removeVariantFromLocalCaches(variantId: number): void {
-    this.variantsRaw = this.variantsRaw.filter((v) => v.id !== variantId);
-    this.rowData = this.rowData.filter((v) => v.id !== variantId);
+    this.variantsRaw = this.variantsRaw.filter((v) => this.normalizePositiveVariantId(v.id) !== variantId);
+    this.rowData = this.rowData.filter((v) => this.normalizePositiveVariantId(v.id) !== variantId);
   }
 
   /** Xóa ngay trên DB (sau dialog); dòng chưa có id chỉ bỏ khỏi bảng. */
   private executeDeleteCombinationRows(rows: CombinationTableRow[]): void {
-    const withIds = rows.filter((r): r is CombinationTableRow & { id: number } => r.id != null && r.id > 0);
-    const withoutIds = rows.filter((r) => !r.id);
+    const withIds = rows.filter((r): r is CombinationTableRow & { id: number } => {
+      const nid = this.normalizePositiveVariantId(r.id);
+      return nid !== undefined;
+    });
+    const withoutIds = rows.filter((r) => this.normalizePositiveVariantId(r.id) === undefined);
 
     for (const r of withoutIds) {
       const idx = this.combinationRows.indexOf(r);
@@ -781,13 +795,20 @@ export class VariantListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    forkJoin(withIds.map((r) => this.api.deleteProductVariant(r.id!))).subscribe({
+    forkJoin(
+      withIds.map((r) => this.api.deleteProductVariant(this.normalizePositiveVariantId(r.id)!)),
+    ).subscribe({
       next: () => {
-        const idSet = new Set(withIds.map((r) => r.id!));
+        const idSet = new Set(
+          withIds.map((r) => this.normalizePositiveVariantId(r.id)).filter((id): id is number => id !== undefined),
+        );
         for (const id of idSet) {
           this.removeVariantFromLocalCaches(id);
         }
-        this.combinationRows = this.combinationRows.filter((r) => r.id == null || !idSet.has(r.id));
+        this.combinationRows = this.combinationRows.filter((r) => {
+          const nid = this.normalizePositiveVariantId(r.id);
+          return nid === undefined || !idSet.has(nid);
+        });
         this.clearCombinationRowSelection();
         this.alerts.open(this.transloco.translate('VARIANT.DELETE_VARIANTS_OK'), { appearance: 'success' }).subscribe();
         this.cdr.markForCheck();
@@ -953,23 +974,35 @@ export class VariantListComponent implements OnInit, OnDestroy {
       imageUrls: r.imageUrls.filter((u) => u.trim()).join(','),
     });
 
-    const updates = activeRows.filter((r) => r.id);
-    const creates = activeRows.filter((r) => !r.id);
+    const updates = activeRows.filter((r) => this.normalizePositiveVariantId(r.id) !== undefined);
+    const creates = activeRows.filter((r) => this.normalizePositiveVariantId(r.id) === undefined);
 
     // Mọi biến thể đang có trên DB cho SP này mà *không* còn trong bảng đang lưu → phải xóa.
     // (Chỉ dựa vào _removed là không đủ: sau «Tạo tổ hợp» danh sách bị replace, dòng cũ mất khỏi UI
     // nhưng không gắn _removed → không DELETE → INSERT cùng SKU bị trùng UK.)
     const activeIds = new Set(
-      activeRows.map((r) => r.id).filter((id): id is number => id != null && id > 0),
+      activeRows
+        .map((r) => this.normalizePositiveVariantId(r.id))
+        .filter((id): id is number => id !== undefined),
     );
     const loadedForProduct = this.variantsRawForProduct(productId);
     const idsToDelete = loadedForProduct
-      .map((v) => v.id)
-      .filter((id): id is number => id != null && id > 0 && !activeIds.has(id));
+      .map((v) => this.normalizePositiveVariantId(v.id))
+      .filter((id): id is number => id !== undefined && !activeIds.has(id));
+
+    const deleteIfGone = (id: number) =>
+      this.api.deleteProductVariant(id).pipe(
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) return of(undefined);
+          return throwError(() => err);
+        }),
+      );
 
     const ops = [
-      ...idsToDelete.map((id) => this.api.deleteProductVariant(id)),
-      ...updates.map((r) => this.api.updateProductVariant(r.id!, buildBody(r) as any)),
+      ...idsToDelete.map((id) => deleteIfGone(id)),
+      ...updates.map((r) =>
+        this.api.updateProductVariant(this.normalizePositiveVariantId(r.id)!, buildBody(r) as any),
+      ),
       ...creates.map((r) => this.api.createProductVariant(buildBody(r) as any)),
     ];
 
