@@ -63,4 +63,11 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     """)
     List<Order> findDebtOrdersForReport(@org.springframework.data.repository.query.Param("start") LocalDateTime start,
                                         @org.springframework.data.repository.query.Param("end") LocalDateTime end);
+
+    @Query("""
+        SELECT COUNT(o) FROM Order o
+        WHERE o.user.id = :userId
+          AND o.status NOT IN :excluded
+        """)
+    long countPriorOrdersExcludingStatuses(@Param("userId") Integer userId, @Param("excluded") List<String> excluded);
 }

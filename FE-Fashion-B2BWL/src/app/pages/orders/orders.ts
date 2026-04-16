@@ -91,6 +91,14 @@ ModuleRegistry.registerModules([AllCommunityModule]);
             <span class="label">{{ 'ORDER.TOTAL' | transloco }}:</span>
             <span class="value" style="font-weight: bold; color: #d32f2f;">{{ selectedOrder.totalAmount | number }}đ</span>
           </div>
+          <div class="detail-item">
+            <span class="label">Đã thanh toán:</span>
+            <span class="value" style="font-weight: 600; color: #1b5e20;">{{ (selectedOrder.paidAmount ?? 0) | number }}đ</span>
+          </div>
+          <div class="detail-item" *ngIf="(selectedOrder.paymentMethod || '').toUpperCase() === 'NET_TERMS'">
+            <span class="label">Còn nợ:</span>
+            <span class="value" [style.color]="(selectedOrder.debtAmount ?? 0) > 0 ? '#b45309' : '#333'">{{ (selectedOrder.debtAmount ?? 0) | number }}đ</span>
+          </div>
 
           <!-- Section: Recipient Information -->
           <div class="detail-item full-width" style="grid-column: span 2; margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 12px;">
@@ -484,8 +492,10 @@ export class OrdersComponent implements OnInit, OnDestroy {
     if (!this.selectedOrder) return;
     this.selectedOrder.status = updated.status;
     this.selectedOrder.paymentStatus = updated.paymentStatus;
-    if (updated.paidAmount != null) this.selectedOrder.paidAmount = updated.paidAmount;
-    if (updated.debtAmount != null) this.selectedOrder.debtAmount = updated.debtAmount;
+    // Luôn đồng bộ tiền từ server (tránh `undefined == null` khiến paidAmount không cập nhật sau PAID).
+    this.selectedOrder.totalAmount = updated.totalAmount ?? this.selectedOrder.totalAmount;
+    this.selectedOrder.paidAmount = updated.paidAmount ?? 0;
+    this.selectedOrder.debtAmount = updated.debtAmount ?? 0;
     this.selectedOrder.refundProcessedAt = updated.refundProcessedAt;
     this.selectedOrder.refundConfirmedByCustomerAt = updated.refundConfirmedByCustomerAt;
   }

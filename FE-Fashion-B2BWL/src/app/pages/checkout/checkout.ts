@@ -13,6 +13,7 @@ import { ApiService, DebtSummary, NetTermQuote, OrderRequest } from '../../servi
 import { AuthService } from '../../services/auth.service';
 import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 import { buildOrderItemPricingNote } from '../../utils/order-pricing-snapshot';
+import { estimateCouponDiscountAmount, subtotalAfterCouponDiscount } from '../../utils/coupon-discount';
 
 @Component({
   selector: 'app-checkout',
@@ -32,7 +33,7 @@ export class CheckoutComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly cartService = inject(CartService);
   private readonly apiService = inject(ApiService);
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly alerts = inject(TuiAlertService);
   private readonly dialogs = inject(TuiDialogService);
@@ -40,23 +41,11 @@ export class CheckoutComponent implements OnInit {
   @ViewChild('paymentDialog') paymentDialogTemplate!: TemplateRef<any>;
   paymentQrUrl = '';
   currentOrder: any = null;
-  couponCode = '';
+  eligibleCoupons$ = this.cartService.eligibleCoupons$;
+  selectedCouponCode$ = this.cartService.selectedCouponCode$;
 
-  applyCoupon() {
-    if (!this.couponCode.trim()) return;
-    this.cartService.applyCoupon(this.couponCode).subscribe({
-      next: () => {
-        this.couponCode = '';
-      },
-      error: (err) => {
-        const msg = err?.error?.message || 'Mã giảm giá không hợp lệ';
-        this.alerts.open(msg, { appearance: 'error' }).subscribe();
-      }
-    });
-  }
-
-  removeCoupon() {
-    this.cartService.removeCoupon();
+  selectCheckoutCoupon(code: string | null): void {
+    this.cartService.setSelectedCouponCode(code);
   }
 
   copyToClipboard(text: string, label: string) {
@@ -107,14 +96,7 @@ export class CheckoutComponent implements OnInit {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
 
-      // Apply discount before shipping calculation
-      if (coupon) {
-        if (coupon.discountType === 'PERCENTAGE') {
-          subtotal = subtotal * (1 - coupon.discountValue / 100);
-        } else {
-          subtotal = Math.max(0, subtotal - coupon.discountValue);
-        }
-      }
+      subtotal = subtotalAfterCouponDiscount(subtotal, coupon);
 
       const qty = selected.reduce((s, i) => s + i.quantity, 0);
       if (selected.length === 0) {
@@ -143,14 +125,7 @@ export class CheckoutComponent implements OnInit {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
 
-      // Apply discount before tax calculation
-      if (coupon) {
-        if (coupon.discountType === 'PERCENTAGE') {
-          subtotal = subtotal * (1 - coupon.discountValue / 100);
-        } else {
-          subtotal = Math.max(0, subtotal - coupon.discountValue);
-        }
-      }
+      subtotal = subtotalAfterCouponDiscount(subtotal, coupon);
 
       if (selected.length === 0) {
         return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
@@ -166,15 +141,8 @@ export class CheckoutComponent implements OnInit {
   taxFee$ = this.taxQuote$.pipe(map(q => q?.taxAmount ?? 0));
 
   discountAmount$ = combineLatest([this.subtotal$, this.appliedCoupon$]).pipe(
-    map(([sub, coupon]) => {
-      if (!coupon) return 0;
-      if (coupon.discountType === 'PERCENTAGE') {
-        return sub * (coupon.discountValue / 100);
-      } else {
-        return Math.min(sub, coupon.discountValue);
-      }
-    }),
-    shareReplay(1)
+    map(([sub, coupon]) => estimateCouponDiscountAmount(sub, coupon)),
+    shareReplay(1),
   );
 
   totalPrice$ = combineLatest([this.subtotal$, this.discountAmount$, this.shippingFee$, this.taxFee$]).pipe(

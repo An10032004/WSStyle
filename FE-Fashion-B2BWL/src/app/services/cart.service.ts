@@ -1,9 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
-import { ApiService, Bundle, Product, ProductVariant } from './api.service';
+import { ApiService, Bundle, Coupon, Product, ProductVariant } from './api.service';
 import { isVariantAvailableForSale } from '../utils/variant-availability';
 import { AuthService } from './auth.service';
-import { BehaviorSubject, Observable, forkJoin, fromEvent, of } from 'rxjs';
+import { BehaviorSubject, Observable, combineLatest, forkJoin, fromEvent, of } from 'rxjs';
 import {
   map,
   startWith,
@@ -107,8 +107,26 @@ export class CartService {
     this.cartDrawerOpenSubject.next(!this.cartDrawerOpenSubject.value);
   }
   
-  private appliedCouponSubject = new BehaviorSubject<any | null>(null);
-  appliedCoupon$ = this.appliedCouponSubject.asObservable();
+  private eligibleCouponsSubject = new BehaviorSubject<Coupon[]>([]);
+  /** Mã đủ điều kiện theo user (lịch + số đơn đã mua tối thiểu). */
+  readonly eligibleCoupons$ = this.eligibleCouponsSubject.asObservable();
+
+  private selectedCouponCodeSubject = new BehaviorSubject<string | null>(null);
+  /** Mã đang chọn (radio, tối đa 1). */
+  readonly selectedCouponCode$ = this.selectedCouponCodeSubject.asObservable();
+
+  readonly appliedCoupon$ = combineLatest([
+    this.eligibleCouponsSubject.asObservable(),
+    this.selectedCouponCodeSubject.asObservable(),
+  ]).pipe(
+    map(([list, code]) => {
+      if (!code) {
+        return null;
+      }
+      return list.find((c) => c.code === code) ?? null;
+    }),
+    shareReplay(1),
+  );
 
   private pricingRulesSubject = new BehaviorSubject<any[]>([]);
   pricingRules$ = this.pricingRulesSubject.asObservable();
@@ -118,8 +136,12 @@ export class CartService {
 
   private currentUserId: number | null = null;
   
-  get appliedCoupon(): any | null {
-    return this.appliedCouponSubject.value;
+  get appliedCoupon(): Coupon | null {
+    const code = this.selectedCouponCodeSubject.value;
+    if (!code) {
+      return null;
+    }
+    return this.eligibleCouponsSubject.value.find((c) => c.code === code) ?? null;
   }
 
   private loadPricingRules() {
@@ -148,17 +170,23 @@ export class CartService {
     this.saveCart(items);
   }
 
-  applyCoupon(code: string) {
-    return this.api.validateCoupon(code).pipe(
-      map(coupon => {
-        this.appliedCouponSubject.next(coupon);
-        return coupon;
-      })
-    );
+  /** Chọn một mã trong danh sách đủ điều kiện (hoặc bỏ chọn). */
+  setSelectedCouponCode(code: string | null): void {
+    this.selectedCouponCodeSubject.next(code && code.trim() ? code.trim() : null);
+    const uid = this.currentUserId;
+    if (!uid) {
+      return;
+    }
+    const v = this.selectedCouponCodeSubject.value;
+    if (v) {
+      localStorage.setItem(`b2bwl_coupon_sel_${uid}`, v);
+    } else {
+      localStorage.removeItem(`b2bwl_coupon_sel_${uid}`);
+    }
   }
 
-  removeCoupon() {
-    this.appliedCouponSubject.next(null);
+  removeCoupon(): void {
+    this.setSelectedCouponCode(null);
   }
 
   get currentItems(): CartItem[] {
@@ -169,6 +197,18 @@ export class CartService {
     this.auth.user$.subscribe((user) => {
       const oldUserId = this.currentUserId;
       this.currentUserId = user?.id || null;
+      const userChanged = oldUserId !== this.currentUserId;
+
+      if (userChanged) {
+        this.selectedCouponCodeSubject.next(null);
+        this.eligibleCouponsSubject.next([]);
+        if (this.currentUserId) {
+          const stored = localStorage.getItem(`b2bwl_coupon_sel_${this.currentUserId}`);
+          if (stored) {
+            this.selectedCouponCodeSubject.next(stored);
+          }
+        }
+      }
 
       if (oldUserId === null && this.currentUserId !== null) {
         // Guest becomes User -> Merge
@@ -180,6 +220,28 @@ export class CartService {
       this.loadPricingRules();
       this.scheduleSyncCartMetadataFromServer();
     });
+
+    combineLatest([this.cart$, this.auth.user$])
+      .pipe(
+        debounceTime(250),
+        switchMap(([items, user]) => {
+          const selected = items.filter((i) => i.selected !== false);
+          if (!user?.id || selected.length === 0) {
+            return of([] as Coupon[]);
+          }
+          return this.api.getCheckoutEligibleCoupons(user.id).pipe(catchError(() => of([] as Coupon[])));
+        }),
+      )
+      .subscribe((list) => {
+        this.eligibleCouponsSubject.next(list);
+        const sel = this.selectedCouponCodeSubject.value;
+        if (sel && !list.some((c) => c.code === sel)) {
+          this.selectedCouponCodeSubject.next(null);
+          if (this.currentUserId) {
+            localStorage.removeItem(`b2bwl_coupon_sel_${this.currentUserId}`);
+          }
+        }
+      });
 
     fromEvent(this.document, 'visibilitychange')
       .pipe(
@@ -1035,6 +1097,7 @@ export class CartService {
   clearSelected() {
     const remaining = this.currentItems.filter(i => !i.selected);
     this.saveCart(remaining);
+    this.setSelectedCouponCode(null);
   }
 
   toggleItemSelection(

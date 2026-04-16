@@ -426,11 +426,8 @@ export interface Coupon {
   code: string;
   discountType: string;
   discountValue: number;
-  minOrderAmount?: number;
-  maxDiscountAmount?: number;
   startDate?: string;
   endDate?: string;
-  usageLimit?: number;
   usedCount: number;
   status: string;
   applyProductType?: string;
@@ -438,6 +435,8 @@ export interface Coupon {
   applyCustomerType?: string;
   applyCustomerValue?: string;
   priority: number;
+  /** Số đơn đã mua tối thiểu (không tính hủy/từ chối) để thấy/áp dụng mã; 0 = không yêu cầu. */
+  minimumPriorOrders?: number;
 }
 
 export interface SaleCampaign {
@@ -997,8 +996,18 @@ export class ApiService {
     return this.http.delete<void>(`${this.base}/coupons/${id}`);
   }
 
-  validateCoupon(code: string): Observable<Coupon> {
-    return this.http.get<Coupon>(`${this.base}/coupons/validate/${code}`);
+  validateCoupon(code: string, userId?: number): Observable<Coupon> {
+    let params = new HttpParams();
+    if (userId != null) {
+      params = params.set('userId', String(userId));
+    }
+    const trimmed = code.trim();
+    return this.http.get<Coupon>(`${this.base}/coupons/validate/${encodeURIComponent(trimmed)}`, { params });
+  }
+
+  getCheckoutEligibleCoupons(userId: number): Observable<Coupon[]> {
+    const params = new HttpParams().set('userId', String(userId));
+    return this.http.get<Coupon[]>(`${this.base}/coupons/checkout-eligible`, { params });
   }
 
   // ─── Sale Campaigns ────────────────────────────────────

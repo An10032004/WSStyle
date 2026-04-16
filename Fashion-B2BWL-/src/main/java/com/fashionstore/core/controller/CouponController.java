@@ -2,6 +2,7 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.model.Coupon;
 import com.fashionstore.core.repository.CouponRepository;
+import com.fashionstore.core.service.CouponService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,9 @@ public class CouponController {
 
     @Autowired
     private CouponRepository repository;
+
+    @Autowired
+    private CouponService couponService;
 
     @GetMapping
     public List<Coupon> getAll() {
@@ -29,8 +33,6 @@ public class CouponController {
     public Coupon update(@PathVariable Integer id, @RequestBody Coupon updatedCoupon) {
         return repository.findById(id).map(coupon -> {
             coupon.setCode(updatedCoupon.getCode());
-            // Though user said "Discount", they probably mean Discount Value, keeping Type to not break anything. 
-            // Better yet, update properties if they are provided or just update all that the frontend will provide
             if (updatedCoupon.getDiscountType() != null) {
                 coupon.setDiscountType(updatedCoupon.getDiscountType());
             }
@@ -42,7 +44,10 @@ public class CouponController {
             }
             coupon.setStartDate(updatedCoupon.getStartDate());
             coupon.setEndDate(updatedCoupon.getEndDate());
-            
+            coupon.setMinimumPriorOrders(updatedCoupon.getMinimumPriorOrders());
+            if (updatedCoupon.getPriority() != null) {
+                coupon.setPriority(updatedCoupon.getPriority());
+            }
             return repository.save(coupon);
         }).orElseThrow(() -> new RuntimeException("Coupon not found"));
     }
@@ -52,15 +57,19 @@ public class CouponController {
         repository.deleteById(id);
     }
 
+    /**
+     * Kiểm tra mã (lịch, trạng thái, số đơn đã mua tối thiểu).
+     */
     @GetMapping("/validate/{code}")
-    public Coupon validate(@PathVariable String code) {
-        Coupon coupon = repository.findByCode(code)
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá này không tồn tại"));
-        
-        if (!"ACTIVE".equals(coupon.getStatus())) {
-            throw new RuntimeException("Mã giảm giá này hiện đang bị tạm khóa hoặc đã hết hạn");
-        }
-        
-        return coupon;
+    public Coupon validate(
+            @PathVariable String code,
+            @RequestParam(required = false) Integer userId) {
+        return couponService.validateForCheckout(code, userId);
+    }
+
+    /** Mã hiển thị ở giỏ/checkout (đã lọc theo user + số đơn đã mua). */
+    @GetMapping("/checkout-eligible")
+    public List<Coupon> checkoutEligible(@RequestParam Integer userId) {
+        return couponService.listCheckoutEligible(userId);
     }
 }

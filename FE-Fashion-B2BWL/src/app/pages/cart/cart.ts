@@ -23,6 +23,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
 import { ApiService, DebtSummary } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
+import { estimateCouponDiscountAmount, subtotalAfterCouponDiscount } from '../../utils/coupon-discount';
 
 @Component({
   selector: 'app-cart',
@@ -41,7 +42,7 @@ export class CartComponent implements OnInit {
   private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
   private readonly alerts = inject(TuiAlertService);
 
   cart$ = this.cartService.cart$;
@@ -165,25 +166,12 @@ export class CartComponent implements OnInit {
     });
   }
 
-  couponCode = '';
   appliedCoupon$ = this.cartService.appliedCoupon$;
+  eligibleCoupons$ = this.cartService.eligibleCoupons$;
+  selectedCouponCode$ = this.cartService.selectedCouponCode$;
 
-  applyCoupon() {
-    if (!this.couponCode.trim()) return;
-    this.cartService.applyCoupon(this.couponCode).subscribe({
-      next: () => {
-        this.revalidate();
-        this.couponCode = '';
-      },
-      error: (err) => {
-        const msg = err?.error?.message || 'Mã giảm giá không hợp lệ';
-        this.alerts.open(msg, { appearance: 'error' }).subscribe();
-      }
-    });
-  }
-
-  removeCoupon() {
-    this.cartService.removeCoupon();
+  selectCartCoupon(code: string | null): void {
+    this.cartService.setSelectedCouponCode(code);
     this.revalidate();
   }
 
@@ -194,14 +182,7 @@ export class CartComponent implements OnInit {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
       
-      // Apply discount before shipping calculation if coupon exists
-      if (coupon) {
-        if (coupon.discountType === 'PERCENTAGE') {
-          subtotal = subtotal * (1 - coupon.discountValue / 100);
-        } else {
-          subtotal = Math.max(0, subtotal - coupon.discountValue);
-        }
-      }
+      subtotal = subtotalAfterCouponDiscount(subtotal, coupon);
 
       const qty = selected.reduce((s, i) => s + i.quantity, 0);
       if (selected.length === 0) {
@@ -230,14 +211,7 @@ export class CartComponent implements OnInit {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
 
-      // Apply discount before tax calculation if coupon exists
-      if (coupon) {
-        if (coupon.discountType === 'PERCENTAGE') {
-          subtotal = subtotal * (1 - coupon.discountValue / 100);
-        } else {
-          subtotal = Math.max(0, subtotal - coupon.discountValue);
-        }
-      }
+      subtotal = subtotalAfterCouponDiscount(subtotal, coupon);
 
       if (selected.length === 0) {
         return of({ applied: false, taxAmount: 0, taxRate: 0, taxDisplayType: 'VAT' });
@@ -369,15 +343,8 @@ export class CartComponent implements OnInit {
   );
 
   readonly discountAmount$ = combineLatest([this.totalPrice$, this.appliedCoupon$]).pipe(
-    map(([subtotal, coupon]) => {
-      if (!coupon) return 0;
-      if (coupon.discountType === 'PERCENTAGE') {
-        return subtotal * (coupon.discountValue / 100);
-      } else {
-        return Math.min(subtotal, coupon.discountValue);
-      }
-    }),
-    shareReplay(1)
+    map(([subtotal, coupon]) => estimateCouponDiscountAmount(subtotal, coupon)),
+    shareReplay(1),
   );
 
   readonly afterDiscountSubtotal$ = combineLatest([this.totalPrice$, this.discountAmount$]).pipe(

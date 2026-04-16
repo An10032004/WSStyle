@@ -30,20 +30,11 @@ public class Coupon {
     @Column(name = "discount_value", precision = 15, scale = 2, nullable = false)
     private BigDecimal discountValue;
 
-    @Column(name = "min_order_amount", precision = 15, scale = 2)
-    private BigDecimal minOrderAmount;
-
-    @Column(name = "max_discount_amount", precision = 15, scale = 2)
-    private BigDecimal maxDiscountAmount;
-
     @Column(name = "start_date")
     private LocalDateTime startDate;
 
     @Column(name = "end_date")
     private LocalDateTime endDate;
-
-    @Column(name = "usage_limit")
-    private Integer usageLimit;
 
     @Column(name = "used_count")
     private Integer usedCount = 0;
@@ -66,6 +57,13 @@ public class Coupon {
     @Column(name = "priority")
     private Integer priority = 99;
 
+    /**
+     * Số đơn hàng tối thiểu khách đã mua (không tính CANCELLED/REJECTED) để thấy/áp dụng mã.
+     * 0 = không yêu cầu (mọi khách đăng nhập đủ điều kiện khác vẫn thấy mã).
+     */
+    @Column(name = "minimum_prior_orders")
+    private Integer minimumPriorOrders = 0;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -75,5 +73,8 @@ public class Coupon {
         if (shopId == null) shopId = 1;
         if (usedCount == null) usedCount = 0;
         if (status == null) status = "ACTIVE";
+        if (minimumPriorOrders == null) {
+            minimumPriorOrders = 0;
+        }
     }
 }

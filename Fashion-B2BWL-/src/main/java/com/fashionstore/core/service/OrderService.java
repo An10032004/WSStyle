@@ -5,6 +5,7 @@ import com.fashionstore.core.dto.response.DebtOrderReportRowResponse;
 import com.fashionstore.core.dto.response.DebtSummaryResponse;
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.request.OrderItemRequest;
+import com.fashionstore.core.model.Coupon;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.model.OrderItem;
 import com.fashionstore.core.model.Product;
@@ -42,6 +43,7 @@ public class OrderService {
     private final NetTermRuleService netTermRuleService;
     private final TaxDisplayRuleService taxDisplayRuleService;
     private final ChatMessageRepository chatMessageRepository;
+    private final CouponService couponService;
 
     /** Bật API debt-summary và chặn đặt hàng khi quá hạn; tắt khi cấu hình flow riêng (app.net-term.debt-check.enabled=false). */
     @Value("${app.net-term.debt-check.enabled:true}")
@@ -136,12 +138,17 @@ public class OrderService {
 
         int totalQty = itemReqs.stream().mapToInt(OrderItemRequest::getQuantity).sum();
         
-        // --- Coupon Logic ---
+        // --- Coupon: luôn tính lại server, không tin discountAmount từ client ---
         BigDecimal discountAmount = BigDecimal.ZERO;
-        if (request.getCouponCode() != null && !request.getCouponCode().isEmpty()) {
-            discountAmount = request.getDiscountAmount() != null ? request.getDiscountAmount() : BigDecimal.ZERO;
-            order.setCouponCode(request.getCouponCode());
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            Coupon coupon = couponService.validateForCheckout(
+                    request.getCouponCode(), request.getUserId());
+            discountAmount = couponService.computeDiscountAmount(totalAmount, coupon);
+            order.setCouponCode(coupon.getCode());
             order.setDiscountAmount(discountAmount);
+        } else {
+            order.setCouponCode(null);
+            order.setDiscountAmount(BigDecimal.ZERO);
         }
         
         BigDecimal discountedSubtotal = totalAmount.subtract(discountAmount);
@@ -169,7 +176,11 @@ public class OrderService {
         }
 
         // Tồn kho chỉ trừ khi admin xác nhận đơn (PROCESSING), không trừ lúc tạo đơn.
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        if (saved.getCouponCode() != null && !saved.getCouponCode().isBlank()) {
+            couponService.incrementUsedCount(saved.getCouponCode());
+        }
+        return saved;
     }
 
     private Order requireOrderWithItems(Integer id) {

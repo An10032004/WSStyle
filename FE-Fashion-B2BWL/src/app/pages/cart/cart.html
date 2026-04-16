@@ -103,22 +103,34 @@
               <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
-            <!-- COUPON SECTION (PREMIUM STYLE) -->
+            <!-- COUPON: danh sách mã đủ điều kiện (radio, tối đa 1) -->
             <div class="summary-row coupon-row" style="margin: 8px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; padding: 10px 0;">
-              <div *ngIf="appliedCoupon$ | async as coupon; else couponInput" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <tui-icon icon="@tui.tags" style="color: #10b981; font-size: 18px;"></tui-icon>
-                  <span style="font-weight: 600; font-size: 14px; text-transform: uppercase; color: #10b981;">{{ coupon.code }}</span>
-                </div>
-                <button (click)="removeCoupon()" style="background: none; border: none; color: #999; cursor: pointer; font-size: 11px; text-decoration: underline;">Đổi mã</button>
+              <div style="width: 100%;">
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #64748b;">Ưu đãi</div>
+                <ng-container *ngIf="(auth.user$ | async)?.id; else cartCouponGuest">
+                  <ng-container *ngIf="(eligibleCoupons$ | async) as list">
+                    <label *ngIf="list.length" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                      <input type="radio" name="cart-store-coupon" [checked]="(selectedCouponCode$ | async) === null"
+                        (change)="selectCartCoupon(null)" />
+                      <span>Không dùng mã giảm giá</span>
+                    </label>
+                    <label *ngFor="let c of list" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                      <input type="radio" name="cart-store-coupon" [checked]="(selectedCouponCode$ | async) === c.code"
+                        (change)="selectCartCoupon(c.code)" />
+                      <span>
+                        <strong style="text-transform: uppercase;">{{ c.code }}</strong>
+                        <span *ngIf="c.discountType === 'PERCENTAGE'"> — {{ c.discountValue }}%</span>
+                        <span *ngIf="c.discountType !== 'PERCENTAGE'"> — {{ c.discountValue | number:'1.0-0' }} ₫</span>
+                        <span *ngIf="c.minimumPriorOrders" style="color: #64748b;"> (từ {{ c.minimumPriorOrders }} đơn)</span>
+                      </span>
+                    </label>
+                    <div *ngIf="!list.length" style="font-size: 12px; color: #94a3b8;">Không có mã áp dụng cho giỏ hiện tại.</div>
+                  </ng-container>
+                </ng-container>
+                <ng-template #cartCouponGuest>
+                  <div style="font-size: 12px; color: #94a3b8;">Đăng nhập để xem mã ưu đãi dành cho bạn.</div>
+                </ng-template>
               </div>
-              <ng-template #couponInput>
-                <div style="display: flex; gap: 8px; width: 100%;">
-                  <input type="text" [(ngModel)]="couponCode" placeholder="Mã giảm giá" 
-                    style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; background: #fff;">
-                  <button tuiButton size="xs" appearance="secondary" [disabled]="!couponCode" (click)="applyCoupon()">Áp dụng</button>
-                </div>
-              </ng-template>
             </div>
 
             <div class="summary-row discount" *ngIf="(discountAmount$ | async) as discount">
