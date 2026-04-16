@@ -53,8 +53,17 @@ public class ProductService {
      * Lấy sản phẩm có phân trang và lọc (Server-side Pagination & Filtering)
      */
     @Transactional(readOnly = true)
-    public Page<Product> getProductsPaged(String search, List<Integer> categoryIds, BigDecimal minPrice, BigDecimal maxPrice, List<String> brands, Pageable pageable) {
-        return productRepository.findAll(ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands), pageable);
+    public Page<Product> getProductsPaged(
+            String search,
+            List<Integer> categoryIds,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            List<String> brands,
+            List<Integer> productIds,
+            Pageable pageable) {
+        return productRepository.findAll(
+                ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands, productIds),
+                pageable);
     }
 
     /**

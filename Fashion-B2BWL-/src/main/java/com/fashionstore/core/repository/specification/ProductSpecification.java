@@ -10,7 +10,13 @@ import java.util.List;
 
 public class ProductSpecification {
 
-    public static Specification<Product> filterProducts(String search, List<Integer> categoryIds, BigDecimal minPrice, BigDecimal maxPrice, List<String> brands) {
+    public static Specification<Product> filterProducts(
+            String search,
+            List<Integer> categoryIds,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            List<String> brands,
+            List<Integer> productIds) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -35,6 +41,10 @@ public class ProductSpecification {
 
             if (brands != null && !brands.isEmpty()) {
                 predicates.add(root.get("brand").in(brands));
+            }
+
+            if (productIds != null && !productIds.isEmpty()) {
+                predicates.add(root.get("id").in(productIds));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

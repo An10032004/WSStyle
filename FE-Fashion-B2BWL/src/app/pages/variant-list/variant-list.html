@@ -1,5 +1,5 @@
 <div class="page-container">
-  @if (showCombinationEditor && combinationEditorProduct && editorProductDraft) {
+  @if (showCombinationEditor && combinationEditorProduct; as p) {
     <div class="combination-editor">
       <header class="combination-editor__header">
         <div class="combination-editor__header-text">
@@ -23,50 +23,60 @@
       </header>
 
       <div class="combination-editor__body">
-        <aside class="product-summary">
-          <div class="product-summary__image-wrap" *ngIf="editorProductDraft.imageUrl">
-            <img [src]="editorProductDraft.imageUrl" alt="" class="product-summary__image" />
+        <aside class="product-summary product-summary--readonly">
+          <div class="product-summary__image-wrap" *ngIf="p.imageUrl">
+            <img [src]="p.imageUrl" alt="" class="product-summary__image" />
           </div>
-          <div class="product-summary__image-placeholder" *ngIf="!editorProductDraft.imageUrl">
+          <div class="product-summary__image-placeholder" *ngIf="!p.imageUrl">
             <tui-icon icon="@tui.image"></tui-icon>
           </div>
-          <label tuiLabel class="product-summary__field">
-            {{ 'VARIANT.IMAGE_URL' | transloco }}
-            <tui-textfield>
-              <input tuiTextfield [(ngModel)]="editorProductDraft.imageUrl" type="url" />
-            </tui-textfield>
-          </label>
-          <label tuiLabel class="product-summary__field">
-            {{ 'PRODUCT.NAME' | transloco }}
-            <tui-textfield>
-              <input tuiTextfield [(ngModel)]="editorProductDraft.name" />
-            </tui-textfield>
-          </label>
-          <label tuiLabel class="product-summary__field">
-            {{ 'PRODUCT.CATEGORY' | transloco }}
-            <tui-select [(ngModel)]="editorProductDraft.categoryId" [valueContent]="catContent" tuiTextfieldSize="m">
-              <tui-data-list *tuiDataList>
-                <button *ngFor="let c of categories" tuiOption type="button" [value]="c.id">{{ c.name }}</button>
-              </tui-data-list>
-            </tui-select>
-            <ng-template #catContent let-id>
-              {{ getCategoryName(id) }}
-            </ng-template>
-          </label>
-          <label tuiLabel class="product-summary__field">
-            {{ 'PRODUCT.PRICE' | transloco }}
-            <tui-textfield>
-              <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="editorProductDraft.basePrice" maxlength="13" />
-              <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
-            </tui-textfield>
-          </label>
+          <p class="product-summary__note">{{ 'VARIANT.PRODUCT_READONLY_NOTE' | transloco }}</p>
+          <div class="product-summary__readonly-block">
+            <div class="product-summary__readonly-row">
+              <span class="product-summary__readonly-label">{{ 'PRODUCT.NAME' | transloco }}</span>
+              <span class="product-summary__readonly-value">{{ p.name }}</span>
+            </div>
+            <div class="product-summary__readonly-row">
+              <span class="product-summary__readonly-label">{{ 'PRODUCT.CATEGORY' | transloco }}</span>
+              <span class="product-summary__readonly-value">{{ getCategoryName(p.categoryId) }}</span>
+            </div>
+            <div class="product-summary__readonly-row">
+              <span class="product-summary__readonly-label">{{ 'PRODUCT.PRICE' | transloco }}</span>
+              <span class="product-summary__readonly-value">
+                {{ p.basePrice | number }} {{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}
+              </span>
+            </div>
+            <div class="product-summary__readonly-row" *ngIf="p.imageUrl as img">
+              <span class="product-summary__readonly-label">{{ 'VARIANT.IMAGE_URL' | transloco }}</span>
+              <span class="product-summary__readonly-value product-summary__readonly-value--url">{{ img }}</span>
+            </div>
+            <div class="product-summary__readonly-row product-summary__readonly-row--full">
+              <span class="product-summary__readonly-label">{{ 'PRODUCT.SPECIFICATIONS' | transloco }}</span>
+              <div class="product-summary__readonly-desc">{{ p.description || '—' }}</div>
+            </div>
+          </div>
+          <div class="product-summary__defaults">
+            <p class="product-summary__defaults-title">{{ 'VARIANT.DEFAULT_COMBO_FIELDS_TITLE' | transloco }}</p>
+            <p class="product-summary__defaults-hint">{{ 'VARIANT.DEFAULT_COMBO_FIELDS_HINT' | transloco }}</p>
+            <div class="product-summary__defaults-grid">
+              <label tuiLabel class="product-summary__field">
+                {{ 'VARIANT.DEFAULT_PRICE_FOR_NEW_COMBOS' | transloco }}
+                <tui-textfield>
+                  <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="combinationDefaultPrice" maxlength="13" />
+                  <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
+                </tui-textfield>
+              </label>
+              <label tuiLabel class="product-summary__field">
+                {{ 'VARIANT.DEFAULT_STOCK_FOR_NEW_COMBOS' | transloco }}
+                <tui-textfield>
+                  <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="combinationDefaultStock" maxlength="13" />
+                </tui-textfield>
+              </label>
+            </div>
+          </div>
           <p class="product-summary__meta">
             <strong>{{ 'VARIANT.TOTAL_STOCK_HINT' | transloco }}:</strong> {{ totalStockInEditor | number }}
           </p>
-          <label tuiLabel class="product-summary__field product-summary__field--full">
-            {{ 'PRODUCT.SPECIFICATIONS' | transloco }}
-            <textarea class="product-summary__textarea" rows="6" [(ngModel)]="editorProductDraft.description"></textarea>
-          </label>
         </aside>
 
         <main class="variants-workspace">
@@ -337,7 +347,7 @@
           <tui-select [ngModel]="filterProductId" (ngModelChange)="onFilterProductIdChange($event)" tuiTextfieldSize="m" class="toolbar-select">
             <tui-data-list *tuiDataList>
               <button tuiOption type="button" [value]="filterProductAllSentinel">{{ 'VARIANT.ALL_PRODUCTS' | transloco }}</button>
-              <button *ngFor="let p of productsSorted" tuiOption type="button" [value]="p.id">{{ p.name }} ({{ p.productCode }})</button>
+              <button *ngFor="let p of filterProductOptions" tuiOption type="button" [value]="p.id">{{ p.name }} ({{ p.productCode }})</button>
             </tui-data-list>
           </tui-select>
         </label>
@@ -374,13 +384,13 @@
               : {
                   from: productListRangeFrom,
                   to: productListRangeTo,
-                  total: filteredProductCount,
+                  total: productsTotalElements,
                 }
         }}
       </p>
     </div>
 
-    <div class="product-list-pagination" *ngIf="filteredProductCount > productListPageSize">
+    <div class="product-list-pagination" *ngIf="productsTotalPages > 1">
       <button
         tuiButton
         type="button"
@@ -392,14 +402,14 @@
         {{ 'VARIANT.PREV' | transloco }}
       </button>
       <span class="product-list-pagination__label">
-        {{ 'VARIANT.PAGE_OF' | transloco: { page: effectiveProductListPage, total: productListPageCount } }}
+        {{ 'VARIANT.PAGE_OF' | transloco: { page: effectiveProductListPage, total: productsTotalPages } }}
       </span>
       <button
         tuiButton
         type="button"
         appearance="outline"
         size="s"
-        [disabled]="effectiveProductListPage >= productListPageCount"
+        [disabled]="effectiveProductListPage >= productsTotalPages"
         (click)="goProductListNext()"
       >
         {{ 'VARIANT.NEXT' | transloco }}
@@ -407,7 +417,7 @@
     </div>
 
     <div class="product-variant-list">
-      <div class="product-variant-card" *ngFor="let p of pagedDisplayedProducts; trackBy: trackByProductId">
+      <div class="product-variant-card" *ngFor="let p of products; trackBy: trackByProductId">
         <div class="product-variant-card__main">
           <button type="button" class="product-variant-card__expand" (click)="toggleExpand(p.id)" [attr.aria-expanded]="isExpanded(p.id)">
             <tui-icon [icon]="isExpanded(p.id) ? '@tui.chevron-down' : '@tui.chevron-right'"></tui-icon>

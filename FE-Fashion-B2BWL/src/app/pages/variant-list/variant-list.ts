@@ -71,18 +71,25 @@ export class VariantListComponent implements OnInit, OnDestroy {
   filterProductId = -1;
   productQuickFilter = '';
 
-  /** Phân trang danh sách sản phẩm (client-side). */
+  /** Phân trang danh sách sản phẩm (server-side, giống /products/search + shop). */
   productListPage = 1;
   productListPageSize = 10;
   readonly productListPageSizeOptions = [5, 10, 20, 50];
+  productsTotalElements = 0;
+  productsTotalPages = 1;
+  /** Gợi ý SP cho bộ lọc «một sản phẩm» (không tải toàn bộ catalog). */
+  filterProductOptions: Product[] = [];
+  private quickFilterDebounceHandle: ReturnType<typeof setTimeout> | null = null;
 
   /** Sản phẩm đang mở rộng danh sách biến thể. */
   expandedProductIds = new Set<number>();
 
   showCombinationEditor = false;
   combinationEditorProduct: Product | null = null;
-  /** Bản nháp SP (cột trái): chỉnh tên / mô tả / giá khi Lưu. */
-  editorProductDraft: Partial<Product> & { id: number } | null = null;
+
+  /** Giá / tồn áp cho các dòng tổ hợp mới (chưa có trên DB) khi bấm Tạo tổ hợp. */
+  combinationDefaultPrice = 0;
+  combinationDefaultStock = 0;
 
   attributeRows: VariantAttributeRow[] = [];
   combinationRows: CombinationTableRow[] = [];
@@ -157,56 +164,24 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.langSub?.unsubscribe();
-  }
-
-  get productsSorted(): Product[] {
-    return [...this.products].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-    );
-  }
-
-  /** Danh sách SP sau lọc (chưa phân trang). */
-  get filteredProducts(): Product[] {
-    let list = this.productsSorted;
-    if (this.filterProductId !== this.filterProductAllSentinel) {
-      list = list.filter((p) => p.id === this.filterProductId);
+    if (this.quickFilterDebounceHandle) {
+      clearTimeout(this.quickFilterDebounceHandle);
+      this.quickFilterDebounceHandle = null;
     }
-    const q = this.productQuickFilter.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.productCode || '').toLowerCase().includes(q) ||
-        String(p.id).includes(q),
-    );
   }
 
-  get filteredProductCount(): number {
-    return this.filteredProducts.length;
-  }
-
-  get productListPageCount(): number {
-    return Math.max(1, Math.ceil(this.filteredProductCount / this.productListPageSize));
-  }
-
-  /** Trang hiệu lực (kẹp sau khi lọc thu hẹp). */
+  /** Trang hiệu lực (kẹp theo tổng trang server). */
   get effectiveProductListPage(): number {
-    return Math.min(Math.max(1, this.productListPage), this.productListPageCount);
-  }
-
-  get pagedDisplayedProducts(): Product[] {
-    const page = this.effectiveProductListPage;
-    const start = (page - 1) * this.productListPageSize;
-    return this.filteredProducts.slice(start, start + this.productListPageSize);
+    return Math.min(Math.max(1, this.productListPage), Math.max(1, this.productsTotalPages));
   }
 
   get productListRangeFrom(): number {
-    if (this.filteredProductCount === 0) return 0;
+    if (this.productsTotalElements === 0) return 0;
     return (this.effectiveProductListPage - 1) * this.productListPageSize + 1;
   }
 
   get productListRangeTo(): number {
-    return Math.min(this.effectiveProductListPage * this.productListPageSize, this.filteredProductCount);
+    return Math.min(this.effectiveProductListPage * this.productListPageSize, this.productsTotalElements);
   }
 
   private resetProductListPagination(): void {
@@ -214,29 +189,106 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   onProductQuickFilterChange(): void {
-    this.resetProductListPagination();
-    this.cdr.markForCheck();
+    if (this.quickFilterDebounceHandle) {
+      clearTimeout(this.quickFilterDebounceHandle);
+    }
+    this.quickFilterDebounceHandle = setTimeout(() => {
+      this.quickFilterDebounceHandle = null;
+      this.resetProductListPagination();
+      this.fetchProductsPage(true);
+    }, 320);
   }
 
   onProductListPageSizeChange(size: number): void {
     this.productListPageSize = size;
     this.resetProductListPagination();
-    this.cdr.markForCheck();
+    this.fetchProductsPage(true);
   }
 
   goProductListPrev(): void {
     this.productListPage = Math.max(1, this.effectiveProductListPage - 1);
-    this.cdr.markForCheck();
+    this.fetchProductsPage(false);
   }
 
   goProductListNext(): void {
-    this.productListPage = Math.min(this.productListPageCount, this.effectiveProductListPage + 1);
-    this.cdr.markForCheck();
+    this.productListPage = Math.min(this.productsTotalPages, this.effectiveProductListPage + 1);
+    this.fetchProductsPage(false);
+  }
+
+  private buildPagedSearchParams(pageIdx: number): Record<string, string | number | number[]> {
+    const q = this.productQuickFilter.trim();
+    const params: Record<string, string | number | number[]> = {
+      sortBy: 'newest',
+      page: pageIdx,
+      size: this.productListPageSize,
+    };
+    if (q) params['search'] = q;
+    if (this.filterProductId !== this.filterProductAllSentinel) {
+      params['productIds'] = [this.filterProductId];
+    }
+    return params;
+  }
+
+  private buildPickerSearchParams(): Record<string, string | number> {
+    const q = this.productQuickFilter.trim();
+    const params: Record<string, string | number> = { sortBy: 'newest', page: 0, size: 80 };
+    if (q) params['search'] = q;
+    return params;
+  }
+
+  /**
+   * Tải trang sản phẩm qua GET /products/search (truy vấn có phân trang, có đếm variantCount).
+   * @param refreshPicker làm mới danh sách gợi ý trong select «một sản phẩm» (chỉ khi đang xem «Tất cả»).
+   */
+  private fetchProductsPage(refreshPicker: boolean): void {
+    this.variantListPageLoading = true;
+    this.clearVariantClientCache();
+    const pageIdx = Math.max(0, this.productListPage - 1);
+    const mainParams = this.buildPagedSearchParams(pageIdx);
+    forkJoin({
+      page: this.api.searchProducts(mainParams),
+      categories: this.api.getCategories(),
+      picker:
+        refreshPicker && this.filterProductId === this.filterProductAllSentinel
+          ? this.api.searchProducts(this.buildPickerSearchParams())
+          : of({ content: [] as Product[], totalElements: 0, totalPages: 0 }),
+    }).subscribe({
+      next: ({ page, categories, picker }) => {
+        this.categories = categories;
+        this.products = page.content ?? [];
+        this.productsTotalElements = page.totalElements ?? 0;
+        this.productsTotalPages = Math.max(1, page.totalPages ?? 1);
+        const srvNum = (page as { number?: number }).number;
+        if (typeof srvNum === 'number') {
+          this.productListPage = srvNum + 1;
+        }
+        if (refreshPicker && this.filterProductId === this.filterProductAllSentinel) {
+          this.filterProductOptions = picker.content ?? [];
+        }
+        this.variantListPageLoading = false;
+        this.loadTranslations();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.variantListPageLoading = false;
+        this.alerts.open('Không tải được danh sách sản phẩm hoặc danh mục.', { appearance: 'error' }).subscribe();
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private clearVariantClientCache(): void {
+    this.expandedProductIds.clear();
+    this.variantsFetchedProductIds.clear();
+    this.variantsRaw = [];
+    this.rowData = [];
+    this.variantsLoadingProductIds.clear();
   }
 
   getProductDisplay(id: number | null | undefined): string {
     if (id == null) return '';
-    const p = this.products.find((x) => x.id === id);
+    const p =
+      this.products.find((x) => x.id === id) ?? this.filterProductOptions.find((x) => x.id === id);
     if (!p) return '';
     let name = p.name;
     if (this.currentLanguage !== 'vi') {
@@ -252,7 +304,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   countVariants(productId: number): number {
-    const p = this.products.find((x) => x.id === productId);
+    const p =
+      this.products.find((x) => x.id === productId) ?? this.filterProductOptions.find((x) => x.id === productId);
     if (p != null && p.variantCount != null && p.variantCount >= 0) {
       return p.variantCount;
     }
@@ -301,7 +354,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
   onFilterProductIdChange(value: number): void {
     this.filterProductId = value;
     this.resetProductListPagination();
-    this.cdr.markForCheck();
+    this.fetchProductsPage(value === this.filterProductAllSentinel);
   }
 
   clearFormErrors(): void {
@@ -325,29 +378,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
-    this.variantListPageLoading = true;
-    this.expandedProductIds.clear();
-    forkJoin({
-      products: this.api.getProducts(),
-      categories: this.api.getCategories(),
-    }).subscribe({
-      next: ({ products, categories }) => {
-        this.products = products;
-        this.categories = categories;
-        this.variantsRaw = [];
-        this.rowData = [];
-        this.variantsFetchedProductIds.clear();
-        this.variantsLoadingProductIds.clear();
-        this.variantListPageLoading = false;
-        this.loadTranslations();
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.variantListPageLoading = false;
-        this.alerts.open('Không tải được danh sách sản phẩm hoặc danh mục.', { appearance: 'error' }).subscribe();
-        this.cdr.detectChanges();
-      },
-    });
+    this.resetProductListPagination();
+    this.fetchProductsPage(true);
   }
 
   /** Gộp biến thể của một SP vào cache (thay thế bản cũ cùng productId). */
@@ -394,6 +426,10 @@ export class VariantListComponent implements OnInit, OnDestroy {
     });
 
     this.api.getTranslationsByTypeAndLang('PRODUCT_VARIANT', this.currentLanguage).subscribe((data) => {
+      if (this.rowData.length === 0) {
+        this.cdr.detectChanges();
+        return;
+      }
       const translatedData = this.rowData.map((v) => {
         const t = data.find((item) => item.resourceId === v.id);
         if (t && t.translatedName) {
@@ -420,15 +456,8 @@ export class VariantListComponent implements OnInit, OnDestroy {
     const pid = product.id!;
     this.showDetails = false;
     this.combinationEditorProduct = product;
-    this.editorProductDraft = {
-      id: product.id,
-      name: product.name,
-      description: product.description ?? '',
-      basePrice: product.basePrice,
-      categoryId: product.categoryId,
-      imageUrl: product.imageUrl ?? '',
-    };
     const raw = this.variantsRawForProduct(pid);
+    this.resetCombinationDefaults(product, raw);
     this.attributeRows = this.inferAttributeRows(raw, product);
     this.combinationRows = this.buildCombinationRowsFromVariants(raw);
     this.combinationSkuSearch = '';
@@ -437,10 +466,23 @@ export class VariantListComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Khởi tạo giá/tồn mặc định cho dòng tổ hợp mới từ SP gốc hoặc biến thể đầu tiên. */
+  private resetCombinationDefaults(product: Product, raw: ProductVariant[]): void {
+    if (raw.length) {
+      const v0 = raw[0];
+      this.combinationDefaultPrice = this.getNumericValue(v0.price as unknown);
+      this.combinationDefaultStock = this.getNumericValue(v0.stockQuantity as unknown);
+    } else {
+      this.combinationDefaultPrice = this.getNumericValue(product.basePrice as unknown);
+      this.combinationDefaultStock = 0;
+    }
+  }
+
   onCancelCombinationEditor(): void {
     this.showCombinationEditor = false;
     this.combinationEditorProduct = null;
-    this.editorProductDraft = null;
+    this.combinationDefaultPrice = 0;
+    this.combinationDefaultStock = 0;
     this.attributeRows = [];
     this.combinationRows = [];
     this.pendingCombinationDeleteRows = null;
@@ -506,15 +548,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
       if (existing) {
         next.push(this.variantToCombinationRow(existing, label));
       } else {
+        const defP = this.getNumericValue(this.combinationDefaultPrice as unknown);
+        const defS = this.getNumericValue(this.combinationDefaultStock as unknown);
         next.push({
           label,
           dim1,
           dim2,
           dim3,
           sku: '',
-          stockQuantity: 0,
+          stockQuantity: defS,
           costPrice: 0,
-          price: 0,
+          price: defP,
           status: 'ACTIVE',
           barcode: '',
           imageUrl: '',
@@ -836,7 +880,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   saveCombinationEditor(): void {
     this.clearFormErrors();
-    if (!this.combinationEditorProduct || !this.editorProductDraft) return;
+    if (!this.combinationEditorProduct) return;
     const productId = this.combinationEditorProduct.id;
     const activeRows = this.combinationRows;
     for (const r of activeRows) {
@@ -893,11 +937,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
       ...creates.map((r) => this.api.createProductVariant(buildBody(r) as any)),
     ];
 
-    // Backend ProductRequest validates full body (@NotBlank productCode, name, brand; @NotNull categoryId).
-    // Chỉ gửi draft từ sidebar sẽ thiếu brand/productCode → 400. Luôn merge với sản phẩm đã load.
+    // Cột trái chỉ xem — cập nhật SP gửi đúng dữ liệu đã load (tên/giá/danh mục sửa ở form sản phẩm).
     const base = this.combinationEditorProduct;
-    const draft = this.editorProductDraft;
-    const categoryId = draft.categoryId ?? base.categoryId;
+    const categoryId = base.categoryId;
     if (categoryId == null) {
       this.alerts.open(this.transloco.translate('VARIANT.CATEGORY_REQUIRED'), { appearance: 'warning' }).subscribe();
       return;
@@ -907,17 +949,17 @@ export class VariantListComponent implements OnInit, OnDestroy {
       this.alerts.open(this.transloco.translate('VARIANT.PRODUCT_CODE_REQUIRED'), { appearance: 'warning' }).subscribe();
       return;
     }
-    const nameTrimmed = String(draft.name ?? base.name ?? '').trim() || String(base.name ?? '').trim();
+    const nameTrimmed = String(base.name ?? '').trim();
     const brandTrimmed = String(base.brand ?? '').trim();
     const productBody: Partial<Product> = {
       productCode,
       name: nameTrimmed,
       brand: brandTrimmed || '-',
       categoryId,
-      basePrice: this.getNumericValue((draft.basePrice as any) ?? (base.basePrice as any)),
+      basePrice: this.getNumericValue(base.basePrice as unknown),
       material: base.material ?? '',
       origin: base.origin ?? '',
-      imageUrl: (draft.imageUrl ?? base.imageUrl ?? '').trim(),
+      imageUrl: (base.imageUrl ?? '').trim(),
       imageUrls: base.imageUrls ?? '',
       isSale: base.isSale ?? false,
       variantDimensionLabels: this.serializeVariantDimensionLabels(),
@@ -943,8 +985,15 @@ export class VariantListComponent implements OnInit, OnDestroy {
   openCombinationEditorForVariant(v: ProductVariant): void {
     const pid = v.productId;
     if (pid == null) return;
-    const p = this.products.find((x) => x.id === pid);
-    if (!p) return;
-    this.openCombinationEditor(p);
+    const p =
+      this.products.find((x) => x.id === pid) ?? this.filterProductOptions.find((x) => x.id === pid);
+    if (p) {
+      this.openCombinationEditor(p);
+      return;
+    }
+    this.api.getProductById(pid).subscribe({
+      next: (prod) => this.openCombinationEditor(prod),
+      error: (err) => this.handleApiError(err),
+    });
   }
 }
