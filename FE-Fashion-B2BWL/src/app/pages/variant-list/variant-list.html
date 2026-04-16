@@ -95,40 +95,82 @@
 
           <div class="attr-rows">
             <div class="attr-row" *ngFor="let row of attributeRows; let idx = index">
-              <label tuiLabel class="attr-row__name">
-                {{ 'VARIANT.ATTR_NAME' | transloco }} {{ idx + 1 }}
-                <tui-textfield>
-                  <input tuiTextfield [(ngModel)]="row.name" [placeholder]="'VARIANT.ATTR_NAME_PH' | transloco" />
-                </tui-textfield>
-              </label>
-              <label tuiLabel class="attr-row__values">
-                {{ 'VARIANT.ATTR_VALUES' | transloco }}
-                <div class="attr-row__chips">
-                  <span class="attr-chip" *ngFor="let v of row.values">
-                    {{ v }}
-                    <button type="button" class="attr-chip__x" (click)="removeAttributeValue(row, v)" aria-label="remove">×</button>
-                  </span>
+              <!-- Hàng 1: hai nhãn cùng baseline -->
+              <div class="attr-row__caps">
+                <span class="attr-row__cap">{{ 'VARIANT.ATTR_NAME' | transloco }} {{ idx + 1 }}</span>
+                <div class="attr-row__caps-right">
+                  <span class="attr-row__cap">{{ 'VARIANT.ATTR_VALUES' | transloco }}</span>
+                  <button
+                    tuiButton
+                    type="button"
+                    appearance="flat-destructive"
+                    size="s"
+                    class="attr-row__trash"
+                    (click)="removeAttributeRow(idx)"
+                    [disabled]="attributeRows.length <= 1"
+                    [attr.aria-label]="'COMMON.DELETE' | transloco"
+                  >
+                    <tui-icon icon="@tui.trash"></tui-icon>
+                  </button>
                 </div>
-                <tui-textfield>
+              </div>
+              <!-- Hàng 2: hai ô nhập cùng một dòng -->
+              <div class="attr-row__inputs">
+                <tui-textfield class="attr-row__tf">
                   <input
                     tuiTextfield
+                    [attr.id]="'attr-name-' + idx"
+                    [(ngModel)]="row.name"
+                    [placeholder]="'VARIANT.ATTR_NAME_PH' | transloco"
+                    [attr.aria-label]="('VARIANT.ATTR_NAME' | transloco) + ' ' + (idx + 1)"
+                  />
+                </tui-textfield>
+                <tui-textfield class="attr-row__tf">
+                  <input
+                    tuiTextfield
+                    [attr.id]="'attr-values-' + idx"
                     [(ngModel)]="row.tagInput"
                     (keydown)="onAttributeTagKeydown(row, $event)"
                     [placeholder]="'VARIANT.ATTR_VALUES_PH' | transloco"
+                    [attr.aria-label]="'VARIANT.ATTR_VALUES' | transloco"
                   />
                 </tui-textfield>
-              </label>
-              <button
-                tuiButton
-                type="button"
-                appearance="flat-destructive"
-                size="s"
-                class="attr-row__trash"
-                (click)="removeAttributeRow(idx)"
-                [disabled]="attributeRows.length <= 1"
-              >
-                <tui-icon icon="@tui.trash"></tui-icon>
-              </button>
+              </div>
+              <!-- Hàng 3: hiển thị PDP | chip + bảng màu -->
+              <div class="attr-row__bottom">
+                <label class="attr-row__display">
+                  <span class="attr-row__display-label">{{ 'VARIANT.DIM_PDP_DISPLAY' | transloco }}</span>
+                  <select class="attr-row__display-select" [(ngModel)]="row.displayAs">
+                    <option value="swatch">{{ 'VARIANT.DIM_PDP_SWATCH' | transloco }}</option>
+                    <option value="buttons">{{ 'VARIANT.DIM_PDP_BUTTONS' | transloco }}</option>
+                  </select>
+                </label>
+                <div class="attr-row__extras">
+                  <div class="attr-row__chips" *ngIf="row.values.length > 0">
+                    <span class="attr-chip" *ngFor="let v of row.values">
+                      {{ v }}
+                      <button type="button" class="attr-chip__x" (click)="removeAttributeValue(row, v)" aria-label="remove">×</button>
+                    </span>
+                  </div>
+                  <div class="attr-row__palette" *ngIf="row.displayAs === 'swatch'">
+                    <p class="attr-row__palette-title">{{ 'VARIANT.SWATCH_PALETTE_TITLE' | transloco }}</p>
+                    <p class="attr-row__palette-hint">{{ 'VARIANT.SWATCH_PALETTE_HINT' | transloco }}</p>
+                    <div class="attr-row__palette-swatches" role="list">
+                      <button
+                        type="button"
+                        class="attr-row__palette-dot"
+                        *ngFor="let s of presetColorSwatches"
+                        role="listitem"
+                        [title]="s.label"
+                        [attr.aria-label]="s.label"
+                        [class.attr-row__palette-dot--light]="presetSwatchIsLight(s.label)"
+                        [style.background-color]="presetSwatchHex(s.label)"
+                        (click)="appendPresetColorToRow(row, s.label)"
+                      ></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

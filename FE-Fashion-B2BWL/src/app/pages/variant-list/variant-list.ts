@@ -13,12 +13,24 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription, forkJoin, concat, EMPTY, of } from 'rxjs';
 import { finalize, map, tap } from 'rxjs/operators';
 import { readApiErrorMessage } from '../../utils/auth-http.util';
+import {
+  parseVariantDimensionSlotsFromJson,
+  serializeVariantDimensionSlotsJson,
+  type VariantDimUi,
+} from '../../utils/variant-dimension-slots.util';
+import {
+  PRESET_COLOR_SWATCHES,
+  resolveColorHex,
+  isLightColorForSwatch,
+} from '../../utils/color-swatch.util';
 
 /** Một hàng thuộc tính động (tối đa 3 hàng → map API color / size / weight). */
 export interface VariantAttributeRow {
   name: string;
   values: string[];
   tagInput: string;
+  /** Cách hiển thị trên PDP: ô màu tròn hoặc nút chữ. */
+  displayAs: VariantDimUi;
 }
 
 /** Một dòng trong bảng tổ hợp sau khi Generate hoặc load từ DB. */
@@ -60,6 +72,8 @@ export interface CombinationTableRow {
   styleUrl: './variant-list.scss',
 })
 export class VariantListComponent implements OnInit, OnDestroy {
+  /** Màu gợi ý khi chiều dùng ô màu trên PDP (bấm để thêm chip). */
+  readonly presetColorSwatches = PRESET_COLOR_SWATCHES;
   rowData: ProductVariant[] = [];
   /** Bản sao từ API (không bị ghi đè bởi bản dịch) — dùng suy luận thuộc tính / tổ hợp. */
   variantsRaw: ProductVariant[] = [];
@@ -497,7 +511,13 @@ export class VariantListComponent implements OnInit, OnDestroy {
       this.alerts.open(this.transloco.translate('VARIANT.ATTR_MAX'), { appearance: 'warning' }).subscribe();
       return;
     }
-    this.attributeRows.push({ name: '', values: [], tagInput: '' });
+    const idx = this.attributeRows.length;
+    this.attributeRows.push({
+      name: '',
+      values: [],
+      tagInput: '',
+      displayAs: idx === 0 ? 'swatch' : 'buttons',
+    });
     this.cdr.markForCheck();
   }
 
@@ -519,6 +539,22 @@ export class VariantListComponent implements OnInit, OnDestroy {
   removeAttributeValue(row: VariantAttributeRow, value: string): void {
     row.values = row.values.filter((v) => v !== value);
     this.cdr.markForCheck();
+  }
+
+  /** Thêm nhanh một màu có sẵn vào danh sách giá trị (tránh trùng). */
+  appendPresetColorToRow(row: VariantAttributeRow, label: string): void {
+    const t = (label || '').trim();
+    if (!t || row.values.includes(t)) return;
+    row.values.push(t);
+    this.cdr.markForCheck();
+  }
+
+  presetSwatchHex(label: string): string {
+    return resolveColorHex(label);
+  }
+
+  presetSwatchIsLight(label: string): boolean {
+    return isLightColorForSwatch(label);
   }
 
   generateCombinations(): void {
@@ -591,33 +627,28 @@ export class VariantListComponent implements OnInit, OnDestroy {
     );
   }
 
-  private parseVariantDimensionLabelSlots(product?: Product | null): [string, string, string] {
-    const empty: [string, string, string] = ['', '', ''];
-    if (!product?.variantDimensionLabels) return empty;
-    try {
-      const a = JSON.parse(product.variantDimensionLabels) as unknown;
-      if (!Array.isArray(a)) return empty;
-      return [
-        String(a[0] ?? '').trim(),
-        String(a[1] ?? '').trim(),
-        String(a[2] ?? '').trim(),
-      ];
-    } catch {
-      return empty;
-    }
-  }
-
-  /** Lưu 3 nhãn cột (map với color / size / weight) đồng bộ PDP. */
+  /** Lưu 3 nhãn + kiểu PDP (swatch / nút) đồng bộ với trang chi tiết sản phẩm. */
   private serializeVariantDimensionLabels(): string {
     const pad: VariantAttributeRow[] = [...this.attributeRows];
     while (pad.length < 3) {
-      pad.push({ name: '', values: [], tagInput: '' });
+      const i = pad.length;
+      pad.push({
+        name: '',
+        values: [],
+        tagInput: '',
+        displayAs: i === 0 ? 'swatch' : 'buttons',
+      });
     }
-    return JSON.stringify(pad.slice(0, 3).map((r) => (r.name || '').trim()));
+    return serializeVariantDimensionSlotsJson(
+      pad.slice(0, 3).map((r, i) => ({
+        name: (r.name || '').trim(),
+        ui: r.displayAs ?? (i === 0 ? 'swatch' : 'buttons'),
+      })),
+    );
   }
 
   private inferAttributeRows(variants: ProductVariant[], product?: Product | null): VariantAttributeRow[] {
-    const labelSlots = this.parseVariantDimensionLabelSlots(product);
+    const slotsParsed = parseVariantDimensionSlotsFromJson(product?.variantDimensionLabels ?? null);
     const uniq = (get: (v: ProductVariant) => string | undefined) => {
       const s = new Set<string>();
       for (const v of variants) {
@@ -632,38 +663,43 @@ export class VariantListComponent implements OnInit, OnDestroy {
     const rows: VariantAttributeRow[] = [];
     if (variants.length === 0) {
       rows.push({
-        name: labelSlots[0] || this.transloco.translate('VARIANT.COLOR'),
+        name: slotsParsed[0].name || this.transloco.translate('VARIANT.COLOR'),
         values: [],
         tagInput: '',
+        displayAs: slotsParsed[0].ui,
       });
       return rows;
     }
     if (colors.length || variants.some((v) => (v.color ?? '').trim())) {
       rows.push({
-        name: labelSlots[0] || this.transloco.translate('VARIANT.COLOR'),
+        name: slotsParsed[0].name || this.transloco.translate('VARIANT.COLOR'),
         values: colors,
         tagInput: '',
+        displayAs: slotsParsed[0].ui,
       });
     }
     if (sizes.length || variants.some((v) => (v.size ?? '').trim())) {
       rows.push({
-        name: labelSlots[1] || this.transloco.translate('VARIANT.SIZE'),
+        name: slotsParsed[1].name || this.transloco.translate('VARIANT.SIZE'),
         values: sizes,
         tagInput: '',
+        displayAs: slotsParsed[1].ui,
       });
     }
     if (weights.length || variants.some((v) => (v.weight ?? '').trim())) {
       rows.push({
-        name: labelSlots[2] || this.transloco.translate('VARIANT.WEIGHT'),
+        name: slotsParsed[2].name || this.transloco.translate('VARIANT.WEIGHT'),
         values: weights,
         tagInput: '',
+        displayAs: slotsParsed[2].ui,
       });
     }
     if (rows.length === 0) {
       rows.push({
-        name: labelSlots[0] || this.transloco.translate('VARIANT.COLOR'),
+        name: slotsParsed[0].name || this.transloco.translate('VARIANT.COLOR'),
         values: [],
         tagInput: '',
+        displayAs: slotsParsed[0].ui,
       });
     }
     return rows.slice(0, 3);

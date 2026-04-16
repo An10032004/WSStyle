@@ -136,11 +136,18 @@
               <span class="tag-badge">RETAIL & WHOLESALE</span>
             </div>
             <h4 class="product-name">{{ p.name }}</h4>
-            <div class="price-box">
-              <span class="original-price">{{ (p.basePrice * 2) | number:'1.0-0' }} đ</span>
-              <span class="discount">-50%</span>
-              <div class="final-price">{{ p.basePrice | number:'1.0-0' }} ₫</div>
+            <div class="price-box" *ngIf="!p.hidePrice; else sellersHiddenPrice">
+              <span class="original-price" *ngIf="p.calculatedPrice != null && p.basePrice != null && p.calculatedPrice < p.basePrice">
+                {{ p.basePrice | number:'1.0-0' }} đ
+              </span>
+              <span class="discount" *ngIf="p.discountLabel">{{ p.discountLabel }}</span>
+              <div class="final-price">{{ (p.calculatedPrice || p.basePrice) | number:'1.0-0' }} ₫</div>
             </div>
+            <ng-template #sellersHiddenPrice>
+              <div class="price-box">
+                <span class="replacement-text">{{ p.replacementText || 'Liên hệ để có giá' }}</span>
+              </div>
+            </ng-template>
           </div>
         </a>
       </div>
@@ -208,7 +215,12 @@
               <span class="tag-badge">RETAIL & WHOLESALE</span>
             </div>
             <h4 class="product-name">{{ p.name }}</h4>
-            <div class="price">{{ p.basePrice | currency:'VND':'symbol':'1.0-0' }}</div>
+            <div class="price" *ngIf="!p.hidePrice; else newArrivalHiddenPrice">
+              {{ (p.calculatedPrice || p.basePrice) | number:'1.0-0' }} ₫
+            </div>
+            <ng-template #newArrivalHiddenPrice>
+              <div class="price price--muted">{{ p.replacementText || 'Liên hệ để có giá' }}</div>
+            </ng-template>
           </div>
         </a>
       </div>

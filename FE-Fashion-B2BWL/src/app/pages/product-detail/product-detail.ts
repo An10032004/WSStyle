@@ -32,6 +32,21 @@ import {
 } from '../../utils/order-limit-precedence';
 import { ruleMatchesTargeting } from '../../utils/rule-targeting';
 import { isVariantAvailableForSale } from '../../utils/variant-availability';
+import {
+  parseVariantDimensionSlotsFromJson,
+  type VariantDimUi,
+} from '../../utils/variant-dimension-slots.util';
+import { resolveColorHex, isLightColorForSwatch } from '../../utils/color-swatch.util';
+
+type PdpDimKind = 'color' | 'size' | 'weight';
+
+interface PdpDimPickerBlock {
+  dim: PdpDimKind;
+  label: string;
+  ui: VariantDimUi;
+  values: string[];
+  selected?: string;
+}
 
 @Component({
   selector: 'app-product-detail',
@@ -130,10 +145,12 @@ export class ProductDetailComponent implements OnInit {
   
   availableWeights: string[] = [];
 
-  /** Nhãn 3 chiều (lưu trên sản phẩm hoặc mặc định i18n). */
-  variantDimLabel1 = '';
-  variantDimLabel2 = '';
-  variantDimLabel3 = '';
+  /** Nhãn + kiểu hiển thị PDP cho 3 chiều (color / size / weight). */
+  variantDimSlots: Array<{ label: string; ui: VariantDimUi }> = [
+    { label: '', ui: 'swatch' },
+    { label: '', ui: 'buttons' },
+    { label: '', ui: 'buttons' },
+  ];
 
   // Pricing Rules
   @ViewChild('reviewDialog') reviewDialog!: TemplateRef<any>;
@@ -436,28 +453,81 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
-  /** Đọc `product.variantDimensionLabels` (JSON mảng 3 phần tử) hoặc nhãn mặc định. */
-  private refreshVariantDimensionLabels(): void {
-    this.variantDimLabel1 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_COLOR');
-    this.variantDimLabel2 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_SIZE');
-    this.variantDimLabel3 = this.transloco.translate('PRODUCT_DETAIL.VAR_DIM_WEIGHT');
-    const raw = this.product?.variantDimensionLabels;
-    if (!raw) return;
-    try {
-      const a = JSON.parse(raw) as unknown;
-      if (!Array.isArray(a)) return;
-      if (String(a[0] ?? '').trim()) {
-        this.variantDimLabel1 = String(a[0]).trim();
-      }
-      if (String(a[1] ?? '').trim()) {
-        this.variantDimLabel2 = String(a[1]).trim();
-      }
-      if (String(a[2] ?? '').trim()) {
-        this.variantDimLabel3 = String(a[2]).trim();
-      }
-    } catch {
-      /* giữ mặc định */
+  /** Đọc `product.variantDimensionLabels` (JSON: chuỗi legacy hoặc { name, ui } × 3). */
+  private refreshVariantDimensionSlots(): void {
+    const parsed = parseVariantDimensionSlotsFromJson(this.product?.variantDimensionLabels ?? null);
+    const keys = [
+      'PRODUCT_DETAIL.VAR_DIM_COLOR',
+      'PRODUCT_DETAIL.VAR_DIM_SIZE',
+      'PRODUCT_DETAIL.VAR_DIM_WEIGHT',
+    ] as const;
+    for (let i = 0; i < 3; i++) {
+      this.variantDimSlots[i] = {
+        label: this.resolveAdminDimensionLabel(parsed[i].name, keys[i]),
+        ui: parsed[i].ui,
+      };
     }
+  }
+
+  /**
+   * Nếu admin nhập nhầm khóa i18n thô (vd. PRODUCT_DETAIL.VAR_DIM_COLOR), cố gắng dịch;
+   * nếu không dịch được thì dùng nhãn mặc định theo chiều.
+   */
+  private resolveAdminDimensionLabel(raw: string, i18nFallbackKey: string): string {
+    const s = (raw || '').trim();
+    if (!s) {
+      return this.transloco.translate(i18nFallbackKey);
+    }
+    if (/^[A-Z][A-Z0-9_.]*$/.test(s) && s.includes('.')) {
+      const tr = this.transloco.translate(s);
+      if (tr && tr !== s) return tr;
+      return this.transloco.translate(i18nFallbackKey);
+    }
+    return s;
+  }
+
+  get pdpDimPickers(): PdpDimPickerBlock[] {
+    const out: PdpDimPickerBlock[] = [];
+    const pushIf = (
+      dim: PdpDimKind,
+      idx: 0 | 1 | 2,
+      values: string[],
+      selected?: string,
+    ) => {
+      if (!values.length) return;
+      const slot = this.variantDimSlots[idx];
+      out.push({
+        dim,
+        label: slot.label,
+        ui: slot.ui,
+        values: [...values],
+        selected,
+      });
+    };
+    pushIf('color', 0, this.availableColors, this.selectedColor);
+    pushIf('size', 1, this.availableSizes, this.selectedSize);
+    pushIf('weight', 2, this.availableWeights, this.selectedWeight);
+    return out;
+  }
+
+  trackPdpDim(_i: number, p: PdpDimPickerBlock): string {
+    return p.dim;
+  }
+
+  onPdpDimPick(dim: PdpDimKind, value: string): void {
+    if (dim === 'color') this.selectColor(value);
+    else if (dim === 'size') this.selectSize(value);
+    else this.selectWeight(value);
+  }
+
+  pdpDimHasOpenSale(dim: PdpDimKind, value: string): boolean {
+    if (dim === 'color') return this.colorHasOpenSale(value);
+    if (dim === 'size') return this.sizeHasOpenSale(value);
+    return this.weightHasOpenSale(value);
+  }
+
+  isLightSwatchValue(value: string): boolean {
+    return isLightColorForSwatch(value);
   }
 
   private loadProduct() {
@@ -467,7 +537,7 @@ export class ProductDetailComponent implements OnInit {
       const id = parseInt(idParam);
       this.api.getProductById(id, userId).subscribe((p) => {
         this.product = p;
-        this.refreshVariantDimensionLabels();
+        this.refreshVariantDimensionSlots();
         this.productBundles = [];
         this.productBundlesLoaded = false;
         this.relatedProducts = [];
@@ -786,27 +856,7 @@ export class ProductDetailComponent implements OnInit {
   }
 
   getColorHex(color: string): string {
-    const map: { [key: string]: string } = {
-      'Đỏ': '#dc2626',
-      'Đen': '#171717',
-      'Trắng': '#ffffff',
-      'Xanh': '#2563eb',
-      'Vàng': '#facc15',
-      'Hồng': '#db2777',
-      'Xám': '#4b5563',
-      'Nâu': '#78350f',
-      'Kem': '#fef3c7',
-      'Rêu': '#166534',
-      'Be': '#f5f5dc',
-      'Tím': '#7c3aed',
-      'Cam': '#ea580c',
-      'Xanh lá': '#16a34a',
-      'Xanh dương': '#1d4ed8',
-      'Xanh navy': '#1e3a8a',
-      'Xanh rêu': '#3f6212',
-      'Than': '#334155'
-    };
-    return map[color] || color; // Fallback to raw string if no map found
+    return resolveColorHex(color);
   }
 
   changeImage(img: string) {

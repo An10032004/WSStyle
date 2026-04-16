@@ -114,50 +114,36 @@
            (onBuy)="handleTableBuy($event)">
         </app-quantity-break-table>
 
-        <div class="variant-selector" *ngIf="availableColors.length > 0">
-          <div class="selector-label">{{ variantDimLabel1 }} | <span>{{ selectedColor || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
-          <div class="swatch-group">
-            <div 
-              class="color-circle" 
-              *ngFor="let color of availableColors"
-              [class.active]="selectedColor === color"
-              [class.unavailable]="!colorHasOpenSale(color)"
-              [class.light-color]="color === 'White' || color === 'Trắng' || color === 'Cream'"
-              (click)="selectColor(color)"
-              [title]="color"
-              [style.background-color]="getColorHex(color)"
+        <div class="variant-selector" *ngFor="let p of pdpDimPickers; trackBy: trackPdpDim">
+          <div class="selector-label">
+            <span class="selector-label__k">{{ p.label }}</span>
+            <span class="selector-label__sep" aria-hidden="true">·</span>
+            <span class="selector-label__v">{{ p.selected || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span>
+          </div>
+          <div class="swatch-group" *ngIf="p.ui === 'swatch'">
+            <div
+              class="color-circle"
+              *ngFor="let val of p.values"
+              [class.active]="p.selected === val"
+              [class.unavailable]="!pdpDimHasOpenSale(p.dim, val)"
+              [class.light-color]="p.dim === 'color' && isLightSwatchValue(val)"
+              (click)="onPdpDimPick(p.dim, val)"
+              [title]="val"
+              [style.background-color]="getColorHex(val)"
             >
-              <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
+              <tui-icon icon="@tui.check" *ngIf="p.selected === val"></tui-icon>
             </div>
           </div>
-        </div>
-
-        <div class="variant-selector" *ngIf="availableSizes.length > 0">
-          <div class="selector-label">{{ variantDimLabel2 }} | <span>{{ selectedSize || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
-          <div class="size-options">
-            <button 
-              class="size-btn" 
-              *ngFor="let size of availableSizes"
-              [class.active]="selectedSize === size"
-              [class.unavailable]="!sizeHasOpenSale(size)"
-              (click)="selectSize(size)"
+          <div class="size-options" *ngIf="p.ui === 'buttons'">
+            <button
+              type="button"
+              class="size-btn"
+              *ngFor="let val of p.values"
+              [class.active]="p.selected === val"
+              [class.unavailable]="!pdpDimHasOpenSale(p.dim, val)"
+              (click)="onPdpDimPick(p.dim, val)"
             >
-              {{ size }}
-            </button>
-          </div>
-        </div>
-
-        <div class="variant-selector" *ngIf="availableWeights.length > 0">
-          <div class="selector-label">{{ variantDimLabel3 }} | <span>{{ selectedWeight || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span></div>
-          <div class="size-options">
-            <button 
-              class="size-btn" 
-              *ngFor="let weight of availableWeights"
-              [class.active]="selectedWeight === weight"
-              [class.unavailable]="!weightHasOpenSale(weight)"
-              (click)="selectWeight(weight)"
-            >
-              {{ weight }}
+              {{ val }}
             </button>
           </div>
         </div>
