@@ -21,7 +21,7 @@ import { TranslocoModule } from '@jsverse/transloco';
     NetTermRulesComponent,
     TaxDisplayRulesComponent,
     HidePriceRulesComponent,
-    TranslocoModule
+    TranslocoModule,
   ],
   template: `
     <div class="page-container">

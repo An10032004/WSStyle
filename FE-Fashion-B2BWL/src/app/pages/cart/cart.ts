@@ -24,6 +24,7 @@ import { ApiService, DebtSummary } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 import { estimateCouponDiscountAmount, subtotalAfterCouponDiscount } from '../../utils/coupon-discount';
+import { CheckoutShippingContextService } from '../../services/checkout-shipping-context.service';
 
 @Component({
   selector: 'app-cart',
@@ -44,6 +45,7 @@ export class CartComponent implements OnInit {
   private readonly api = inject(ApiService);
   readonly auth = inject(AuthService);
   private readonly alerts = inject(TuiAlertService);
+  readonly shippingCtx = inject(CheckoutShippingContextService);
 
   cart$ = this.cartService.cart$;
 
@@ -175,10 +177,42 @@ export class CartComponent implements OnInit {
     this.revalidate();
   }
 
+  selectCartShipMode(mode: 'RULE' | 'STANDARD' | 'EXPRESS'): void {
+    if (mode !== 'RULE') {
+      const u = this.auth.currentUserValue;
+      if (!u?.id) {
+        this.alerts
+          .open('Đăng nhập và lưu địa chỉ giao hàng, hoặc chọn phí theo vùng ở bước thanh toán sau khi nhập đủ địa chỉ.', {
+            label: 'Cần đăng nhập',
+            appearance: 'warning',
+          })
+          .subscribe();
+        return;
+      }
+      const pc = this.shippingCtx.snapshot().provinceCode;
+      if (!pc) {
+        this.alerts
+          .open(
+            'Lưu địa chỉ trong hồ sơ (có tỉnh/thành) hoặc chọn phí theo vùng ở thanh toán sau khi nhập đủ địa chỉ.',
+            { label: 'Thiếu tỉnh', appearance: 'warning' },
+          )
+          .subscribe();
+        return;
+      }
+    }
+    this.shippingCtx.setSelection(mode);
+  }
+
   /** Phí ship theo tổng đơn + loại KH (API), không lọc SP — chỉ hiển thị giỏ hàng. */
-  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
+  shippingQuote$ = combineLatest([
+    this.cartService.cart$,
+    this.auth.user$,
+    this.appliedCoupon$,
+    this.shippingCtx.selection$,
+    this.shippingCtx.provinceCode$,
+  ]).pipe(
     debounceTime(200),
-    switchMap(([items, user, coupon]) => {
+    switchMap(([items, user, coupon, selection, provinceCode]) => {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
       
@@ -192,12 +226,20 @@ export class CartComponent implements OnInit {
           tierFeeBeforeDiscount: 0,
           ruleName: undefined as string | undefined,
           baseOn: undefined as string | undefined,
+          ruleFee: 0,
+          zoneMatched: false,
+          zoneId: null as number | null,
+          zoneName: null as string | null,
+          zoneStandardFee: 0,
+          zoneExpressFee: 0,
         });
       }
       return this.api.quoteShipping({
         userId: user?.id,
         orderAmount: subtotal,
         totalQuantity: qty,
+        provinceCode: user?.id ? provinceCode || undefined : undefined,
+        shippingSelection: selection,
       });
     }),
     shareReplay(1),
@@ -256,6 +298,15 @@ export class CartComponent implements OnInit {
   );
 
   ngOnInit() {
+    const u = this.auth.currentUserValue;
+    if (u) {
+      this.shippingCtx.loadFromUserShippingJson(u.shippingAddressJson);
+    } else {
+      this.shippingCtx.setProvinceCode(null);
+      if (this.shippingCtx.snapshot().selection !== 'RULE') {
+        this.shippingCtx.setSelection('RULE');
+      }
+    }
     this.cartService.syncHidePriceFlagsFromServer().subscribe({
       next: () => this.revalidate(),
       error: () => this.revalidate(),

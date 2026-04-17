@@ -145,12 +145,41 @@
               <strong style="font-size: 15px; color: #333;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
             </div>
 
-            <div class="summary-row">
-              <span>Phí vận chuyển (ước tính)</span>
-              <ng-container *ngIf="(shippingFee$ | async) as shipFee">
-                <span class="free" *ngIf="shipFee === 0">Miễn phí</span>
-                <strong *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
-              </ng-container>
+            <div class="cart-ship-mode" *ngIf="shippingQuote$ | async as sq">
+              <div class="cart-ship-mode__head">
+                <span class="cart-ship-mode__title">Phí vận chuyển (ước tính)</span>
+                <ng-container *ngIf="(shippingFee$ | async) as shipFee">
+                  <strong class="cart-ship-mode__fee" *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
+                  <span class="cart-ship-mode__fee free" *ngIf="shipFee === 0">Miễn phí</span>
+                </ng-container>
+              </div>
+              <label class="cart-ship-opt">
+                <input type="radio" name="cartShipMode" [checked]="(shippingCtx.selection$ | async) === 'RULE'" (change)="selectCartShipMode('RULE')" />
+                <span>Theo quy tắc ({{ sq.ruleFee ?? sq.fee | number:'1.0-0' }} ₫)</span>
+              </label>
+              <label class="cart-ship-opt" [class.is-muted]="!sq.zoneMatched || !(auth.user$ | async)?.id">
+                <input
+                  type="radio"
+                  name="cartShipMode"
+                  [disabled]="!sq.zoneMatched || !(auth.user$ | async)?.id"
+                  [checked]="(shippingCtx.selection$ | async) === 'STANDARD'"
+                  (change)="selectCartShipMode('STANDARD')"
+                />
+                <span>Standard <ng-container *ngIf="sq.zoneMatched && (auth.user$ | async)?.id">({{ sq.zoneStandardFee | number:'1.0-0' }} ₫)</ng-container></span>
+              </label>
+              <label class="cart-ship-opt" [class.is-muted]="!sq.zoneMatched || !(auth.user$ | async)?.id">
+                <input
+                  type="radio"
+                  name="cartShipMode"
+                  [disabled]="!sq.zoneMatched || !(auth.user$ | async)?.id"
+                  [checked]="(shippingCtx.selection$ | async) === 'EXPRESS'"
+                  (change)="selectCartShipMode('EXPRESS')"
+                />
+                <span>Express <ng-container *ngIf="sq.zoneMatched && (auth.user$ | async)?.id">({{ sq.zoneExpressFee | number:'1.0-0' }} ₫)</ng-container></span>
+              </label>
+              <p class="cart-ship-hint" *ngIf="!(auth.user$ | async)?.id">
+                Phí theo vùng (Standard/Express): đăng nhập và lưu địa chỉ có tỉnh trong hồ sơ, hoặc nhập đủ địa chỉ ở bước thanh toán.
+              </p>
             </div>
 
             <div class="summary-row" *ngIf="(taxQuote$ | async) as taxQuote">

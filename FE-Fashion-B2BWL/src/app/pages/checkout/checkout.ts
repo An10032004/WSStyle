@@ -1,4 +1,12 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  inject,
+  OnInit,
+  TemplateRef,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,6 +22,8 @@ import { AuthService } from '../../services/auth.service';
 import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 import { buildOrderItemPricingNote } from '../../utils/order-pricing-snapshot';
 import { estimateCouponDiscountAmount, subtotalAfterCouponDiscount } from '../../utils/coupon-discount';
+import { VnAddressFormComponent, VnAddressPayload } from '../../shared/components/vn-address-form/vn-address-form';
+import { CheckoutShippingContextService } from '../../services/checkout-shipping-context.service';
 
 @Component({
   selector: 'app-checkout',
@@ -23,7 +33,7 @@ import { estimateCouponDiscountAmount, subtotalAfterCouponDiscount } from '../..
     TuiButton, TuiBadge, TuiLoader, TuiTextfield,
     TuiFormatNumberPipe, TuiLabel, TranslocoModule,
     StorefrontHeaderComponent, StorefrontFooterComponent,
-    QuantityBreakTableComponent, TuiDropdown
+    QuantityBreakTableComponent, TuiDropdown, VnAddressFormComponent,
   ],
   templateUrl: './checkout.html',
   styleUrls: ['./checkout.scss'],
@@ -33,10 +43,12 @@ export class CheckoutComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly cartService = inject(CartService);
   private readonly apiService = inject(ApiService);
+  readonly shippingCtx = inject(CheckoutShippingContextService);
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly alerts = inject(TuiAlertService);
   private readonly dialogs = inject(TuiDialogService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   @ViewChild('paymentDialog') paymentDialogTemplate!: TemplateRef<any>;
   paymentQrUrl = '';
@@ -89,10 +101,24 @@ export class CheckoutComponent implements OnInit {
 
   appliedCoupon$ = this.cartService.appliedCoupon$;
 
-  /** Cùng logic API với giỏ hàng: tổng tiền + SL + loại KH, không lọc SP. */
-  shippingQuote$ = combineLatest([this.cartService.cart$, this.auth.user$, this.appliedCoupon$]).pipe(
+  readonly user$ = this.auth.user$;
+
+  /** Địa chỉ đầy đủ từ form (để gửi mã tỉnh khi đặt hàng). */
+  lastAddressPayload: VnAddressPayload | null = null;
+
+  /** Đủ tỉnh / phường / số nhà — bắt buộc trước khi chọn Standard/Express theo vùng. */
+  addressComplete = false;
+
+  /** Cùng logic API với giỏ hàng: tổng tiền + SL + loại KH + tỉnh + hình thức ship. */
+  shippingQuote$ = combineLatest([
+    this.cartService.cart$,
+    this.auth.user$,
+    this.appliedCoupon$,
+    this.shippingCtx.selection$,
+    this.shippingCtx.provinceCode$,
+  ]).pipe(
     debounceTime(200),
-    switchMap(([items, user, coupon]) => {
+    switchMap(([items, user, coupon, selection, provinceCode]) => {
       const selected = items.filter(i => i.selected !== false);
       let subtotal = selected.reduce((s, i) => s + i.price * i.quantity, 0);
 
@@ -106,12 +132,26 @@ export class CheckoutComponent implements OnInit {
           tierFeeBeforeDiscount: 0,
           ruleName: undefined as string | undefined,
           baseOn: undefined as string | undefined,
+          ruleFee: 0,
+          zoneMatched: false,
+          zoneId: null as number | null,
+          zoneName: null as string | null,
+          zoneStandardFee: 0,
+          zoneExpressFee: 0,
         });
       }
+      const prov =
+        this.lastAddressPayload?.provinceCode != null
+          ? String(this.lastAddressPayload.provinceCode)
+          : user?.id
+            ? provinceCode || null
+            : null;
       return this.apiService.quoteShipping({
         userId: user?.id,
         orderAmount: subtotal,
         totalQuantity: qty,
+        provinceCode: prov || undefined,
+        shippingSelection: selection,
       });
     }),
     shareReplay(1),
@@ -180,6 +220,12 @@ export class CheckoutComponent implements OnInit {
         fullName: user.fullName || '',
         phone: user.phone || ''
       });
+      this.shippingCtx.loadFromUserShippingJson(user.shippingAddressJson);
+    } else {
+      this.shippingCtx.setProvinceCode(null);
+      if (this.shippingCtx.snapshot().selection !== 'RULE') {
+        this.shippingCtx.setSelection('RULE');
+      }
     }
 
     this.cartService.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
@@ -203,6 +249,41 @@ export class CheckoutComponent implements OnInit {
         this.setPaymentMethod(method);
       }
     });
+  }
+
+  onCheckoutAddress(payload: VnAddressPayload | null): void {
+    const hadCompleteAddress = this.addressComplete;
+    this.lastAddressPayload = payload;
+    this.addressComplete = !!payload;
+    if (payload?.provinceCode) {
+      this.shippingCtx.setProvinceCode(String(payload.provinceCode));
+    } else {
+      this.shippingCtx.setProvinceCode(null);
+    }
+    if (payload) {
+      this.checkoutForm.patchValue({ shippingAddress: payload.fullLine });
+    } else {
+      this.checkoutForm.patchValue({ shippingAddress: '' });
+    }
+    // Chỉ ép về RULE khi user đã có địa chỉ đủ rồi xóa / làm mất — không ép khi form vừa emit null lúc hydrate
+    // (tránh mất Standard/Express đã chọn ở giỏ hàng khi vào thanh toán).
+    if (!payload && hadCompleteAddress && this.shippingCtx.snapshot().selection !== 'RULE') {
+      this.shippingCtx.setSelection('RULE');
+    }
+    this.cdr.markForCheck();
+  }
+
+  selectShipMode(mode: 'RULE' | 'STANDARD' | 'EXPRESS'): void {
+    if (mode !== 'RULE' && !this.lastAddressPayload) {
+      this.alerts
+        .open(
+          'Vui lòng chọn đủ Tỉnh / Phường và nhập địa chỉ chi tiết trước khi chọn phí Standard hoặc Express theo vùng.',
+          { label: 'Thiếu địa chỉ', appearance: 'warning' },
+        )
+        .subscribe();
+      return;
+    }
+    this.shippingCtx.setSelection(mode);
   }
 
   onSubmit() {
@@ -327,6 +408,11 @@ export class CheckoutComponent implements OnInit {
         this.taxFee$.pipe(take(1)).subscribe(taxAmount => {
           this.appliedCoupon$.pipe(take(1)).subscribe(coupon => {
             this.discountAmount$.pipe(take(1)).subscribe(discountAmount => {
+              const snap = this.shippingCtx.snapshot();
+              const province =
+                this.lastAddressPayload?.provinceCode != null
+                  ? String(this.lastAddressPayload.provinceCode)
+                  : snap.provinceCode || undefined;
               const request: OrderRequest = {
                 userId: user.id,
                 orderType: 'RETAIL',
@@ -335,6 +421,8 @@ export class CheckoutComponent implements OnInit {
                 phone: formValue.phone,
                 shippingAddress: formValue.shippingAddress,
                 note: formValue.note,
+                shippingSelection: snap.selection,
+                shippingProvinceCode: province,
                 shippingFee,
                 taxAmount,
                 couponCode: coupon?.code,

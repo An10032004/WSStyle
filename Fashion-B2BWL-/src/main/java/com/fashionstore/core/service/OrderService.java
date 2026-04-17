@@ -154,9 +154,29 @@ public class OrderService {
         BigDecimal discountedSubtotal = totalAmount.subtract(discountAmount);
         if (discountedSubtotal.compareTo(BigDecimal.ZERO) < 0) discountedSubtotal = BigDecimal.ZERO;
 
-        // Shipping logic based on discounted subtotal
-        ShippingQuoteResponse shipQuote = shippingRuleService.quote(request.getUserId(), discountedSubtotal, totalQty);
+        String shipSel = request.getShippingSelection() != null && !request.getShippingSelection().isBlank()
+                ? request.getShippingSelection().trim().toUpperCase()
+                : "RULE";
+        if ("STANDARD".equals(shipSel) || "EXPRESS".equals(shipSel)) {
+            if (request.getShippingProvinceCode() == null || request.getShippingProvinceCode().isBlank()) {
+                throw new RuntimeException("Vui lòng chọn tỉnh/thành khi chọn giao Standard hoặc Express.");
+            }
+        }
+
+        ShippingQuoteResponse shipQuote = shippingRuleService.quote(
+                request.getUserId(),
+                discountedSubtotal,
+                totalQty,
+                request.getShippingProvinceCode(),
+                shipSel);
+        if ("STANDARD".equals(shipSel) || "EXPRESS".equals(shipSel)) {
+            if (!shipQuote.isZoneMatched()) {
+                throw new RuntimeException("Địa chỉ chưa thuộc vùng có phí Standard/Express. Chọn «Theo quy tắc» hoặc liên hệ shop.");
+            }
+        }
         order.setShippingFee(shipQuote.getFee() != null ? shipQuote.getFee() : BigDecimal.ZERO);
+        order.setShippingSelection(shipSel);
+        order.setShippingProvinceCode(request.getShippingProvinceCode());
         
         // Tax logic based on discounted subtotal
         var taxQuote = taxDisplayRuleService.quoteTax(request.getUserId(), discountedSubtotal);

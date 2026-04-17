@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fashionstore.core.dto.request.ShippingRuleRequest;
 import com.fashionstore.core.dto.response.ShippingQuoteResponse;
 import com.fashionstore.core.model.ShippingRule;
+import com.fashionstore.core.model.ShippingZone;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.repository.ShippingRuleRepository;
 import com.fashionstore.core.repository.UserRepository;
@@ -27,6 +28,7 @@ public class ShippingRuleService {
     private final ShippingRuleRepository shippingRuleRepository;
     private final RuleCoreService ruleCoreService;
     private final UserRepository userRepository;
+    private final ShippingZoneService shippingZoneService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<ShippingRule> getAllRules() {
@@ -39,12 +41,69 @@ public class ShippingRuleService {
      */
     @Transactional(readOnly = true)
     public ShippingQuoteResponse quote(Integer userId, BigDecimal orderAmount, int totalQuantity) {
+        return quote(userId, orderAmount, totalQuantity, null, null);
+    }
+
+    /**
+     * @param provinceCode     mã tỉnh (tùy chọn) — khớp {@link ShippingZone}
+     * @param shippingSelection RULE | STANDARD | EXPRESS (null = RULE)
+     */
+    @Transactional(readOnly = true)
+    public ShippingQuoteResponse quote(Integer userId, BigDecimal orderAmount, int totalQuantity,
+                                       String provinceCode, String shippingSelection) {
         BigDecimal amount = orderAmount != null ? orderAmount.max(BigDecimal.ZERO) : BigDecimal.ZERO;
         User user = null;
         if (userId != null) {
             user = userRepository.findByIdWithCustomerGroup(userId).orElse(null);
         }
 
+        ShippingQuoteResponse rulePart = quoteRuleOnly(user, amount, totalQuantity);
+        BigDecimal ruleFee = rulePart.getFee() != null ? rulePart.getFee() : BigDecimal.ZERO;
+
+        java.util.Optional<ShippingZone> zoneOpt = shippingZoneService.findActiveZoneForProvince(provinceCode);
+        boolean zoneMatched = zoneOpt.isPresent();
+        BigDecimal zStd = BigDecimal.ZERO;
+        BigDecimal zExp = BigDecimal.ZERO;
+        Integer zoneId = null;
+        String zoneName = null;
+        if (zoneMatched) {
+            ShippingZone z = zoneOpt.get();
+            zoneId = z.getId();
+            zoneName = z.getName();
+            zStd = z.getStandardFee() != null ? z.getStandardFee().setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            zExp = z.getExpressFee() != null ? z.getExpressFee().setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        }
+
+        String mode = shippingSelection == null || shippingSelection.isBlank() ? "RULE" : shippingSelection.trim().toUpperCase();
+        BigDecimal appliedFee;
+        switch (mode) {
+            case "STANDARD":
+                appliedFee = zoneMatched ? zStd : BigDecimal.ZERO;
+                break;
+            case "EXPRESS":
+                appliedFee = zoneMatched ? zExp : BigDecimal.ZERO;
+                break;
+            default:
+                appliedFee = ruleFee;
+                mode = "RULE";
+        }
+
+        return ShippingQuoteResponse.builder()
+                .fee(appliedFee)
+                .tierFeeBeforeDiscount(rulePart.getTierFeeBeforeDiscount())
+                .ruleName(rulePart.getRuleName())
+                .baseOn(rulePart.getBaseOn())
+                .matched(rulePart.isMatched())
+                .ruleFee(ruleFee)
+                .zoneMatched(zoneMatched)
+                .zoneId(zoneId)
+                .zoneName(zoneName)
+                .zoneStandardFee(zStd)
+                .zoneExpressFee(zExp)
+                .build();
+    }
+
+    private ShippingQuoteResponse quoteRuleOnly(User user, BigDecimal amount, int totalQuantity) {
         List<ShippingRule> rules = shippingRuleRepository.findAll().stream()
                 .filter(r -> "ACTIVE".equals(r.getStatus()))
                 .sorted(Comparator.comparing(ShippingRule::getPriority, Comparator.nullsLast(Integer::compareTo)))
@@ -57,10 +116,8 @@ public class ShippingRuleService {
             }
             BigDecimal tier = resolveTierFee(rule, amount, totalQuantity);
             if (tier == null) {
-                // Rule này không match khoảng phí nào -> thử rule kế tiếp theo priority.
                 continue;
             }
-            // Tạm thời: chỉ dùng phí theo khoảng (rateRanges), không áp chiết khấu phí ship trên quote/đơn.
             BigDecimal fee = tier;
             return ShippingQuoteResponse.builder()
                     .fee(fee.setScale(0, RoundingMode.HALF_UP))
@@ -68,6 +125,10 @@ public class ShippingRuleService {
                     .ruleName(rule.getName())
                     .baseOn(rule.getBaseOn())
                     .matched(true)
+                    .ruleFee(fee.setScale(0, RoundingMode.HALF_UP))
+                    .zoneMatched(false)
+                    .zoneStandardFee(BigDecimal.ZERO)
+                    .zoneExpressFee(BigDecimal.ZERO)
                     .build();
         }
 
@@ -75,6 +136,10 @@ public class ShippingRuleService {
                 .fee(BigDecimal.ZERO)
                 .tierFeeBeforeDiscount(BigDecimal.ZERO)
                 .matched(false)
+                .ruleFee(BigDecimal.ZERO)
+                .zoneMatched(false)
+                .zoneStandardFee(BigDecimal.ZERO)
+                .zoneExpressFee(BigDecimal.ZERO)
                 .build();
     }
 

@@ -35,7 +35,12 @@ public class ShippingRuleController {
         }
         BigDecimal amt = request.getOrderAmount() != null ? request.getOrderAmount() : BigDecimal.ZERO;
         int qty = request.getTotalQuantity() != null ? request.getTotalQuantity() : 0;
-        ShippingQuoteResponse q = shippingRuleService.quote(request.getUserId(), amt, qty);
+        ShippingQuoteResponse q = shippingRuleService.quote(
+                request.getUserId(),
+                amt,
+                qty,
+                request.getProvinceCode(),
+                request.getShippingSelection());
         return ResponseEntity.ok(ApiResponse.success(q));
     }
 

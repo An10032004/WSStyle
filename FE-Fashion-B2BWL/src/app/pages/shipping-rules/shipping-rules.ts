@@ -32,6 +32,7 @@ import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { ShippingZonesComponent } from '../shipping-zones/shipping-zones';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -42,7 +43,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     CommonModule, FormsModule, AgGridAngular, TuiButton, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelectModule,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    RuleConflictWarningComponent, TuiBadge, MaskitoDirective
+    RuleConflictWarningComponent, TuiBadge, MaskitoDirective, ShippingZonesComponent,
   ],
   templateUrl: './shipping-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],

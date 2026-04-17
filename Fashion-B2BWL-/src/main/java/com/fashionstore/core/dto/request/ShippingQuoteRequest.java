@@ -13,4 +13,13 @@ public class ShippingQuoteRequest {
     private Integer userId;
     private BigDecimal orderAmount;
     private Integer totalQuantity;
+
+    /** Mã tỉnh/thành (VD: "79") — dùng khớp {@link com.fashionstore.core.model.ShippingZone} */
+    private String provinceCode;
+
+    /**
+     * RULE = theo bảng phí khoảng giá hiện tại;
+     * STANDARD / EXPRESS = theo vùng (nếu tỉnh thuộc vùng đã cấu hình).
+     */
+    private String shippingSelection;
 }

@@ -72,6 +72,12 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * Địa chỉ giao hàng mặc định (JSON): mã & tên tỉnh/quận/phường, chi tiết số nhà… — dùng cho checkout.
+     */
+    @Column(name = "shipping_address_json", columnDefinition = "TEXT")
+    private String shippingAddressJson;
+
     /** Được phép đăng nhập storefront / refresh token. */
     public boolean isLoginAllowed() {
         return deletedAt == null

@@ -69,6 +69,14 @@ public class Order {
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
 
+    /** RULE | STANDARD | EXPRESS — cách tính phí ship khách chọn */
+    @Column(name = "shipping_selection", length = 20)
+    private String shippingSelection;
+
+    /** Mã tỉnh/thành (provinces.open-api.vn) dùng khớp vùng ship */
+    @Column(name = "shipping_province_code", length = 32)
+    private String shippingProvinceCode;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 

@@ -12,11 +12,21 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ShippingQuoteResponse {
+    /** Phí áp dụng theo {@code shippingSelection} (RULE / STANDARD / EXPRESS). */
     private BigDecimal fee;
     /** Phí theo khoảng trước khi áp dụng FREE/FLAT/PERCENTAGE */
     private BigDecimal tierFeeBeforeDiscount;
     private String ruleName;
     private String baseOn;
-    /** Có quy tắc ACTIVE nào khớp loại khách không */
+    /** Có quy tắc shipping rule ACTIVE nào khớp loại khách và khoảng giá không */
     private boolean matched;
+
+    /** Phí nếu chọn RULE (giống {@link #fee} khi selection = RULE) */
+    private BigDecimal ruleFee;
+
+    private boolean zoneMatched;
+    private Integer zoneId;
+    private String zoneName;
+    private BigDecimal zoneStandardFee;
+    private BigDecimal zoneExpressFee;
 }

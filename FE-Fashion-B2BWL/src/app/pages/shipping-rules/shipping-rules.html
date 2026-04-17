@@ -201,6 +201,15 @@
       [animateRows]="true"
     ></ag-grid-angular>
   </div>
+
+  <div class="shipping-rules-zones-block" *ngIf="!showForm && !showDetails">
+    <h3 class="shipping-rules-zones-block__title">Vùng giao hàng (phí theo tỉnh)</h3>
+    <p class="shipping-rules-zones-block__desc">
+      Cấu hình phí Standard / Express theo tỉnh — áp dụng cho mọi khách khi họ chọn đủ địa chỉ giao hàng. Đây là phần
+      <strong>bổ sung của phí vận chuyển</strong>, không dùng priority như các quy tắc bảng giá phía trên.
+    </p>
+    <app-shipping-zones [embedded]="true"></app-shipping-zones>
+  </div>
 </div>
 
 <ng-template #deleteDialog let-observer>

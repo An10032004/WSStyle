@@ -41,11 +41,71 @@
                 </tui-textfield>
               </div>
 
-              <div class="form-field full">
-                <label tuiLabel>ĐỊA CHỈ GIAO HÀNG</label>
-                <tui-textfield tuiTextfieldSize="m">
-                  <input tuiTextfield formControlName="shippingAddress" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành">
-                </tui-textfield>
+              <div class="form-field full checkout-addr-block">
+                <label tuiLabel>ĐỊA CHỈ (VIỆT NAM)</label>
+                <p class="checkout-addr-hint">Chọn tỉnh / quận / phường và nhập số nhà, đường. Địa chỉ đầy đủ sẽ hiện trên đơn hàng.</p>
+                <app-vn-address-form
+                  [initialJson]="(user$ | async)?.shippingAddressJson ?? null"
+                  (valueChange)="onCheckoutAddress($event)"
+                ></app-vn-address-form>
+                <input type="hidden" formControlName="shippingAddress" />
+              </div>
+
+              <div class="form-field full checkout-ship-mode" *ngIf="shippingQuote$ | async as sq">
+                <label tuiLabel>PHÍ VẬN CHUYỂN</label>
+                <div class="ship-mode-list ship-mode-list--rule">
+                  <label class="ship-mode-item">
+                    <input
+                      type="radio"
+                      name="checkoutShipMode"
+                      [checked]="(shippingCtx.selection$ | async) === 'RULE'"
+                      (change)="selectShipMode('RULE')"
+                    />
+                    <span class="ship-mode-body">
+                      <strong>Theo quy tắc bảng giá</strong>
+                      <small>Phí theo khoảng giá / loại khách ({{ sq.ruleFee ?? sq.fee | number:'1.0-0' }} ₫)</small>
+                    </span>
+                  </label>
+                </div>
+
+                <div class="checkout-ship-zones" [class.is-muted]="!addressComplete">
+                  <div class="checkout-ship-zones__title">Vùng giao hàng (bổ sung phí theo tỉnh)</div>
+                  <p class="checkout-ship-zones__hint">
+                    Chỉ dùng được sau khi nhập <strong>đủ</strong> địa chỉ phía trên. Không tranh ưu tiên với quy tắc — đây là lựa chọn phí ship theo vùng bạn cấu hình.
+                  </p>
+                  <div class="ship-mode-list">
+                    <label class="ship-mode-item" [class.is-disabled]="!addressComplete || !sq.zoneMatched">
+                      <input
+                        type="radio"
+                        name="checkoutShipMode"
+                        [disabled]="!addressComplete || !sq.zoneMatched"
+                        [checked]="(shippingCtx.selection$ | async) === 'STANDARD'"
+                        (change)="selectShipMode('STANDARD')"
+                      />
+                      <span class="ship-mode-body">
+                        <strong>Standard</strong>
+                        <small *ngIf="addressComplete && sq.zoneMatched">{{ sq.zoneStandardFee | number:'1.0-0' }} ₫ — {{ sq.zoneName }}</small>
+                        <small *ngIf="addressComplete && !sq.zoneMatched">Chưa cấu hình vùng cho tỉnh này</small>
+                        <small *ngIf="!addressComplete">Nhập đủ địa chỉ để chọn</small>
+                      </span>
+                    </label>
+                    <label class="ship-mode-item" [class.is-disabled]="!addressComplete || !sq.zoneMatched">
+                      <input
+                        type="radio"
+                        name="checkoutShipMode"
+                        [disabled]="!addressComplete || !sq.zoneMatched"
+                        [checked]="(shippingCtx.selection$ | async) === 'EXPRESS'"
+                        (change)="selectShipMode('EXPRESS')"
+                      />
+                      <span class="ship-mode-body">
+                        <strong>Express</strong>
+                        <small *ngIf="addressComplete && sq.zoneMatched">{{ sq.zoneExpressFee | number:'1.0-0' }} ₫ — {{ sq.zoneName }}</small>
+                        <small *ngIf="addressComplete && !sq.zoneMatched">Chưa cấu hình vùng cho tỉnh này</small>
+                        <small *ngIf="!addressComplete">Nhập đủ địa chỉ để chọn</small>
+                      </span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div class="form-field full">

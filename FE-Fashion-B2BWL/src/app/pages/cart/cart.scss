@@ -631,3 +631,63 @@
   h2 { font-size: 1.75rem; font-weight: 800; margin-bottom: 15px; }
   p { color: #777; margin-bottom: 35px; }
 }
+
+.cart-ship-mode {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.cart-ship-mode__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+.cart-ship-mode__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.cart-ship-mode__fee {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  &.free {
+    font-weight: 700;
+    color: #059669;
+  }
+}
+
+.cart-ship-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #334155;
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+  &.is-muted {
+    color: #94a3b8;
+  }
+  input {
+    margin-top: 3px;
+  }
+}
+
+.cart-ship-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+}

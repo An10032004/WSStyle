@@ -200,6 +200,13 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional
+    public User updateShippingAddressJson(Integer userId, String shippingAddressJson) {
+        User user = getUserById(userId);
+        user.setShippingAddressJson(shippingAddressJson);
+        return userRepository.save(user);
+    }
+
     private static AccountStatus parseAccountStatusOrDefault(String raw) {
         if (raw == null || raw.isBlank()) {
             return AccountStatus.ACTIVE;

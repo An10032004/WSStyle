@@ -9,13 +9,14 @@ import {
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { ApiService, DebtSummary, Order } from '../../services/api.service';
+import { ApiService, DebtSummary, Order, User } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
 import { Observable, switchMap, of, tap, BehaviorSubject, combineLatest, map } from 'rxjs';
 import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
 import { TuiBadge, TuiPagination } from '@taiga-ui/kit';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import { VnAddressFormComponent, VnAddressPayload } from '../../shared/components/vn-address-form/vn-address-form';
 import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
 import {
   buildOrderFlowSteps,
@@ -43,6 +44,7 @@ import {
     StorefrontHeaderComponent,
     StorefrontFooterComponent,
     TuiPagination,
+    VnAddressFormComponent,
   ],
   template: `
     <app-storefront-header></app-storefront-header>
@@ -50,104 +52,131 @@ import {
       <h1>My Account</h1>
       
       <div class="profile-grid">
-        <div class="top-row">
-          <!-- Account Info Card -->
-          <div class="profile-card info-card" *ngIf="user$ | async as user">
-            <div class="profile-header">
-            <div class="avatar">{{ user.fullName?.charAt(0) }}</div>
-            <h2>{{ user.fullName }}</h2>
-            <div class="role-badges">
-              <span class="role-badge">{{ user.role }}</span>
-              <span class="role-badge group" *ngIf="user.customerGroup">{{ user.customerGroup.name }}</span>
+        <ng-container *ngIf="user$ | async as me">
+          <div class="profile-top-row">
+            <div class="profile-card info-card">
+              <div class="profile-header">
+                <div class="avatar">{{ me.fullName?.charAt(0) }}</div>
+                <h2>{{ me.fullName }}</h2>
+                <div class="role-badges">
+                  <span class="role-badge">{{ me.role }}</span>
+                  <span class="role-badge group" *ngIf="me.customerGroup">{{ me.customerGroup.name }}</span>
+                </div>
+              </div>
+              <div class="profile-details">
+                <div class="detail-item">
+                  <label>Email Address</label>
+                  <p>{{ me.email }}</p>
+                </div>
+                <div class="detail-item">
+                  <label>Phone Number</label>
+                  <p>{{ me.phone || 'Not provided' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label>Business Name</label>
+                  <p>{{ me.companyName || 'Personal Account' }}</p>
+                </div>
+                <div class="detail-item" *ngIf="me.taxCode">
+                  <label>Tax Code</label>
+                  <p>{{ me.taxCode }}</p>
+                </div>
+                <button tuiButton type="button" appearance="outline" size="m" (click)="logout()" style="width: 100%; margin-top: 10px;">
+                  Logout
+                </button>
+              </div>
             </div>
-          </div>
-          <div class="profile-details">
-            <div class="detail-item">
-              <label>Email Address</label>
-              <p>{{ user.email }}</p>
-            </div>
-            <div class="detail-item">
-              <label>Phone Number</label>
-              <p>{{ user.phone || 'Not provided' }}</p>
-            </div>
-            <div class="detail-item">
-              <label>Business Name</label>
-              <p>{{ user.companyName || 'Personal Account' }}</p>
-            </div>
-            <div class="detail-item" *ngIf="user.taxCode">
-              <label>Tax Code</label>
-              <p>{{ user.taxCode }}</p>
-            </div>
-            <button tuiButton type="button" appearance="outline" size="m" (click)="logout()" style="width: 100%; margin-top: 10px;">
-              Logout
-            </button>
-          </div>
-        </div>
 
-        <div class="profile-card password-card" *ngIf="user$ | async">
-          <div class="profile-header" style="text-align:left">
-            <h2 style="margin:0">Đổi mật khẩu</h2>
-          </div>
-          <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
-            <div class="pwd-field">
-              <label for="pwd-current">Mật khẩu hiện tại</label>
-              <input id="pwd-current" type="password" formControlName="currentPassword" autocomplete="current-password" />
+            <div class="profile-card password-card">
+              <div class="profile-header" style="text-align:left">
+                <h2 style="margin:0">Đổi mật khẩu</h2>
+              </div>
+              <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
+                <div class="pwd-field">
+                  <label for="pwd-current">Mật khẩu hiện tại</label>
+                  <input id="pwd-current" type="password" formControlName="currentPassword" autocomplete="current-password" />
+                </div>
+                <div class="pwd-field">
+                  <label for="pwd-new">Mật khẩu mới</label>
+                  <input id="pwd-new" type="password" formControlName="newPassword" autocomplete="new-password" />
+                </div>
+                <div class="pwd-field">
+                  <label for="pwd-confirm">Xác nhận mật khẩu mới</label>
+                  <input id="pwd-confirm" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+                </div>
+                <p class="pwd-err" *ngIf="passwordForm.errors?.['mismatch'] && passwordForm.touched">Mật khẩu mới và xác nhận không khớp.</p>
+                <p class="pwd-hint">Tối thiểu 6 ký tự.</p>
+                <button tuiButton type="submit" appearance="primary" size="m" [disabled]="passwordForm.invalid || pwdBusy" style="width:100%; margin-top:4px;">
+                  Cập nhật mật khẩu
+                </button>
+              </form>
             </div>
-            <div class="pwd-field">
-              <label for="pwd-new">Mật khẩu mới</label>
-              <input id="pwd-new" type="password" formControlName="newPassword" autocomplete="new-password" />
-            </div>
-            <div class="pwd-field">
-              <label for="pwd-confirm">Xác nhận mật khẩu mới</label>
-              <input id="pwd-confirm" type="password" formControlName="confirmPassword" autocomplete="new-password" />
-            </div>
-            <p class="pwd-err" *ngIf="passwordForm.errors?.['mismatch'] && passwordForm.touched">Mật khẩu mới và xác nhận không khớp.</p>
-            <p class="pwd-hint">Tối thiểu 6 ký tự.</p>
-            <button tuiButton type="submit" appearance="primary" size="m" [disabled]="passwordForm.invalid || pwdBusy" style="width:100%; margin-top:4px;">
-              Cập nhật mật khẩu
-            </button>
-          </form>
-        </div>
 
-        <div class="profile-card debt-card" *ngIf="debtSummary$ | async as debt">
-          <div class="profile-header" style="text-align:left">
-            <h2 style="margin:0">Công nợ</h2>
-            <div class="role-badges" style="justify-content:flex-start; margin-top:8px;">
-              <span class="role-badge" [style.background]="debt.blocked ? '#fee2e2' : '#ecfdf5'" [style.color]="debt.blocked ? '#b91c1c' : '#065f46'">
-                {{ debt.blocked ? 'Đang bị khóa đặt đơn' : 'Không quá hạn' }}
-              </span>
+            <div class="profile-card debt-card" *ngIf="debtSummary$ | async as debt">
+              <div class="profile-header" style="text-align:left">
+                <h2 style="margin:0">Công nợ</h2>
+                <div class="role-badges" style="justify-content:flex-start; margin-top:8px;">
+                  <span class="role-badge" [style.background]="debt.blocked ? '#fee2e2' : '#ecfdf5'" [style.color]="debt.blocked ? '#b91c1c' : '#065f46'">
+                    {{ debt.blocked ? 'Đang bị khóa đặt đơn' : 'Không quá hạn' }}
+                  </span>
+                </div>
+              </div>
+              <div class="profile-details">
+                <div class="debt-explainer" *ngIf="debt.items.length">
+                  <p>
+                    <strong>Cách thanh toán:</strong> Chuyển khoản đúng số tiền theo hướng dẫn của shop (stk / nội dung CK do shop cung cấp).
+                    Sau khi đã chuyển, bấm <strong>«Báo đã chuyển»</strong> — shop nhận tin trên mục <strong>Tin nhắn</strong> và đối soát.
+                    Khi shop xác nhận đã nhận tiền, dòng đơn sẽ hết nợ.
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <label>Số đơn công nợ quá hạn</label>
+                  <p>{{ debt.overdueCount }}</p>
+                </div>
+                <div class="detail-item" *ngIf="debt.items.length === 0">
+                  <p>Không có đơn công nợ đang mở.</p>
+                </div>
+                <div class="detail-item debt-row" *ngFor="let d of debt.items">
+                  <div class="debt-info">
+                    <label>Đơn #{{ d.orderId }}</label>
+                    <p>{{ debtStatusLabel(d.daysLeft) }} — Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+                    <p class="debt-amount" *ngIf="d.totalAmount != null">Số tiền: <strong>{{ d.totalAmount | number:'1.0-0' }} ₫</strong></p>
+                  </div>
+                  <button tuiButton type="button" size="s" appearance="primary" *ngIf="d.paymentStatus !== 'PAID' && d.paymentStatus !== 'AWAITING_CONFIRMATION'" (click)="payDebt(d.orderId)">
+                    Báo đã chuyển
+                  </button>
+                  <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Chờ shop xác nhận</tui-badge>
+                  <tui-badge *ngIf="d.paymentStatus === 'PAID'" appearance="success" size="s">Đã thanh toán</tui-badge>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="profile-details">
-            <div class="debt-explainer" *ngIf="debt.items.length">
-              <p>
-                <strong>Cách thanh toán:</strong> Chuyển khoản đúng số tiền theo hướng dẫn của shop (stk / nội dung CK do shop cung cấp).
-                Sau khi đã chuyển, bấm <strong>«Báo đã chuyển»</strong> — shop nhận tin trên mục <strong>Tin nhắn</strong> và đối soát.
-                Khi shop xác nhận đã nhận tiền, dòng đơn sẽ hết nợ.
+
+          <div class="profile-card profile-card--wide address-card">
+            <div class="profile-header" style="text-align:left">
+              <h2 style="margin:0">Địa chỉ giao hàng</h2>
+              <p class="address-intro">
+                Chọn tỉnh / thành phố, quận / huyện, phường / xã và nhập số nhà, đường. Địa chỉ được dùng mặc định khi thanh toán (bạn vẫn có thể sửa ở bước checkout).
               </p>
             </div>
-            <div class="detail-item">
-              <label>Số đơn công nợ quá hạn</label>
-              <p>{{ debt.overdueCount }}</p>
+            <div class="profile-saved-address" *ngIf="savedShippingLine(me) as saved; else noSavedShip">
+              <div class="profile-saved-address__label">Địa chỉ đang lưu trong hồ sơ</div>
+              <p class="profile-saved-address__line">{{ saved }}</p>
             </div>
-            <div class="detail-item" *ngIf="debt.items.length === 0">
-              <p>Không có đơn công nợ đang mở.</p>
-            </div>
-            <div class="detail-item debt-row" *ngFor="let d of debt.items">
-              <div class="debt-info">
-                <label>Đơn #{{ d.orderId }}</label>
-                <p>{{ debtStatusLabel(d.daysLeft) }} — Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
-                <p class="debt-amount" *ngIf="d.totalAmount != null">Số tiền: <strong>{{ d.totalAmount | number:'1.0-0' }} ₫</strong></p>
+            <ng-template #noSavedShip>
+              <div class="profile-saved-address profile-saved-address--empty">
+                <p>Chưa có địa chỉ giao hàng. Điền form bên dưới và bấm lưu.</p>
               </div>
-              <button tuiButton type="button" size="s" appearance="primary" *ngIf="d.paymentStatus !== 'PAID' && d.paymentStatus !== 'AWAITING_CONFIRMATION'" (click)="payDebt(d.orderId)">
-                Báo đã chuyển
-              </button>
-              <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Chờ shop xác nhận</tui-badge>
-              <tui-badge *ngIf="d.paymentStatus === 'PAID'" appearance="success" size="s">Đã thanh toán</tui-badge>
-            </div>
+            </ng-template>
+            <app-vn-address-form
+              [initialJson]="me.shippingAddressJson"
+              [layoutStacked]="true"
+              (valueChange)="onProfileAddressPayload($event)"
+            ></app-vn-address-form>
+            <button tuiButton type="button" appearance="primary" size="m" (click)="saveProfileShipping(me)" [disabled]="!profileAddressPayload" class="address-save-btn">
+              Lưu địa chỉ vào hồ sơ
+            </button>
           </div>
-        </div>
-        </div>
+        </ng-container>
 
         <!-- Order History Card -->
         <div class="orders-card">
@@ -294,8 +323,17 @@ import {
     .profile-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; }
     h1 { font-weight: 800; margin-bottom: 30px; font-size: 32px; }
     
-    .profile-grid { display: flex; flex-direction: column; gap: 30px; }
-    .top-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; align-items: start; }
+    .profile-grid { display: flex; flex-direction: column; gap: 28px; }
+    .profile-top-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+      align-items: stretch;
+    }
+    @media (max-width: 1100px) {
+      .profile-top-row { grid-template-columns: 1fr; }
+    }
+    .profile-card--wide { max-width: 100%; }
     
     .profile-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; margin: 0; box-sizing: border-box; }
     .orders-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; box-sizing: border-box; }
@@ -424,6 +462,39 @@ import {
 
     .pagination-wrap { margin-top: 30px; display: flex; justify-content: center; }
 
+    .address-card {
+      .vn-addr { margin-top: 12px; }
+    }
+    .address-intro { margin: 10px 0 0; font-size: 13px; color: #64748b; line-height: 1.5; max-width: 720px; }
+    .profile-saved-address {
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .profile-saved-address__label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #166534;
+      margin-bottom: 6px;
+    }
+    .profile-saved-address__line {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #14532d;
+      line-height: 1.45;
+    }
+    .profile-saved-address--empty {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    .profile-saved-address--empty p { margin: 0; font-size: 14px; color: #64748b; }
+    .address-save-btn { width: 100%; max-width: 360px; margin-top: 16px; }
+
     .password-card {
       form { display: flex; flex-direction: column; gap: 12px; padding: 8px 4px 4px; }
       .pwd-field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; }
@@ -449,6 +520,45 @@ export class ProfileComponent {
   protected readonly Math = Math;
 
   pwdBusy = false;
+
+  profileAddressPayload: VnAddressPayload | null = null;
+
+  onProfileAddressPayload(p: VnAddressPayload | null): void {
+    this.profileAddressPayload = p;
+  }
+
+  /** Một dòng địa chỉ đã lưu (đọc từ JSON hồ sơ) để hiển thị rõ sau khi lưu. */
+  savedShippingLine(user: User | null | undefined): string | null {
+    const raw = user?.shippingAddressJson;
+    if (!raw || !String(raw).trim()) return null;
+    try {
+      const o = JSON.parse(raw) as Record<string, unknown>;
+      const full = o['fullLine'];
+      if (typeof full === 'string' && full.trim()) return full.trim();
+      const detail = typeof o['addressDetail'] === 'string' ? o['addressDetail'].trim() : '';
+      const ward = typeof o['wardName'] === 'string' ? o['wardName'].trim() : '';
+      const dist = typeof o['districtName'] === 'string' ? o['districtName'].trim() : '';
+      const prov = typeof o['provinceName'] === 'string' ? o['provinceName'].trim() : '';
+      const parts = [detail, ward, dist, prov].filter(Boolean);
+      return parts.length ? parts.join(', ') : null;
+    } catch {
+      return null;
+    }
+  }
+
+  saveProfileShipping(user: { id: number }): void {
+    if (!this.profileAddressPayload) return;
+    this.api.updateUserShippingAddress(user.id, this.profileAddressPayload.json).subscribe({
+      next: (u) => {
+        this.auth.updateStoredUser(u);
+        this.alerts.open('Đã lưu địa chỉ giao hàng.', { appearance: 'success', autoClose: 2500 }).subscribe();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || err?.message || 'Không lưu được địa chỉ.';
+        this.alerts.open(msg, { appearance: 'error' }).subscribe();
+      },
+    });
+  }
 
   passwordForm = this.fb.nonNullable.group(
     {

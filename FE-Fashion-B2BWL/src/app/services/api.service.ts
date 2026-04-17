@@ -27,6 +27,9 @@ export interface OrderRequest {
   phone: string;
   shippingAddress: string;
   note?: string;
+  /** RULE | STANDARD | EXPRESS */
+  shippingSelection?: string;
+  shippingProvinceCode?: string;
   shippingFee?: number;
   taxAmount?: number;
   couponCode?: string;
@@ -192,6 +195,22 @@ export interface ShippingQuote {
   ruleName?: string;
   baseOn?: string;
   matched: boolean;
+  ruleFee?: number;
+  zoneMatched?: boolean;
+  zoneId?: number | null;
+  zoneName?: string | null;
+  zoneStandardFee?: number;
+  zoneExpressFee?: number;
+}
+
+export interface ShippingZone {
+  id: number;
+  name: string;
+  priority: number;
+  status: string;
+  provinceCodes: string;
+  standardFee: number;
+  expressFee: number;
 }
 
 export interface NetTermRule {
@@ -288,6 +307,8 @@ export interface User {
   registrationStatus?: string;
   companyName?: string;
   taxCode?: string;
+  /** JSON địa chỉ (tỉnh/quận/phường + chi tiết) — lưu hồ sơ. */
+  shippingAddressJson?: string | null;
   permissions?: string; // JSON string array from backend
 }
 
@@ -705,14 +726,44 @@ export class ApiService {
     return this.http.get<ApiResponse<ShippingRule[]>>(`${this.base}/shipping-rules`).pipe(map(r => r.data));
   }
 
-  quoteShipping(body: { userId?: number | null; orderAmount: number; totalQuantity: number }): Observable<ShippingQuote> {
+  quoteShipping(body: {
+    userId?: number | null;
+    orderAmount: number;
+    totalQuantity: number;
+    provinceCode?: string | null;
+    shippingSelection?: 'RULE' | 'STANDARD' | 'EXPRESS' | string | null;
+  }): Observable<ShippingQuote> {
     return this.http
       .post<ApiResponse<ShippingQuote>>(`${this.base}/shipping-rules/quote`, {
         userId: body.userId ?? null,
         orderAmount: body.orderAmount,
         totalQuantity: body.totalQuantity,
+        provinceCode: body.provinceCode ?? null,
+        shippingSelection: body.shippingSelection ?? null,
       })
       .pipe(map(r => r.data));
+  }
+
+  updateUserShippingAddress(userId: number, shippingAddressJson: string): Observable<User> {
+    return this.http
+      .put<ApiResponse<User>>(`${this.base}/users/${userId}/shipping-address`, { shippingAddressJson })
+      .pipe(map((r) => r.data));
+  }
+
+  getShippingZones(): Observable<ShippingZone[]> {
+    return this.http.get<ApiResponse<ShippingZone[]>>(`${this.base}/shipping-zones`).pipe(map((r) => r.data));
+  }
+
+  createShippingZone(body: Partial<ShippingZone>): Observable<ShippingZone> {
+    return this.http.post<ApiResponse<ShippingZone>>(`${this.base}/shipping-zones`, body).pipe(map((r) => r.data));
+  }
+
+  updateShippingZone(id: number, body: Partial<ShippingZone>): Observable<ShippingZone> {
+    return this.http.put<ApiResponse<ShippingZone>>(`${this.base}/shipping-zones/${id}`, body).pipe(map((r) => r.data));
+  }
+
+  deleteShippingZone(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/shipping-zones/${id}`).pipe(map(() => void 0));
   }
   createShippingRule(body: Partial<ShippingRule>): Observable<ShippingRule> {
     return this.http.post<ApiResponse<ShippingRule>>(`${this.base}/shipping-rules`, body).pipe(map(r => r.data));

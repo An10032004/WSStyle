@@ -184,6 +184,15 @@ export class UsersComponent implements OnInit, OnDestroy {
         headerValueGetter: () => this.transloco.translate('MEMBER.TAX_CODE'),
         width: 130,
       },
+      {
+        colId: 'shippingDisplay',
+        headerValueGetter: () => this.transloco.translate('MEMBER.SHIPPING_DISPLAY'),
+        flex: 1,
+        minWidth: 220,
+        maxWidth: 380,
+        valueGetter: (p) => UsersComponent.userShippingSummary(p.data as User),
+        tooltipValueGetter: (p) => UsersComponent.userShippingSummary(p.data as User),
+      },
       { 
         field: 'registrationStatus', 
         headerValueGetter: () => this.transloco.translate('MEMBER.STATUS'), 
@@ -371,5 +380,24 @@ export class UsersComponent implements OnInit, OnDestroy {
     const key = `REGISTRATION_STATUS.${c}`;
     const t = this.transloco.translate(key);
     return t !== key ? t : String(code);
+  }
+
+  /** Một dòng địa chỉ / tỉnh cho lưới admin (parse JSON hồ sơ). */
+  static userShippingSummary(u: User | undefined): string {
+    const raw = u?.shippingAddressJson;
+    if (!raw || !String(raw).trim()) return '—';
+    try {
+      const o = JSON.parse(raw) as Record<string, unknown>;
+      const full = o['fullLine'];
+      if (typeof full === 'string' && full.trim()) return full.trim();
+      const detail = typeof o['addressDetail'] === 'string' ? o['addressDetail'].trim() : '';
+      const ward = typeof o['wardName'] === 'string' ? o['wardName'].trim() : '';
+      const dist = typeof o['districtName'] === 'string' ? o['districtName'].trim() : '';
+      const prov = typeof o['provinceName'] === 'string' ? o['provinceName'].trim() : '';
+      const parts = [detail, ward, dist, prov].filter(Boolean);
+      return parts.length ? parts.join(', ') : '—';
+    } catch {
+      return '—';
+    }
   }
 }

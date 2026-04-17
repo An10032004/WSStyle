@@ -1,0 +1,109 @@
+<div class="shipping-zones-page" [class.is-embedded]="embedded">
+  <div class="sz-header" [class.sz-header--embedded-only]="embedded">
+    <div *ngIf="!embedded">
+      <h1>{{ 'RULE.SHIPPING_ZONES_TITLE' | transloco }}</h1>
+      <p>{{ 'RULE.SHIPPING_ZONES_DESC' | transloco }}</p>
+      <p class="sz-note">
+        Vùng áp dụng cho <strong>mọi khách hàng</strong> khi chọn tỉnh khớp; đây là phần <strong>bổ sung</strong> so với phí theo quy tắc bảng giá (không tranh priority với các quy tắc đó).
+      </p>
+    </div>
+    <button tuiButton type="button" appearance="primary" size="m" (click)="openNew()" *ngIf="!showForm">
+      {{ 'RULE.SHIPPING_ZONES_NEW' | transloco }}
+    </button>
+  </div>
+
+  <div class="sz-table-wrap" *ngIf="!loading && zones.length; else emptyOrLoading">
+    <table class="sz-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>{{ 'RULE.NAME' | transloco }}</th>
+          <th>{{ 'RULE.STATUS' | transloco }}</th>
+          <th>{{ 'RULE.SHIPPING_ZONES_PROVINCES' | transloco }}</th>
+          <th>{{ 'RULE.SHIPPING_ZONES_STANDARD' | transloco }}</th>
+          <th>{{ 'RULE.SHIPPING_ZONES_EXPRESS' | transloco }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let z of zones">
+          <td>{{ z.id }}</td>
+          <td><strong>{{ z.name }}</strong></td>
+          <td>
+            <span class="sz-badge" [class.active]="z.status === 'ACTIVE'" [class.inactive]="z.status !== 'ACTIVE'">
+              {{ z.status }}
+            </span>
+          </td>
+          <td>
+            <div class="sz-province-cell">
+              <span class="sz-province-preview">{{ 'RULE.SHIPPING_ZONES_COUNT' | transloco: { n: provinceCount(z) } }}</span>
+              <span class="sz-province-names" *ngIf="provinceNamesLabel(z)" [title]="provinceNamesLabel(z)">{{ provinceNamesLabel(z) }}</span>
+            </div>
+          </td>
+          <td>{{ z.standardFee | number : '1.0-0' }}</td>
+          <td>{{ z.expressFee | number : '1.0-0' }}</td>
+          <td>
+            <div class="sz-actions">
+              <button tuiButton type="button" appearance="secondary" size="s" (click)="openEdit(z)">{{ 'RULE.SHIPPING_ZONES_EDIT' | transloco }}</button>
+              <button tuiButton type="button" appearance="destructive" size="s" (click)="confirmDelete(z)">{{ 'RULE.SHIPPING_ZONES_DELETE' | transloco }}</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #emptyOrLoading>
+    <div class="sz-table-wrap" style="padding: 32px; text-align: center; color: #64748b">
+      <ng-container *ngIf="loading">{{ 'RULE.SHIPPING_ZONES_LOADING' | transloco }}</ng-container>
+      <ng-container *ngIf="!loading && !zones.length">{{ 'RULE.SHIPPING_ZONES_EMPTY' | transloco }}</ng-container>
+    </div>
+  </ng-template>
+
+  <div class="sz-form-card" *ngIf="showForm">
+    <h2 style="margin: 0 0 16px; font-size: 18px">{{ editingId ? ('RULE.SHIPPING_ZONES_EDIT_FORM' | transloco) : ('RULE.SHIPPING_ZONES_NEW_FORM' | transloco) }}</h2>
+
+    <div class="sz-form-grid">
+      <div class="sz-field">
+        <label>{{ 'RULE.NAME' | transloco }}</label>
+        <input type="text" [(ngModel)]="form.name" name="szName" />
+      </div>
+      <div class="sz-field">
+        <label>{{ 'RULE.STATUS' | transloco }}</label>
+        <select [(ngModel)]="form.status" name="szStatus">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+      </div>
+      <div class="sz-field">
+        <label>{{ 'RULE.SHIPPING_ZONES_STANDARD' | transloco }}</label>
+        <input type="number" min="0" [(ngModel)]="form.standardFee" name="szStd" />
+      </div>
+      <div class="sz-field">
+        <label>{{ 'RULE.SHIPPING_ZONES_EXPRESS' | transloco }}</label>
+        <input type="number" min="0" [(ngModel)]="form.expressFee" name="szExp" />
+      </div>
+    </div>
+
+    <div class="sz-province-block">
+      <span style="display: block; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: #475569">
+        {{ 'RULE.SHIPPING_ZONES_PROVINCES' | transloco }}
+      </span>
+      <div class="sz-province-search sz-field">
+        <input type="search" [(ngModel)]="provinceSearch" name="szProvSearch" [placeholder]="'RULE.SHIPPING_ZONES_SEARCH' | transloco" />
+      </div>
+      <div class="sz-province-grid">
+        <label class="sz-province-item" *ngFor="let p of filteredProvinces()">
+          <input type="checkbox" [checked]="isSelected(p.code)" (change)="toggleProvince(p.code, $any($event.target).checked)" />
+          <span>{{ p.name }}</span>
+        </label>
+      </div>
+      <p style="margin: 10px 0 0; font-size: 12px; color: #94a3b8">{{ 'RULE.SHIPPING_ZONES_HINT' | transloco }}</p>
+    </div>
+
+    <div class="sz-form-actions">
+      <button tuiButton type="button" appearance="primary" (click)="save()" [disabled]="saving">{{ 'RULE.SHIPPING_ZONES_SAVE' | transloco }}</button>
+      <button tuiButton type="button" appearance="secondary" (click)="cancelForm()">{{ 'RULE.SHIPPING_ZONES_CANCEL' | transloco }}</button>
+    </div>
+  </div>
+</div>

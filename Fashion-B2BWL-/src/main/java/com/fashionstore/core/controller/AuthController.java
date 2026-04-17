@@ -241,6 +241,7 @@ public class AuthController {
                         user.getAccountStatus() != null ? user.getAccountStatus().name() : AccountStatus.ACTIVE.name())
             .customerGroup(toCustomerGroupSummary(user.getCustomerGroup()))
             .tags(user.getTags())
+                .shippingAddressJson(user.getShippingAddressJson())
                 .permissions(permissions)
                 .build();
     }

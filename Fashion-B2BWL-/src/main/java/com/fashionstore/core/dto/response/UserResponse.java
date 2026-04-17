@@ -20,4 +20,6 @@ public class UserResponse {
     /** Nhóm khách (pricing rules GROUP) — có thể null nếu admin chưa gán */
     private CustomerGroupSummaryDTO customerGroup;
     private String tags;
+    /** JSON địa chỉ giao hàng mặc định (tỉnh/quận/phường + chi tiết). */
+    private String shippingAddressJson;
 }

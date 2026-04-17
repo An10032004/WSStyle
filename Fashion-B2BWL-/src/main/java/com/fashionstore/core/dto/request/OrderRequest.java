@@ -16,6 +16,9 @@ public class OrderRequest {
     private String phone;
     private String shippingAddress;
     private String note;
+    /** RULE | STANDARD | EXPRESS */
+    private String shippingSelection;
+    private String shippingProvinceCode;
     private java.math.BigDecimal shippingFee;
     private java.math.BigDecimal taxAmount;
     private String couponCode;
