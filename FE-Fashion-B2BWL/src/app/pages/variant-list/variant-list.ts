@@ -23,6 +23,7 @@ import {
   resolveColorHex,
   isLightColorForSwatch,
 } from '../../utils/color-swatch.util';
+import { ImageUrlFieldComponent } from '../../shared/components/image-url-field/image-url-field.component';
 
 /** Một hàng thuộc tính động (tối đa 3 hàng → map API color / size / weight). */
 export interface VariantAttributeRow {
@@ -67,6 +68,7 @@ export interface CombinationTableRow {
     TuiSelectModule,
     TuiTextfieldControllerModule,
     MaskitoDirective,
+    ImageUrlFieldComponent,
   ],
   templateUrl: './variant-list.html',
   styleUrl: './variant-list.scss',

@@ -72,3 +72,21 @@
   background: #e8f5e9;
   color: #2e7d32;
 }
+
+.campaign-rte-wrap {
+  grid-column: 1 / -1;
+}
+
+.campaign-rte-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 0.35rem;
+  color: var(--tui-text-secondary);
+}
+
+.campaign-card__desc {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--tui-text-secondary);
+}

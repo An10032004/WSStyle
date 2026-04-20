@@ -6,10 +6,11 @@ import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel } from '@t
 import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TUI_CONFIRM, TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 import { ApiService, Role } from '../../services/api.service';
+import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiBadge, TuiTextfield, TuiLabel, TuiCheckbox, TuiTextfieldControllerModule],
+  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiBadge, TuiTextfield, TuiLabel, TuiCheckbox, TuiTextfieldControllerModule, RichTextEditorComponent],
   template: `
     <div class="page-container" *transloco="let t">
       <div class="page-header">
@@ -38,9 +39,7 @@ import { ApiService, Role } from '../../services/api.service';
             </label>
             <label tuiLabel class="dialog-field dialog-field--full">
               Description
-              <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                <input tuiTextfield [(ngModel)]="newRoleDescription" placeholder="Description of the role..." />
-              </tui-textfield>
+              <app-rich-text-editor [(ngModel)]="newRoleDescription"></app-rich-text-editor>
             </label>
             <label tuiLabel class="dialog-choice dialog-field--full">
               <input tuiCheckbox type="checkbox" [(ngModel)]="newRoleIsAdmin" />
@@ -69,9 +68,7 @@ import { ApiService, Role } from '../../services/api.service';
             </label>
             <label tuiLabel class="dialog-field dialog-field--full">
               Description
-              <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                <input tuiTextfield [(ngModel)]="editingRoleDescription" placeholder="Role Description" />
-              </tui-textfield>
+              <app-rich-text-editor [(ngModel)]="editingRoleDescription"></app-rich-text-editor>
             </label>
             <label tuiLabel class="dialog-choice dialog-field--full">
               <input tuiCheckbox type="checkbox" [(ngModel)]="editingRoleIsAdmin" />

@@ -72,17 +72,25 @@
 
         <label tuiLabel class="form-field full-width">
           {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
-          <tui-textfield iconStart="@tui.image">
-            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://example.com/image.jpg" />
-          </tui-textfield>
+          <app-image-url-field
+            [(ngModel)]="formData.imageUrl"
+            [ngModelOptions]="{ standalone: true }"
+            uploadFolder="products/main"
+            [placeholder]="'https://example.com/image.jpg'"
+          ></app-image-url-field>
         </label>
 
         <div class="form-field full-width gallery-section">
           <label tuiLabel>{{ 'PRODUCT.GALLERY' | transloco }}</label>
           <div *ngFor="let url of formData.imageUrls; let i = index; trackBy: trackByIndex" class="gallery-item">
-            <tui-textfield class="gallery-input">
-              <input tuiTextfield [(ngModel)]="formData.imageUrls[i]" [placeholder]="'URL ảnh ' + (i + 1)" />
-            </tui-textfield>
+            <app-image-url-field
+              class="gallery-input"
+              [(ngModel)]="formData.imageUrls[i]"
+              [ngModelOptions]="{ standalone: true }"
+              uploadFolder="products/gallery"
+              [compact]="true"
+              [placeholder]="'URL ảnh ' + (i + 1)"
+            ></app-image-url-field>
             <button tuiButton type="button" appearance="flat" size="s" (click)="removeImageUrl(i)">
               <tui-icon icon="@tui.trash"></tui-icon>
             </button>

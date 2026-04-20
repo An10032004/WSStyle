@@ -24,6 +24,7 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { PricingRule } from '../../services/api.service';
 import { TuiDay, TuiTime } from '@taiga-ui/cdk';
+import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
 
 interface QuantityBracket {
   min: number;
@@ -54,6 +55,7 @@ interface QuantityBracket {
     TuiTextfieldControllerModule,
     TuiInputDateModule,
     TuiInputTimeModule,
+    RichTextEditorComponent,
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -92,10 +94,8 @@ interface QuantityBracket {
               </div>
 
               <div class="field-item">
-                <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield [(ngModel)]="description" [ngModelOptions]="{standalone: true}" />
-                   {{ 'QUANTITY_BREAK.DESCRIPTION' | transloco }}
-                </tui-textfield>
+                <div class="field-item__rte-label">{{ 'QUANTITY_BREAK.DESCRIPTION' | transloco }}</div>
+                <app-rich-text-editor [(ngModel)]="description" [ngModelOptions]="{standalone: true}"></app-rich-text-editor>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.DESCRIPTION_HINT' | transloco }}</div>
               </div>
 
@@ -328,6 +328,7 @@ interface QuantityBracket {
     
     .form-section { display: flex; flex-direction: column; gap: 28px; }
     .field-item { display: flex; flex-direction: column; gap: 10px; }
+    .field-item__rte-label { font-weight: 600; font-size: 14px; color: #444; }
     .premium-label { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 2px; }
     .choice-field__label { font-weight: 700; font-size: 14px; color: #2c3e50; margin: 0 0 6px; }
     .radio-group-modern--vertical { display: flex; flex-direction: column; gap: 0.65rem; align-items: stretch; }

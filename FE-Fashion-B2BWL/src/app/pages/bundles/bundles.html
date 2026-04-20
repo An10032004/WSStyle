@@ -62,13 +62,13 @@
             </div>
 
             <div class="form-group">
-                <label tuiLabel>Ảnh bundle (URL)</label>
-                <tui-textfield>
-                  <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://..." />
-                </tui-textfield>
-                <div class="bundle-image-preview" *ngIf="formData.imageUrl">
-                  <img [src]="formData.imageUrl" alt="Bundle image preview" />
-                </div>
+                <label tuiLabel>Ảnh bundle (URL hoặc Cloudinary)</label>
+                <app-image-url-field
+                  [(ngModel)]="formData.imageUrl"
+                  [ngModelOptions]="{ standalone: true }"
+                  uploadFolder="bundles"
+                  placeholder="https://..."
+                ></app-image-url-field>
             </div>
 
             <div class="grid grid-cols-1 gap-6">

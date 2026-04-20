@@ -1,0 +1,70 @@
+<div class="image-url-field" [class.image-url-field--compact]="compact">
+  <div class="image-url-field__modes" role="tablist">
+    <button
+      type="button"
+      tuiButton
+      size="s"
+      appearance="flat"
+      [class.image-url-field__mode--active]="mode === 'url'"
+      (click)="setMode('url')"
+      [disabled]="disabled || uploading"
+    >
+      URL
+    </button>
+    <button
+      type="button"
+      tuiButton
+      size="s"
+      appearance="flat"
+      [class.image-url-field__mode--active]="mode === 'upload'"
+      (click)="setMode('upload')"
+      [disabled]="disabled || uploading"
+    >
+      <tui-icon icon="@tui.upload" class="tui-space_right-1"></tui-icon>
+      Cloudinary
+    </button>
+  </div>
+
+  @if (mode === 'url') {
+    <tui-textfield [tuiTextfieldCleaner]="true" class="image-url-field__input">
+      <input
+        tuiTextfield
+        [disabled]="disabled"
+        [ngModel]="value"
+        (ngModelChange)="onUrlInput($event)"
+        [placeholder]="placeholder"
+      />
+    </tui-textfield>
+  } @else {
+    <div class="image-url-field__upload">
+      <label class="image-url-field__file">
+        <input type="file" accept="image/*" [disabled]="disabled || uploading" (change)="onFileSelected($event)" />
+        <span>{{ uploading ? 'Đang tải lên…' : 'Chọn ảnh' }}</span>
+      </label>
+      @if (uploading) {
+        <progress class="image-url-field__progress" [value]="uploadProgress" max="100"></progress>
+        <span class="image-url-field__pct">{{ uploadProgress }}%</span>
+      }
+      @if (uploadError) {
+        <div class="image-url-field__err">{{ uploadError }}</div>
+      }
+      <p class="image-url-field__hint">Ảnh được lưu dưới dạng URL https (Cloudinary) — giống nhập URL thủ công.</p>
+    </div>
+  }
+
+  @if (value?.trim()) {
+    <div class="image-url-field__preview">
+      <img [src]="value" alt="" (error)="previewBroken()" />
+      <button
+        type="button"
+        tuiButton
+        size="xs"
+        appearance="flat-destructive"
+        (click)="clear()"
+        [disabled]="disabled || uploading"
+      >
+        Xóa ảnh
+      </button>
+    </div>
+  }
+</div>

@@ -52,7 +52,8 @@
             </div>
             <div class="product-summary__readonly-row product-summary__readonly-row--full">
               <span class="product-summary__readonly-label">{{ 'PRODUCT.SPECIFICATIONS' | transloco }}</span>
-              <div class="product-summary__readonly-desc">{{ p.description || '—' }}</div>
+              <div class="product-summary__readonly-desc" *ngIf="p.description; else noProdDesc" [innerHTML]="p.description"></div>
+              <ng-template #noProdDesc><div class="product-summary__readonly-desc">—</div></ng-template>
             </div>
           </div>
           <div class="product-summary__defaults">
@@ -302,16 +303,22 @@
                   </label>
                   <label tuiLabel class="row-extra__full">
                     {{ 'VARIANT.IMAGE_URL' | transloco }}
-                    <tui-textfield>
-                      <input tuiTextfield [(ngModel)]="r.imageUrl" type="url" />
-                    </tui-textfield>
+                    <app-image-url-field
+                      [(ngModel)]="r.imageUrl"
+                      [ngModelOptions]="{ standalone: true }"
+                      uploadFolder="variants/main"
+                    ></app-image-url-field>
                   </label>
                   <div class="row-extra__full gallery-mini">
                     <span class="variants-workspace__hint">Gallery</span>
                     <div *ngFor="let _u of r.imageUrls; let i = index; trackBy: trackByIndex" class="gallery-item">
-                      <tui-textfield class="gallery-input">
-                        <input tuiTextfield [(ngModel)]="r.imageUrls[i]" />
-                      </tui-textfield>
+                      <app-image-url-field
+                        class="gallery-input"
+                        [(ngModel)]="r.imageUrls[i]"
+                        [ngModelOptions]="{ standalone: true }"
+                        uploadFolder="variants/gallery"
+                        [compact]="true"
+                      ></app-image-url-field>
                       <button tuiButton type="button" appearance="flat" size="s" (click)="removeCombinationGalleryRow(r, i)">
                         <tui-icon icon="@tui.trash"></tui-icon>
                       </button>

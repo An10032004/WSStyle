@@ -20,6 +20,7 @@ import { MaskitoDirective } from '@maskito/angular';
 import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, Product, Category, TranslationRequest } from '../../services/api.service';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
+import { ImageUrlFieldComponent } from '../../shared/components/image-url-field/image-url-field.component';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { readApiErrorMessage } from '../../utils/auth-http.util';
@@ -29,7 +30,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective],
+  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective, ImageUrlFieldComponent],
   templateUrl: './product-list.html',
   styleUrl: './product-list.scss',
 })

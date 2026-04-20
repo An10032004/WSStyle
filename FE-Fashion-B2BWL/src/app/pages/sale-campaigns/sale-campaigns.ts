@@ -8,10 +8,11 @@ import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, SaleCampaign, Category, Product, CustomerGroup } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelect, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiTextfieldControllerModule, RuleConflictWarningComponent, TuiRadio],
+  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelect, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiTextfieldControllerModule, RuleConflictWarningComponent, TuiRadio, RichTextEditorComponent],
   template: `
     <div class="page-container" *transloco="let t">
       <div class="page-header page-header--toolbar">
@@ -47,10 +48,10 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               Banner URL
             </tui-textfield>
 
-            <tui-textfield class="full-width">
-              <textarea tuiTextfield [(ngModel)]="newCampaign.description" placeholder="Description..."></textarea>
-              Description
-            </tui-textfield>
+            <div class="full-width campaign-rte-wrap">
+              <div class="campaign-rte-label">Description</div>
+              <app-rich-text-editor [(ngModel)]="newCampaign.description"></app-rich-text-editor>
+            </div>
 
             <label tuiLabel>
               Start Date
@@ -142,7 +143,7 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
                 <button tuiButton type="button" size="xs" appearance="flat" (click)="deleteCampaign(campaign.id)">Delete</button>
               </div>
             </div>
-            <p>{{ campaign.description }}</p>
+            <div class="campaign-card__desc" [innerHTML]="campaign.description"></div>
             <div class="footer">
                <span class="discount">-{{ campaign.discountPercentage }}%</span>
                <span class="status" [class.active]="campaign.isActive">

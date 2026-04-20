@@ -20,13 +20,14 @@ import { ApiService, Bundle, BundleItem, ProductVariant, Product } from '../../s
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { adminLifecycleStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
+import { ImageUrlFieldComponent } from '../../shared/components/image-url-field/image-url-field.component';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-bundles',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiDataListWrapper, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective, TuiPagination],
+  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiDataList, TuiDataListWrapper, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective, TuiPagination, ImageUrlFieldComponent],
   templateUrl: './bundles.html',
   styleUrl: './bundles.scss',
 })
