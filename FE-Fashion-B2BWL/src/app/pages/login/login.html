@@ -37,6 +37,10 @@
         <tui-error formControlName="password" [error]="[] | tuiFieldError | async"></tui-error>
       </div>
 
+      <div class="form-row-link">
+        <a routerLink="/forgot-password">Quên mật khẩu?</a>
+      </div>
+
       <div class="actions">
         <button tuiButton type="submit" appearance="primary" [disabled]="loading" class="submit-btn" >
           ĐĂNG NHẬP

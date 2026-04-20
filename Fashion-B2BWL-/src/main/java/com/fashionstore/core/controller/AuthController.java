@@ -3,6 +3,8 @@ package com.fashionstore.core.controller;
 import com.fashionstore.core.constant.AuthMessages;
 import com.fashionstore.core.dto.auth.LoginAttemptResult;
 import com.fashionstore.core.dto.request.ChangePasswordRequest;
+import com.fashionstore.core.dto.request.CompletePasswordResetRequest;
+import com.fashionstore.core.dto.request.ForgotPasswordRequest;
 import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
 import com.fashionstore.core.dto.request.TokenRefreshRequest;
@@ -17,6 +19,7 @@ import com.fashionstore.core.model.User;
 import com.fashionstore.core.service.JwtService;
 import com.fashionstore.core.service.RefreshTokenService;
 import com.fashionstore.core.exception.InvalidEmailException;
+import com.fashionstore.core.service.PasswordResetService;
 import com.fashionstore.core.service.RoleService;
 import com.fashionstore.core.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +40,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final RoleService roleService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
@@ -108,6 +112,26 @@ public class AuthController {
                     request.getCurrentPassword(),
                     request.getNewPassword());
             return ResponseEntity.ok(ApiResponse.success("Mật khẩu đã được cập nhật", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request != null ? request.getEmail() : null);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Nếu email đã đăng ký, bạn sẽ nhận hướng dẫn đặt lại mật khẩu.",
+                null));
+    }
+
+    @PostMapping("/complete-password-reset")
+    public ResponseEntity<ApiResponse<Void>> completePasswordReset(@RequestBody CompletePasswordResetRequest request) {
+        try {
+            passwordResetService.completeReset(
+                    request != null ? request.getToken() : null,
+                    request != null ? request.getNewPassword() : null);
+            return ResponseEntity.ok(ApiResponse.success("Mật khẩu đã được cập nhật.", null));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

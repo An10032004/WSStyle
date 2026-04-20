@@ -160,6 +160,21 @@
       }
     }
 
+    .form-row-link {
+      text-align: right;
+      margin: -8px 0 8px;
+
+      a {
+        font-size: 13px;
+        font-weight: 700;
+        color: #000;
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
     .actions {
       margin-top: 40px;
 

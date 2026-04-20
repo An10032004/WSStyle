@@ -4,6 +4,8 @@ import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { User, ApiResponse } from './api.service';
 
+export type VoidApiResponse = ApiResponse<null | void>;
+
 export interface AuthResponse {
   success: boolean;
   message: string;
@@ -31,6 +33,17 @@ export class AuthService {
         }
       })
     );
+  }
+
+  forgotPassword(email: string): Observable<VoidApiResponse> {
+    return this.http.post<VoidApiResponse>('/api/auth/forgot-password', { email });
+  }
+
+  completePasswordReset(token: string, newPassword: string): Observable<VoidApiResponse> {
+    return this.http.post<VoidApiResponse>('/api/auth/complete-password-reset', {
+      token,
+      newPassword,
+    });
   }
 
   register(userData: any): Observable<AuthResponse> {
