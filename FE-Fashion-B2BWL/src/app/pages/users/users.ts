@@ -292,6 +292,9 @@ export class UsersComponent implements OnInit, OnDestroy {
       customerGroupId: user.customerGroup?.id || null,
       password: '' // Don't show password hash
     };
+    if (this.formData.role !== 'WHOLESALE') {
+      this.formData.customerGroupId = null;
+    }
     this.showForm = true;
     this.cdr.detectChanges();
   }
@@ -319,6 +322,9 @@ export class UsersComponent implements OnInit, OnDestroy {
     // Prevent Users page from assigning permission roles when creating a new user,
     // but preserve existing assignedRole when editing other fields (e.g., customer group).
     const payload: any = { ...this.formData };
+    if (payload.role !== 'WHOLESALE') {
+      payload.customerGroupId = null;
+    }
     if (!this.editingId) {
       // Creating: strip any assignedRole from tags to forbid assignment via Users page
       if (payload.tags) {
@@ -369,6 +375,17 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  isWholesaleCustomerRole(): boolean {
+    return this.formData?.role === 'WHOLESALE';
+  }
+
+  onCustomerRoleChange(): void {
+    if (this.formData.role !== 'WHOLESALE') {
+      this.formData.customerGroupId = null;
+    }
+    this.cdr.markForCheck();
+  }
 
   getGroupName(id: number | null): string {
     const g = this.customerGroups.find(x => x.id === id);

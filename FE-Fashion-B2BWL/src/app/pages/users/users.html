@@ -43,7 +43,26 @@
         <div *ngIf="formErrors['phone']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['phone'] }}</div>
       </label>
 
-      <label tuiLabel class="form-field full-width">
+      <div class="form-field full-width choice-field">
+        <div class="choice-field__label">{{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)</div>
+        <div class="radio-group-modern">
+          <label *ngFor="let r of roleOptions" class="modern-radio">
+            <input
+              tuiRadio
+              type="radio"
+              name="userFormRole"
+              [value]="r"
+              [(ngModel)]="formData.role"
+              (ngModelChange)="onCustomerRoleChange()"
+            />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + r | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <label tuiLabel class="form-field full-width" *ngIf="isWholesaleCustomerRole(); else customerGroupRetailHint">
         <span class="group-label-highlight">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
         <tui-select [(ngModel)]="formData.customerGroupId" [valueContent]="selectedGroupNameTemplate">
           <tui-data-list-wrapper 
@@ -62,24 +81,12 @@
           </ng-template>
         </tui-select>
       </label>
-
-      <div class="form-field full-width choice-field">
-        <div class="choice-field__label">{{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)</div>
-        <div class="radio-group-modern">
-          <label *ngFor="let r of roleOptions" class="modern-radio">
-            <input
-              tuiRadio
-              type="radio"
-              name="userFormRole"
-              [value]="r"
-              [(ngModel)]="formData.role"
-            />
-            <div class="radio-content">
-              <span class="radio-title">{{ 'ENUMS.' + r | transloco }}</span>
-            </div>
-          </label>
+      <ng-template #customerGroupRetailHint>
+        <div class="form-field full-width customer-group-retail-block">
+          <div class="choice-field__label">{{ 'MEMBER.GROUP' | transloco }}</div>
+          <p class="customer-group-retail-hint">{{ 'MEMBER.GROUP_WHOLESALE_ONLY' | transloco }}</p>
         </div>
-      </div>
+      </ng-template>
 
       <div class="form-field full-width choice-field">
         <div class="choice-field__label">{{ 'MEMBER.STATUS' | transloco }}</div>

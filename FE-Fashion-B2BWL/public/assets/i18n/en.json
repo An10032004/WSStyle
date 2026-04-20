@@ -219,6 +219,7 @@
     "NAME": "Full Name",
     "ROLE": "Account Role",
     "GROUP": "Assigned Group",
+    "GROUP_WHOLESALE_ONLY": "Customer group can only be assigned to wholesale (B2B) accounts for pricing.",
     "STATUS": "Registration Status",
     "COMPANY": "Company Name",
     "TAX_CODE": "Tax Code",
