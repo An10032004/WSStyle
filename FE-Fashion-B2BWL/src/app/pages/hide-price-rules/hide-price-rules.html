@@ -105,13 +105,40 @@
       </div>
 
       <div class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
-        <div class="choice-field__label">Chọn sản phẩm áp dụng cụ thể</div>
-        <div class="checkbox-list-vertical" *ngIf="products?.length">
-          <label *ngFor="let p of products" class="modern-check">
-            <input tuiCheckbox type="checkbox" [ngModel]="isHidePriceProductSelected(p)" (ngModelChange)="toggleHidePriceProduct(p, $event)" />
-            <span>{{ stringifyProduct(p) }}</span>
-          </label>
-        </div>
+        <div class="choice-field__label">Chọn sản phẩm / biến thể áp dụng cụ thể</div>
+        <p *ngIf="products?.length; else hidePriceNoProds" style="margin: 0 0 10px; font-size: 0.875rem; color: #64748b;">
+          <ng-container *ngIf="selectedVariantIds.length">
+            Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+            <span *ngIf="selectedProducts.length"> trên <strong>{{ selectedProducts.length }}</strong> sản phẩm</span>.
+          </ng-container>
+          <ng-container *ngIf="!selectedVariantIds.length && selectedProducts.length">
+            <strong>{{ selectedProducts.length }}</strong> sản phẩm (theo sản phẩm). Mở hộp chọn để giới hạn theo biến thể.
+          </ng-container>
+          <ng-container *ngIf="!selectedVariantIds.length && !selectedProducts.length">
+            Chưa chọn — nhấn nút bên dưới để chọn biến thể.
+          </ng-container>
+        </p>
+        <button
+          tuiButton
+          type="button"
+          size="s"
+          appearance="secondary"
+          *ngIf="products?.length"
+          (click)="openVariantPicker()"
+        >
+          Chọn sản phẩm / biến thể…
+        </button>
+        <ng-template #hidePriceNoProds>
+          <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có sản phẩm.</p>
+        </ng-template>
+        <app-product-variant-picker
+          [(visible)]="variantPickerOpen"
+          [products]="products"
+          [initialVariantIds]="pickerInitialVariantIds"
+          [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+          (confirmed)="onVariantPickerConfirmed($event)"
+        />
+        <app-selected-variants-preview [variantIds]="selectedVariantIds" [products]="selectedProducts" />
       </div>
     </div>
 

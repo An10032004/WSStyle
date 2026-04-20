@@ -742,7 +742,7 @@ export class CartService {
       l => l.limitLevel === 'PER_PRODUCT' || l.limitLevel === 'PER_VARIANT',
     )) {
       const targetItems = items.filter(it =>
-        this.isProductMatch(rule, it.productId, it.categoryId || null),
+        this.isProductMatch(rule, it.productId, it.categoryId || null, it.variantId ?? null),
       );
       const applyType = rule.applyProductType || 'ALL';
       if (targetItems.length === 0 && applyType !== 'ALL') continue;
@@ -891,7 +891,8 @@ export class CartService {
       item.categoryId,
       item.basePrice,
       item.quantity,
-      item.quantityBreaksJson
+      item.quantityBreaksJson,
+      item.variantId ?? null,
     );
     item.price = result.finalPrice;
 
@@ -913,7 +914,8 @@ export class CartService {
     categoryId: number | null | undefined,
     basePrice: number,
     quantity: number,
-    quantityBreaksJson?: string
+    quantityBreaksJson?: string,
+    variantId?: number | null,
   ): PriceCalculationResult {
     let finalPrice = basePrice;
     let appliedB2BRule = null;
@@ -922,7 +924,10 @@ export class CartService {
 
     // 1. Get all matching rules, sorted by priority (1 is highest)
     const matchingRules = this.pricingRules
-      .filter(r => this.isCustomerMatch(r, user) && this.isProductMatch(r, productId, categoryId || null))
+      .filter(r =>
+        this.isCustomerMatch(r, user) &&
+        this.isProductMatch(r, productId, categoryId || null, variantId ?? null),
+      )
       .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
     // 2. Best Rule Discovery
@@ -1012,6 +1017,7 @@ export class CartService {
   public getQuantityBreaks(item: any, user: any): any[] {
     let productId = item.productId || item.id;
     let categoryId = item.categoryId || null;
+    const variantId = item.variantId ?? null;
     let fallbackJson = item.quantityBreaksJson;
 
     let tiers: any[] = [];
@@ -1023,7 +1029,11 @@ export class CartService {
     }
 
     const matchingRules = this.pricingRules
-      .filter(r => this.isCustomerMatch(r, user) && this.isProductMatch(r, productId, categoryId))
+      .filter(
+        r =>
+          this.isCustomerMatch(r, user) &&
+          this.isProductMatch(r, productId, categoryId, variantId),
+      )
       .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
     const bestQBRule = matchingRules.find(r => r.ruleType === 'QUANTITY_BREAK');
@@ -1038,10 +1048,15 @@ export class CartService {
     return tiers;
   }
 
-  public findBestPricingRule(productId: number, categoryId: number | null, user: any): any | null {
+  public findBestPricingRule(
+    productId: number,
+    categoryId: number | null,
+    user: any,
+    variantId?: number | null,
+  ): any | null {
     return this.pricingRules
       .filter(r => this.isCustomerMatch(r, user))
-      .filter(r => this.isProductMatch(r, productId, categoryId))
+      .filter(r => this.isProductMatch(r, productId, categoryId, variantId ?? null))
       .sort((a, b) => a.priority - b.priority)[0] || null;
   }
 
@@ -1060,7 +1075,12 @@ export class CartService {
     return false;
   }
 
-  public isProductMatch(rule: any, productId: number, categoryId: number | null): boolean {
+  public isProductMatch(
+    rule: any,
+    productId: number,
+    categoryId: number | null,
+    variantId?: number | null,
+  ): boolean {
     if (!rule.applyProductType || rule.applyProductType === 'ALL') return true;
     if (!rule.applyProductValue) return false;
     try {
@@ -1070,10 +1090,16 @@ export class CartService {
         return categoryId !== null && categoryIds.includes(categoryId);
       }
       if (rule.applyProductType === 'SPECIFIC') {
+        const variantIds: number[] = Array.isArray(val.variantIds) ? val.variantIds : [];
+        if (variantIds.length > 0) {
+          return variantId != null && variantIds.includes(variantId);
+        }
         const productIds = val.productIds || [];
         return productIds.includes(productId);
       }
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
     return false;
   }
 

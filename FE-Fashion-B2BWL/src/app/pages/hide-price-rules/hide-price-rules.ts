@@ -30,6 +30,8 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -40,7 +42,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiBadge, TuiCheckbox,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, 
-    TuiTextfield, TuiRadio
+    TuiTextfield, TuiRadio, ProductVariantPickerComponent, SelectedVariantsPreviewComponent,
   ],
   templateUrl: './hide-price-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -77,6 +79,10 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   selectedCustomerGroups: CustomerGroup[] = [];
   selectedCategories: Category[] = [];
   selectedProducts: Product[] = [];
+  selectedVariantIds: number[] = [];
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
 
   readonly stringifyGroup = (item: CustomerGroup): string => item.name || '';
   readonly stringifyCategory = (item: Category): string => item.name || '';
@@ -206,6 +212,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     this.selectedCustomerGroups = [];
     this.selectedCategories = [];
     this.selectedProducts = [];
+    this.selectedVariantIds = [];
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -228,6 +235,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     // Parse Product selection
     this.selectedCategories = [];
     this.selectedProducts = [];
+    this.selectedVariantIds = [];
     if (this.formData.applyProductType === 'CATEGORY' && this.formData.applyProductValue) {
       try {
         const val = JSON.parse(this.formData.applyProductValue);
@@ -239,6 +247,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
         const val = JSON.parse(this.formData.applyProductValue);
         const ids = val.productIds || [];
         this.selectedProducts = this.products.filter(p => ids.includes(p.id));
+        this.selectedVariantIds = Array.isArray(val.variantIds) ? [...val.variantIds] : [];
       } catch (e) {}
     }
 
@@ -272,7 +281,13 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     if (this.formData.applyProductType === 'CATEGORY') {
       this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
     } else if (this.formData.applyProductType === 'SPECIFIC') {
-      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+      const pids = [...new Set(this.selectedProducts.map(p => p.id))].sort((a, b) => a - b);
+      const vids = [...new Set(this.selectedVariantIds)].sort((a, b) => a - b);
+      if (vids.length > 0) {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids, variantIds: vids });
+      } else {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids });
+      }
     } else {
       this.formData.applyProductValue = '{}';
     }
@@ -342,18 +357,16 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  isHidePriceProductSelected(p: Product): boolean {
-    return this.selectedProducts.some(x => x.id === p.id);
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...this.selectedVariantIds];
+    this.pickerInitialProductIdsOnly = this.selectedProducts.map(p => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
   }
 
-  toggleHidePriceProduct(p: Product, checked: boolean): void {
-    if (checked) {
-      if (!this.isHidePriceProductSelected(p)) {
-        this.selectedProducts = [...this.selectedProducts, p];
-      }
-    } else {
-      this.selectedProducts = this.selectedProducts.filter(x => x.id !== p.id);
-    }
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProducts = this.products.filter(p => ev.productIds.includes(p.id));
     this.cdr.markForCheck();
   }
 }

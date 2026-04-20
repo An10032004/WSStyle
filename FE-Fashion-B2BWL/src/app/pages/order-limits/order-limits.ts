@@ -216,8 +216,13 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
         const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       } else if (rule.applyProductType === 'SPECIFIC') {
+        const vids: number[] = Array.isArray(val.variantIds) ? val.variantIds : [];
         const ids = val.productIds || (val.productId ? [val.productId] : []);
         const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        if (vids.length) {
+          const suffix = names.length ? names.join(', ') : `productIds: ${ids.join(', ')}`;
+          return `${vids.length} biến thể (${suffix})`;
+        }
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       }
     } catch { return rule.applyProductValue || ''; }

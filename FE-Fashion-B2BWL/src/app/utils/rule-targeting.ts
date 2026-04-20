@@ -40,7 +40,8 @@ export function matchesRuleProduct(
   applyProductType: string | null | undefined,
   applyProductValue: string | null | undefined,
   productId: number,
-  categoryId: number | null | undefined
+  categoryId: number | null | undefined,
+  variantId?: number | null,
 ): boolean {
   const t = applyProductType;
   if (!t || t === 'ALL') return true;
@@ -49,6 +50,7 @@ export function matchesRuleProduct(
     const val = JSON.parse(applyProductValue) as {
       categoryIds?: number[];
       productIds?: number[];
+      variantIds?: number[];
     };
     if (t === 'CATEGORY' || t === 'GROUP') {
       const categoryIds = val.categoryIds ?? [];
@@ -56,6 +58,10 @@ export function matchesRuleProduct(
       return categoryIds.includes(categoryId);
     }
     if (t === 'SPECIFIC') {
+      const variantIds = Array.isArray(val.variantIds) ? val.variantIds : [];
+      if (variantIds.length > 0) {
+        return variantId != null && variantIds.includes(variantId);
+      }
       const productIds = val.productIds ?? [];
       return productIds.includes(productId);
     }
@@ -76,11 +82,18 @@ export function ruleMatchesTargeting(
     productId: number;
     categoryId: number | null | undefined;
     user: RuleUserLike | null | undefined;
+    variantId?: number | null;
   }
 ): boolean {
   return (
     matchesRuleCustomer(rule.applyCustomerType, rule.applyCustomerValue, ctx.user) &&
-    matchesRuleProduct(rule.applyProductType, rule.applyProductValue, ctx.productId, ctx.categoryId)
+    matchesRuleProduct(
+      rule.applyProductType,
+      rule.applyProductValue,
+      ctx.productId,
+      ctx.categoryId,
+      ctx.variantId ?? null,
+    )
   );
 }
 
@@ -149,6 +162,40 @@ function parseProductIds(applyProductValue: string | null | undefined): number[]
   return [];
 }
 
+function parseVariantIds(applyProductValue: string | null | undefined): number[] {
+  if (!applyProductValue) {
+    return [];
+  }
+  try {
+    const val = JSON.parse(applyProductValue) as { variantIds?: number[] };
+    if (Array.isArray(val.variantIds) && val.variantIds.length) {
+      return val.variantIds;
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function specificProductTargetingOverlapsJson(
+  aVal: string | null | undefined,
+  bVal: string | null | undefined,
+): boolean {
+  const v1 = parseVariantIds(aVal);
+  const v2 = parseVariantIds(bVal);
+  const p1 = parseProductIds(aVal);
+  const p2 = parseProductIds(bVal);
+  const hv1 = v1.length > 0;
+  const hv2 = v2.length > 0;
+  if (hv1 && hv2) {
+    return v1.some((id) => v2.includes(id));
+  }
+  if (hv1 !== hv2) {
+    return p1.length > 0 && p2.length > 0 && p1.some((id) => p2.includes(id));
+  }
+  return p1.length > 0 && p2.length > 0 && p1.some((id) => p2.includes(id));
+}
+
 function isProductCategoryLike(t: string): boolean {
   return t === 'CATEGORY' || t === 'GROUP';
 }
@@ -165,6 +212,9 @@ export function ruleProductTargetingOverlaps(
   }
   try {
     if (p1 === p2) {
+      if (p1 === 'SPECIFIC') {
+        return specificProductTargetingOverlapsJson(a.applyProductValue, b.applyProductValue);
+      }
       const key = isProductCategoryLike(p1) ? 'category' : 'product';
       const ids1 = key === 'category' ? parseCategoryIds(a.applyProductValue) : parseProductIds(a.applyProductValue);
       const ids2 = key === 'category' ? parseCategoryIds(b.applyProductValue) : parseProductIds(b.applyProductValue);

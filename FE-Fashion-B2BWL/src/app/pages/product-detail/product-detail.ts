@@ -186,7 +186,8 @@ export class ProductDetailComponent implements OnInit {
       this.product.categoryId,
       this.selectedVariant?.price || this.product.basePrice || 0,
       this.quantity,
-      this.product.quantityBreaksJson
+      this.product.quantityBreaksJson,
+      this.selectedVariant?.id ?? null,
     );
 
     return result.finalPrice;
@@ -320,7 +321,12 @@ export class ProductDetailComponent implements OnInit {
       const user = this.auth.currentUserValue;
 
       const matchedRules = activeRules.filter((r) =>
-        ruleMatchesTargeting(r, { productId, categoryId, user })
+        ruleMatchesTargeting(r, {
+          productId,
+          categoryId,
+          user,
+          variantId: this.selectedVariant?.id ?? null,
+        }),
       );
 
       const lineQtyMatched = matchedRules.filter(
@@ -588,7 +594,14 @@ export class ProductDetailComponent implements OnInit {
       const user = this.auth.currentUserValue;
 
       // 1. Gather all applicable rules
-      const allMatches = activeRules.filter(r => ruleMatchesTargeting(r, { productId, categoryId, user }));
+      const allMatches = activeRules.filter((r) =>
+        ruleMatchesTargeting(r, {
+          productId,
+          categoryId,
+          user,
+          variantId: this.selectedVariant?.id ?? null,
+        }),
+      );
       
       // 2. Sort by priority (1 is highest)
       allMatches.sort((a, b) => (a.priority || 999) - (b.priority || 999));
@@ -596,11 +609,15 @@ export class ProductDetailComponent implements OnInit {
       const winner = allMatches[0];
 
       // 3. Handle QB Discovery (always do this to have data available)
-      this.quantityBreaks = this.cart.getQuantityBreaks({
-        productId,
-        categoryId,
-        quantityBreaksJson: this.product?.quantityBreaksJson
-      }, user);
+      this.quantityBreaks = this.cart.getQuantityBreaks(
+        {
+          productId,
+          categoryId,
+          quantityBreaksJson: this.product?.quantityBreaksJson,
+          variantId: this.selectedVariant?.id ?? null,
+        },
+        user,
+      );
 
       // 4. Set Winner UI State
       if (winner?.ruleType === 'QUANTITY_BREAK') {
@@ -806,6 +823,10 @@ export class ProductDetailComponent implements OnInit {
     if (!v) {
       this.displayImages = [...this.allImages];
       this.cdr.detectChanges();
+      if (this.product) {
+        this.loadPricingRules(this.product.id, this.product.categoryId);
+        this.loadOrderLimits(this.product.id, this.product.categoryId);
+      }
       return;
     }
 
@@ -825,8 +846,13 @@ export class ProductDetailComponent implements OnInit {
     } else {
       this.displayImages = [...this.allImages];
     }
-    
+
     this.cdr.detectChanges();
+
+    if (this.product) {
+      this.loadPricingRules(this.product.id, this.product.categoryId);
+      this.loadOrderLimits(this.product.id, this.product.categoryId);
+    }
   }
 
   /** Còn ít nhất một biến thể đang mở bán (theo màu / size / cân). */

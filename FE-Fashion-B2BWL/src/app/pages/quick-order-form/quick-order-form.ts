@@ -178,11 +178,12 @@ export class QuickOrderFormComponent implements OnInit {
   updateVariantPricing(product: Product, variant: any) {
     const qty = variant.selectedQuantity || 1; // Default to 1 to show what price would be
     const result = this.cart.calculatePrice(
-      product.id, 
-      product.categoryId, 
-      variant.price || product.basePrice, 
-      qty, 
-      product.quantityBreaksJson
+      product.id,
+      product.categoryId,
+      variant.price || product.basePrice,
+      qty,
+      product.quantityBreaksJson,
+      variant.id,
     );
 
     variant.calculatedPrice = result.finalPrice;
@@ -198,12 +199,16 @@ export class QuickOrderFormComponent implements OnInit {
     variant.appliedRulesText = rules.join(' | ');
   }
 
-  getQB(product: Product): any[] {
-    return this.cart.getQuantityBreaks({
-      productId: product.id,
-      categoryId: product.categoryId,
-      quantityBreaksJson: product.quantityBreaksJson
-    }, this.auth.currentUserValue);
+  getQB(product: Product, variant: { id: number }): any[] {
+    return this.cart.getQuantityBreaks(
+      {
+        productId: product.id,
+        categoryId: product.categoryId,
+        quantityBreaksJson: product.quantityBreaksJson,
+        variantId: variant.id,
+      },
+      this.auth.currentUserValue,
+    );
   }
 
   loadCategories(): void {

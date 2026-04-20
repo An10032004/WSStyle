@@ -25,6 +25,8 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { PricingRule } from '../../services/api.service';
 import { TuiDay, TuiTime } from '@taiga-ui/cdk';
 import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
 
 interface QuantityBracket {
   min: number;
@@ -56,6 +58,8 @@ interface QuantityBracket {
     TuiInputDateModule,
     TuiInputTimeModule,
     RichTextEditorComponent,
+    ProductVariantPickerComponent,
+    SelectedVariantsPreviewComponent,
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -198,14 +202,32 @@ interface QuantityBracket {
                </div>
 
                <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
-                 <div class="choice-field__label">Chọn sản phẩm áp dụng cụ thể</div>
-                 <div class="checkbox-list-vertical" *ngIf="products?.length">
-                   <label *ngFor="let p of products" class="modern-check">
-                     <input tuiCheckbox type="checkbox" [ngModel]="isProductSelected(p)" (ngModelChange)="toggleProduct(p, $event)" />
-                     <span>{{ stringifyProduct(p) }}</span>
-                   </label>
-                 </div>
+                 <div class="choice-field__label">Chọn sản phẩm / biến thể áp dụng cụ thể</div>
+                 <p *ngIf="products?.length" style="margin:0 0 10px;font-size:13px;color:#64748b;">
+                   <ng-container *ngIf="selectedVariantIds.length">
+                     Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+                     <span *ngIf="selectedProducts.length"> trên <strong>{{ selectedProducts.length }}</strong> sản phẩm</span>.
+                   </ng-container>
+                   <ng-container *ngIf="!selectedVariantIds.length && selectedProducts.length">
+                     <strong>{{ selectedProducts.length }}</strong> sản phẩm (quy tắc cũ). Mở hộp chọn để giới hạn theo biến thể.
+                   </ng-container>
+                   <ng-container *ngIf="!selectedVariantIds.length && !selectedProducts.length">
+                     Chưa chọn — nhấn nút bên dưới.
+                   </ng-container>
+                 </p>
+                 <button *ngIf="products?.length" tuiButton type="button" size="s" appearance="secondary" (click)="openVariantPicker()">
+                   Chọn sản phẩm / biến thể…
+                 </button>
                </div>
+
+               <app-product-variant-picker
+                 [(visible)]="variantPickerOpen"
+                 [products]="products"
+                 [initialVariantIds]="pickerInitialVariantIds"
+                 [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+                 (confirmed)="onVariantPickerConfirmed($event)"
+               />
+               <app-selected-variants-preview [variantIds]="selectedVariantIds" [products]="selectedProducts" />
             </div>
 
             <!-- DISCOUNT SETTINGS -->
@@ -399,10 +421,12 @@ export class QuantityBreakEditorComponent implements OnInit {
   @Input() selectedCustomerGroups: any[] = [];
   @Input() selectedCategories: any[] = [];
   @Input() selectedProducts: any[] = [];
+  @Input() selectedVariantIds: number[] = [];
 
   @Output() selectedCustomerGroupsChange = new EventEmitter<any[]>();
   @Output() selectedCategoriesChange = new EventEmitter<any[]>();
   @Output() selectedProductsChange = new EventEmitter<any[]>();
+  @Output() selectedVariantIdsChange = new EventEmitter<number[]>();
   @Output() targetingChanged = new EventEmitter<void>();
 
   @Output() save = new EventEmitter<Partial<PricingRule>>();
@@ -410,6 +434,10 @@ export class QuantityBreakEditorComponent implements OnInit {
   
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly transloco = inject(TranslocoService);
+
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
 
   activeTab = 0;
   message = '';
@@ -440,6 +468,7 @@ export class QuantityBreakEditorComponent implements OnInit {
     this.selectedCustomerGroupsChange.emit(this.selectedCustomerGroups);
     this.selectedCategoriesChange.emit(this.selectedCategories);
     this.selectedProductsChange.emit(this.selectedProducts);
+    this.selectedVariantIdsChange.emit(this.selectedVariantIds);
     this.targetingChanged.emit();
     this.cdr.markForCheck();
   }
@@ -484,18 +513,16 @@ export class QuantityBreakEditorComponent implements OnInit {
     this.onTargetingChange();
   }
 
-  isProductSelected(p: any): boolean {
-    return this.selectedProducts.some(x => x.id === p.id);
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...(this.selectedVariantIds || [])];
+    this.pickerInitialProductIdsOnly = (this.selectedProducts || []).map((p: any) => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
   }
 
-  toggleProduct(p: any, checked: boolean): void {
-    if (checked) {
-      if (!this.isProductSelected(p)) {
-        this.selectedProducts = [...this.selectedProducts, p];
-      }
-    } else {
-      this.selectedProducts = this.selectedProducts.filter(x => x.id !== p.id);
-    }
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProducts = (this.products || []).filter((p: any) => ev.productIds.includes(p.id));
     this.onTargetingChange();
   }
 

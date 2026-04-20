@@ -36,6 +36,8 @@ import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } f
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, OrderLimit } from '../../services/api.service';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
 
 @Component({
   selector: 'app-order-limit-editor',
@@ -59,6 +61,8 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
     TuiTextfield,
     TuiDropdown,
     RuleConflictWarningComponent,
+    ProductVariantPickerComponent,
+    SelectedVariantsPreviewComponent,
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -218,13 +222,40 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
                 </div>
 
                 <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
-                  <div class="choice-field__label">Chọn sản phẩm</div>
-                  <div class="checkbox-list-vertical" *ngIf="products?.length">
-                    <label *ngFor="let p of products" class="modern-check">
-                      <input tuiCheckbox type="checkbox" [ngModel]="isOrderLimitProductSelected(p)" (ngModelChange)="toggleOrderLimitProduct(p, $event)" />
-                      <span>{{ formatProductPickLabel(p) }}</span>
-                    </label>
-                  </div>
+                  <div class="choice-field__label">Chọn sản phẩm / biến thể</div>
+                  <p *ngIf="products?.length; else orderLimitNoProds" style="margin: 0 0 10px; font-size: 0.875rem; color: #64748b;">
+                    <ng-container *ngIf="selectedVariantIds.length">
+                      Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+                      <span *ngIf="selectedProductIds.length"> trên <strong>{{ selectedProductIds.length }}</strong> sản phẩm</span>.
+                    </ng-container>
+                    <ng-container *ngIf="!selectedVariantIds.length && selectedProductIds.length">
+                      <strong>{{ selectedProductIds.length }}</strong> sản phẩm (theo sản phẩm). Mở hộp chọn để giới hạn theo biến thể.
+                    </ng-container>
+                    <ng-container *ngIf="!selectedVariantIds.length && !selectedProductIds.length">
+                      Chưa chọn — nhấn nút bên dưới để chọn biến thể.
+                    </ng-container>
+                  </p>
+                  <button
+                    tuiButton
+                    type="button"
+                    size="s"
+                    appearance="secondary"
+                    *ngIf="products?.length"
+                    (click)="openVariantPicker()"
+                  >
+                    Chọn sản phẩm / biến thể…
+                  </button>
+                  <ng-template #orderLimitNoProds>
+                    <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có sản phẩm.</p>
+                  </ng-template>
+                  <app-product-variant-picker
+                    [(visible)]="variantPickerOpen"
+                    [products]="products"
+                    [initialVariantIds]="pickerInitialVariantIds"
+                    [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+                    (confirmed)="onVariantPickerConfirmed($event)"
+                  />
+                  <app-selected-variants-preview [variantIds]="selectedVariantIds" [products]="selectedProductIds" />
                 </div>
               </div>
 
@@ -421,6 +452,11 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
   selectedCategoryIds: any[] = [];
   selectedProductIds: any[] = [];
   selectedGroupIds: any[] = [];
+  /** SPECIFIC: khi JSON có variantIds — đồng bộ backend / storefront. */
+  selectedVariantIds: number[] = [];
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
 
   /** Nhãn ô nhập theo loại quy tắc (tránh hiển thị \"tối thiểu\" khi đang cấu hình max). */
   get limitValueLabelKey(): string {
@@ -496,21 +532,6 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
       }
     } else {
       this.selectedCategoryIds = this.selectedCategoryIds.filter((x: any) => x.id !== c.id);
-    }
-    this.syncTargeting();
-  }
-
-  isOrderLimitProductSelected(p: any): boolean {
-    return this.selectedProductIds.some((x: any) => x.id === p.id);
-  }
-
-  toggleOrderLimitProduct(p: any, checked: boolean): void {
-    if (checked) {
-      if (!this.isOrderLimitProductSelected(p)) {
-        this.selectedProductIds = [...this.selectedProductIds, p];
-      }
-    } else {
-      this.selectedProductIds = this.selectedProductIds.filter((x: any) => x.id !== p.id);
     }
     this.syncTargeting();
   }
@@ -623,6 +644,7 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
         const val = JSON.parse(this.rule.applyProductValue);
         const ids = val.productIds || (val.productId ? [val.productId] : []);
         this.selectedProductIds = this.products.filter(p => ids.includes(p.id));
+        this.selectedVariantIds = Array.isArray(val.variantIds) ? [...val.variantIds] : [];
       } catch (e) {}
     }
   }
@@ -635,14 +657,38 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
     }
 
     if (this.rule.applyProductType === 'CATEGORY' || this.rule.applyProductType === 'GROUP') {
+      this.selectedVariantIds = [];
+      this.selectedProductIds = [];
       this.rule.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) });
     } else if (this.rule.applyProductType === 'SPECIFIC') {
-      this.rule.applyProductValue = JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) });
+      const pids = [...new Set(this.selectedProductIds.map((p: any) => p.id))].sort((a, b) => a - b);
+      const vids = [...new Set(this.selectedVariantIds)].sort((a, b) => a - b);
+      if (vids.length > 0) {
+        this.rule.applyProductValue = JSON.stringify({ productIds: pids, variantIds: vids });
+      } else {
+        this.rule.applyProductValue = JSON.stringify({ productIds: pids });
+      }
     } else {
+      this.selectedVariantIds = [];
+      this.selectedProductIds = [];
       this.rule.applyProductValue = '{}';
     }
     if (!options?.skipConflictSchedule) {
       this.scheduleConflictCheck();
     }
+  }
+
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...this.selectedVariantIds];
+    this.pickerInitialProductIdsOnly = this.selectedProductIds.map((p: any) => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
+  }
+
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProductIds = this.products.filter((p: any) => ev.productIds.includes(p.id));
+    this.syncTargeting();
+    this.cdr.markForCheck();
   }
 }

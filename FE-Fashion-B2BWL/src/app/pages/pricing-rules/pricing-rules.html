@@ -147,17 +147,46 @@
           </div>
 
           <div class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
-            <div class="choice-field__label">Chọn sản phẩm áp dụng cụ thể</div>
-            <div class="checkbox-list-vertical" *ngIf="products?.length; else pricingNoProds">
-              <label *ngFor="let p of products" class="modern-check">
-                <input tuiCheckbox type="checkbox" [ngModel]="isProductSelected(p)" (ngModelChange)="toggleProduct(p, $event)" />
-                <span>{{ stringifyProduct(p) }}</span>
-              </label>
-            </div>
+            <div class="choice-field__label">Chọn sản phẩm / biến thể áp dụng cụ thể</div>
+            <p *ngIf="products?.length; else pricingNoProds" style="margin: 0 0 10px; font-size: 0.875rem; color: #64748b;">
+              <ng-container *ngIf="selectedVariantIds.length">
+                Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+                <span *ngIf="selectedProducts.length"> trên <strong>{{ selectedProducts.length }}</strong> sản phẩm</span>.
+              </ng-container>
+              <ng-container *ngIf="!selectedVariantIds.length && selectedProducts.length">
+                <strong>{{ selectedProducts.length }}</strong> sản phẩm (quy tắc cũ theo sản phẩm). Mở hộp chọn để giới hạn theo biến thể.
+              </ng-container>
+              <ng-container *ngIf="!selectedVariantIds.length && !selectedProducts.length">
+                Chưa chọn — nhấn nút bên dưới để chọn biến thể (theo mẫu wholesale).
+              </ng-container>
+            </p>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="secondary"
+              *ngIf="products?.length"
+              (click)="openVariantPicker()"
+            >
+              Chọn sản phẩm / biến thể…
+            </button>
             <ng-template #pricingNoProds>
               <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có sản phẩm.</p>
             </ng-template>
           </div>
+
+          <app-product-variant-picker
+            [(visible)]="variantPickerOpen"
+            [products]="products"
+            [initialVariantIds]="pickerInitialVariantIds"
+            [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+            (confirmed)="onVariantPickerConfirmed($event)"
+          />
+          <app-selected-variants-preview
+            *ngIf="formData.applyProductType === 'SPECIFIC'"
+            [variantIds]="selectedVariantIds"
+            [products]="selectedProducts"
+          />
         </div>
 
         <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -175,6 +204,7 @@
         [(selectedCustomerGroups)]="selectedCustomerGroups"
         [(selectedCategories)]="selectedCategories"
         [(selectedProducts)]="selectedProducts"
+        [(selectedVariantIds)]="selectedVariantIds"
         (targetingChanged)="checkConflicts()"
         (save)="onSubmit()" 
         (cancel)="cancel()">

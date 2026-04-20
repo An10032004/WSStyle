@@ -405,7 +405,8 @@ public class OrderLimitService {
                             rule.getApplyProductType(),
                             rule.getApplyProductValue(),
                             item.getProductId(),
-                            item.getCategoryId()))
+                            item.getCategoryId(),
+                            item.getVariantId()))
                     .collect(Collectors.toList());
 
             if (targetItems.isEmpty() && !"ALL".equals(rule.getApplyProductType())) {
