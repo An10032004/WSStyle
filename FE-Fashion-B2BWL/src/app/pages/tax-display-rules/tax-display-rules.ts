@@ -259,4 +259,12 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  taxApplyCustomerLabel(v: string | null | undefined): string {
+    const x = v || 'ALL';
+    if (x === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + x);
+  }
 }

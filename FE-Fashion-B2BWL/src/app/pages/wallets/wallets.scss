@@ -1,0 +1,141 @@
+@use '../../shared/styles/admin-page' as *;
+
+.wallet-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #3949ab 0%, #5c6bc0 100%);
+  color: #fff;
+  border-radius: 1rem;
+  flex: 1;
+  box-shadow: 0 8px 24px -12px rgba(57, 73, 171, 0.55);
+}
+
+.stat-card .label {
+  display: block;
+  font-size: 0.875rem;
+  opacity: 0.88;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card .value {
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.main-content {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.main-content .content-table {
+  flex: 1;
+  min-width: 280px;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 220px;
+  max-width: 400px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+tr.selected {
+  background: color-mix(in srgb, var(--tui-primary) 8%, var(--tui-background-base));
+}
+
+.user-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.user-cell .email {
+  font-size: 0.7rem;
+  color: var(--tui-text-secondary);
+}
+
+.transactions-panel {
+  width: min(400px, 100%);
+  background: var(--tui-background-elevation-1);
+  border-radius: 1rem;
+  border: 1px solid var(--tui-border-normal);
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--tui-border-normal);
+  padding-bottom: 0.75rem;
+}
+
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.tx-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--tui-background-base);
+  border-radius: 0.5rem;
+  border: 1px solid var(--tui-border-normal);
+}
+
+.type {
+  font-weight: 700;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: var(--tui-background-neutral-2);
+  text-transform: uppercase;
+}
+
+.type.plus {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.tx-amount {
+  font-weight: 700;
+}
+
+.tx-amount.plus {
+  color: #2e7d32;
+}
+
+.tx-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.desc {
+  font-size: 0.8125rem;
+  color: var(--tui-text-secondary);
+}
+
+.empty {
+  padding: 2.5rem;
+  text-align: center;
+  color: var(--tui-text-secondary);
+}

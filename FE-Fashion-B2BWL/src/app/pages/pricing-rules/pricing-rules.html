@@ -29,46 +29,77 @@
             </tui-textfield>
           </label>
 
-          <label tuiLabel class="form-field">
-            {{ 'RULE.STATUS' | transloco }}
-            <tui-select [(ngModel)]="formData.status">
-              <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
+          <div class="form-field">
+            <div class="choice-field__label">{{ 'RULE.STATUS' | transloco }}</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of statusOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="pricingRuleStatus" [value]="opt" [(ngModel)]="formData.status" (ngModelChange)="checkConflicts()" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
-          <label tuiLabel class="form-field">
-            {{ 'RULE.TYPE' | transloco }}
-            <tui-select [(ngModel)]="formData.ruleType">
-              <tui-data-list-wrapper *tuiDataList [items]="ruleTypeOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
+          <div class="form-field">
+            <div class="choice-field__label">{{ 'RULE.TYPE' | transloco }}</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of ruleTypeOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="pricingRuleType" [value]="opt" [(ngModel)]="formData.ruleType" (ngModelChange)="checkConflicts()" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
-          <label tuiLabel class="form-field">
-            Đối tượng khách hàng áp dụng
-            <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
-          
-          <label tuiLabel class="form-field">
-            Loại sản phẩm áp dụng
-            <tui-select [(ngModel)]="formData.applyProductType" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
+          <div class="form-field">
+            <div class="choice-field__label">Đối tượng khách hàng áp dụng</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="pricingApplyCustomer" [value]="opt" [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <div class="choice-field__label">Loại sản phẩm áp dụng</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of productTypeOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="pricingApplyProduct" [value]="opt" [(ngModel)]="formData.applyProductType" (ngModelChange)="checkConflicts()" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ productApplyTypeLabel(opt) }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
           <!-- B2B Price Specific Config -->
           <ng-container *ngIf="formData.ruleType === 'B2B_PRICE'">
             <div class="action-section full-width" style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
               <h4 style="margin-top: 0">Cấu hình Chiết khấu B2B</h4>
-              <div style="display: flex; gap: 16px;">
-                <label tuiLabel class="form-field" style="flex: 1">
-                  Loại chiết khấu
-                  <tui-select [(ngModel)]="b2bDiscountType">
-                    <tui-data-list-wrapper *tuiDataList [items]="['PERCENTAGE', 'FIXED']"></tui-data-list-wrapper>
-                  </tui-select>
-                </label>
-                <label tuiLabel class="form-field" style="flex: 1">
+              <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;">
+                <div class="form-field" style="flex: 1; min-width: 220px;">
+                  <div class="choice-field__label">Loại chiết khấu</div>
+                  <div class="radio-group-modern radio-group-modern--vertical">
+                    <label class="modern-radio">
+                      <input tuiRadio type="radio" name="b2bDiscountType" value="PERCENTAGE" [(ngModel)]="b2bDiscountType" />
+                      <div class="radio-content">
+                        <span class="radio-title">Phần trăm (%)</span>
+                      </div>
+                    </label>
+                    <label class="modern-radio">
+                      <input tuiRadio type="radio" name="b2bDiscountType" value="FIXED" [(ngModel)]="b2bDiscountType" />
+                      <div class="radio-content">
+                        <span class="radio-title">Số tiền cố định (VNĐ)</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                <label tuiLabel class="form-field" style="flex: 1; min-width: 200px;">
                   Giá trị chiết khấu {{ b2bDiscountType === 'PERCENTAGE' ? '%' : 'VNĐ' }}
                   <tui-textfield>
                     <input tuiTextfield type="number" [(ngModel)]="b2bDiscountValue" />
@@ -79,13 +110,18 @@
           </ng-container>
 
           <!-- Customer Group Selection -->
-          <label tuiLabel class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
-            Chọn nhóm khách hàng áp dụng
-            <tui-multi-select [(ngModel)]="selectedCustomerGroups" [stringify]="stringifyGroup" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-              <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
+          <div class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
+            <div class="choice-field__label">Chọn nhóm khách hàng áp dụng</div>
+            <div class="checkbox-list-vertical" *ngIf="customerGroups?.length; else pricingNoGroups">
+              <label *ngFor="let g of customerGroups" class="modern-check">
+                <input tuiCheckbox type="checkbox" [ngModel]="isCustomerGroupSelected(g)" (ngModelChange)="toggleCustomerGroup(g, $event)" />
+                <span>{{ g.name }}</span>
+              </label>
+            </div>
+            <ng-template #pricingNoGroups>
+              <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có nhóm khách hàng.</p>
+            </ng-template>
+          </div>
 
           <div class="json-section full-width" *ngIf="formData.applyCustomerType === 'SPECIFIC'">
             <h4>Điều kiện áp dụng (JSON)</h4>
@@ -97,21 +133,31 @@
             </label>
           </div>
 
-          <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'GROUP' || formData.applyProductType === 'CATEGORY'">
-            Chọn danh mục áp dụng (Nhóm)
-            <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
-              <ng-template #catContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
+          <div class="form-field full-width" *ngIf="formData.applyProductType === 'GROUP' || formData.applyProductType === 'CATEGORY'">
+            <div class="choice-field__label">Chọn danh mục áp dụng (Nhóm)</div>
+            <div class="checkbox-list-vertical" *ngIf="categories?.length; else pricingNoCats">
+              <label *ngFor="let c of categories" class="modern-check">
+                <input tuiCheckbox type="checkbox" [ngModel]="isCategorySelected(c)" (ngModelChange)="toggleCategory(c, $event)" />
+                <span>{{ c.name }}</span>
+              </label>
+            </div>
+            <ng-template #pricingNoCats>
+              <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có danh mục.</p>
+            </ng-template>
+          </div>
 
-          <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
-            Chọn sản phẩm áp dụng cụ thể
-            <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
-              <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
+          <div class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
+            <div class="choice-field__label">Chọn sản phẩm áp dụng cụ thể</div>
+            <div class="checkbox-list-vertical" *ngIf="products?.length; else pricingNoProds">
+              <label *ngFor="let p of products" class="modern-check">
+                <input tuiCheckbox type="checkbox" [ngModel]="isProductSelected(p)" (ngModelChange)="toggleProduct(p, $event)" />
+                <span>{{ stringifyProduct(p) }}</span>
+              </label>
+            </div>
+            <ng-template #pricingNoProds>
+              <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có sản phẩm.</p>
+            </ng-template>
+          </div>
         </div>
 
         <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -202,12 +248,12 @@
 
        <div class="full-width" style="margin-top: 24px;">
           <h4 style="border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">Đối tượng áp dụng</h4>
-          <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+          <p><strong>Khách hàng:</strong> {{ customerApplyTypeLabel(selectedRule.applyCustomerType) }}
             <span *ngIf="selectedRule.applyCustomerType === 'GROUP' && getCustomerGroupNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
               — {{ getCustomerGroupNames(selectedRule) }}
             </span>
           </p>
-          <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
+          <p><strong>Sản phẩm:</strong> {{ productApplyTypeLabel(selectedRule.applyProductType) }}
             <span *ngIf="selectedRule.applyProductType !== 'ALL' && getProductTargetNames(selectedRule)" style="color: #3b82f6; font-weight: 500;">
               — {{ getProductTargetNames(selectedRule) }}
             </span>

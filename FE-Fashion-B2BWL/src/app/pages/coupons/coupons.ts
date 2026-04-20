@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel, TuiDataList } from '@taiga-ui/core';
-import { TUI_CONFIRM, TuiDataListWrapper, TuiMultiSelect } from '@taiga-ui/kit';
+import { TUI_CONFIRM, TuiDataListWrapper, TuiMultiSelect, TuiRadio } from '@taiga-ui/kit';
 import { TuiComboBoxModule, TuiTextfieldControllerModule, TuiSelectModule } from '@taiga-ui/legacy';
 import { ApiService, Coupon, Category, Product, CustomerGroup } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
@@ -12,12 +12,14 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiComboBoxModule, TuiTextfieldControllerModule, RuleConflictWarningComponent],
+  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiComboBoxModule, TuiTextfieldControllerModule, RuleConflictWarningComponent, TuiRadio],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="page-header">
-        <h1 class="tui-text_h3">{{ 'SIDEBAR.COUPONS' | transloco }}</h1>
-        <button tuiButton type="button" size="m" (click)="showAddDialog()">Add Coupon</button>
+      <div class="page-header page-header--toolbar">
+        <h1 class="tui-text_h3 page-header__title">{{ 'SIDEBAR.COUPONS' | transloco }}</h1>
+        <div class="page-actions">
+          <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="showAddDialog()">Add Coupon</button>
+        </div>
       </div>
 
       <ng-template #addDialog let-observer>
@@ -33,19 +35,41 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
               </tui-textfield>
             </label>
 
-            <label tuiLabel class="coupon-field">
-              Trạng thái
-              <tui-select [(ngModel)]="newCoupon.status">
-                <tui-data-list-wrapper *tuiDataList [items]="['ACTIVE', 'INACTIVE']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
+            <div class="coupon-field">
+              <div class="choice-field__label">Trạng thái</div>
+              <div class="radio-group-modern">
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponStatus" value="ACTIVE" [(ngModel)]="newCoupon.status" />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ 'ENUMS.ACTIVE' | transloco }}</span>
+                  </div>
+                </label>
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponStatus" value="INACTIVE" [(ngModel)]="newCoupon.status" />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ 'ENUMS.INACTIVE' | transloco }}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-            <label tuiLabel class="coupon-field">
-              Loại giảm
-              <tui-select [(ngModel)]="newCoupon.discountType">
-                <tui-data-list-wrapper *tuiDataList [items]="['PERCENTAGE', 'FIXED_AMOUNT']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
+            <div class="coupon-field">
+              <div class="choice-field__label">Loại giảm</div>
+              <div class="radio-group-modern">
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponDiscountType" value="PERCENTAGE" [(ngModel)]="newCoupon.discountType" />
+                  <div class="radio-content">
+                    <span class="radio-title">Phần trăm (%)</span>
+                  </div>
+                </label>
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponDiscountType" value="FIXED_AMOUNT" [(ngModel)]="newCoupon.discountType" />
+                  <div class="radio-content">
+                    <span class="radio-title">Số tiền cố định</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
             <label tuiLabel class="coupon-field">
               Giá trị giảm
@@ -136,43 +160,7 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .content-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-
-    .coupon-dialog { padding: 4px 0 0; min-width: 0; }
-    .coupon-dialog-title { margin-bottom: 12px; }
-    .coupon-form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px 24px;
-      margin-top: 16px;
-      align-items: start;
-    }
-    .coupon-field { display: block; margin: 0; min-width: 0; }
-    .coupon-field-span2 { grid-column: 1 / -1; }
-    .coupon-field-hint {
-      font-size: 12px;
-      line-height: 1.45;
-      color: var(--tui-text-secondary);
-      margin-top: 8px;
-    }
-    .coupon-dialog-actions {
-      margin-top: 28px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    /* Chữ gõ trong ô phải tương phản với nền (tránh “gõ mà không thấy”) */
-    .coupon-dialog input[tuiTextfield],
-    .coupon-dialog textarea[tuiTextfield] {
-      color: var(--tui-text-primary);
-      caret-color: var(--tui-text-primary);
-    }
-  `],
+  styleUrl: './coupons.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CouponsComponent {

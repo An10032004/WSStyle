@@ -25,6 +25,9 @@ import { TranslocoModule } from '@jsverse/transloco';
   ],
   template: `
     <div class="page-container">
+      <div class="page-header">
+        <h2 class="tui-text_h3 page-header__title">{{ 'SIDEBAR.RULE_ENGINE' | transloco }}</h2>
+      </div>
       <div class="tabs-container">
         <nav tuiTabs [(activeItemIndex)]="activeTab">
           <button tuiTab>
@@ -58,23 +61,7 @@ import { TranslocoModule } from '@jsverse/transloco';
       </div>
     </div>
   `,
-  styles: [`
-    .page-container {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      background: #fdfdfd;
-    }
-    .tabs-container {
-      background: #fff;
-      padding: 0 16px;
-      border-bottom: 1px solid #eee;
-    }
-    .tab-content {
-      flex: 1;
-      overflow: auto;
-    }
-  `],
+  styleUrl: './rule-engine.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RuleEngineComponent {

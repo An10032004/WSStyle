@@ -14,15 +14,15 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
-  TuiBadge
+  TuiBadge,
+  TuiRadio,
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { MaskitoDirective } from '@maskito/angular';
 import { maskitoNumberOptionsGenerator } from '@maskito/kit';
@@ -41,7 +41,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   standalone: true,
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelectModule,
+    TuiRadio, TuiCheckbox,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
     RuleConflictWarningComponent, TuiBadge, MaskitoDirective, ShippingZonesComponent,
   ],
@@ -393,5 +393,20 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   cancel(): void { 
     this.showForm = false; 
     this.cdr.detectChanges();
+  }
+
+  isShippingGroupSelected(g: CustomerGroup): boolean {
+    return this.selectedGroupIds.some(x => x.id === g.id);
+  }
+
+  toggleShippingGroup(g: CustomerGroup, checked: boolean): void {
+    if (checked) {
+      if (!this.isShippingGroupSelected(g)) {
+        this.selectedGroupIds = [...this.selectedGroupIds, g];
+      }
+    } else {
+      this.selectedGroupIds = this.selectedGroupIds.filter(x => x.id !== g.id);
+    }
+    this.checkConflicts();
   }
 }

@@ -17,7 +17,7 @@ import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
-import { TuiButton, TuiDialogService, TuiAlertService } from '@taiga-ui/core';
+import { TuiButton, TuiDialogService, TuiAlertService, TuiTextfield } from '@taiga-ui/core';
 import { TuiBadge, TuiCheckbox } from '@taiga-ui/kit';
 import {
   adminOrderStatusPillClass,
@@ -30,12 +30,21 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton, TuiBadge, TuiCheckbox],
+  imports: [CommonModule, FormsModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton, TuiBadge, TuiCheckbox, TuiTextfield],
   template: `
     <div class="page-container">
-      <div class="header-section" style="padding: 16px; display:flex; justify-content:space-between; align-items:center;">
-        <h2 class="title" style="margin:0">{{ 'ORDER.TITLE' | transloco }}</h2>
-        <input type="text" class="tui-input" placeholder="Tìm kiếm đơn hàng..." style="padding:8px 12px; border:1px solid #ccc; border-radius:4px; max-width:300px; width:100%; outline:none;" (input)="onQuickFilterChange($event)"/>
+      <div class="page-header page-header--toolbar">
+        <h2 class="tui-text_h3 page-header__title">{{ 'ORDER.TITLE' | transloco }}</h2>
+        <div class="page-actions admin-search-field">
+          <tui-textfield iconStart="@tui.search">
+            <input
+              tuiTextfield
+              type="search"
+              placeholder="Tìm kiếm đơn hàng..."
+              (input)="onQuickFilterChange($event)"
+            />
+          </tui-textfield>
+        </div>
       </div>
       <div class="grid-wrapper">
         <ag-grid-angular
@@ -219,7 +228,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
       code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 12px; }
     </style>
   `,
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrls: ['./orders.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrdersComponent implements OnInit, OnDestroy {

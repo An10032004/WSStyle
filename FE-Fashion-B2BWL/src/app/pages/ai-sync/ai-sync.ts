@@ -28,9 +28,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   ],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="header-section" style="padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 class="title">🦾 Trợ lý AI & Đồng bộ Dữ liệu</h2>
-        <div style="display: flex; gap: 12px;">
+      <div class="page-header page-header--toolbar">
+        <h2 class="tui-text_h3 page-header__title">🦾 Trợ lý AI & Đồng bộ Dữ liệu</h2>
+        <div class="page-actions">
            <button tuiButton size="m" appearance="primary" (click)="generateAllDescriptions()">
              ⚡ Viết mô tả hàng loạt
            </button>
@@ -55,15 +55,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 0; }
-    .grid-wrapper { padding: 0 16px; }
-    .ag-theme-alpine {
-      --ag-header-background-color: #f8fafc;
-      --ag-border-color: #e2e8f0;
-    }
-  `],
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrl: './ai-sync.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AiSyncComponent implements OnInit {

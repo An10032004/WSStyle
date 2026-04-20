@@ -29,7 +29,8 @@ import {
   TuiTabs,
   TuiBadge,
   TuiInputNumber,
-  TuiRadio
+  TuiRadio,
+  TuiCheckbox
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -47,17 +48,16 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
     TuiTabs,
     TuiBadge,
     TuiRadio,
+    TuiCheckbox,
     TuiTextfieldControllerModule, 
     TuiLabel, 
     TuiIcon, 
     TuiSelectModule,
     TuiDataList,
     TuiDataListWrapper,
-    TuiDataListWrapper,
     TranslocoModule, 
     TuiTextfield,
     TuiDropdown,
-    TuiMultiSelectModule,
     RuleConflictWarningComponent,
   ],
   template: `
@@ -169,29 +169,25 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               <div class="section-card">
                 <h4 class="section-title-premium">Đối tượng khách hàng</h4>
                 <div class="field-item">
-                   <label tuiLabel>
-                      Loại khách hàng áp dụng
-                      <tui-select [(ngModel)]="rule.applyCustomerType" (ngModelChange)="syncTargeting()" tuiTextfieldSize="l">
-                        <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-                      </tui-select>
-                   </label>
+                  <div class="choice-field__label">Loại khách hàng áp dụng</div>
+                  <div class="radio-group-modern radio-group-modern--vertical">
+                    <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+                      <input tuiRadio type="radio" name="orderLimitApplyCustomer" [value]="opt" [(ngModel)]="rule.applyCustomerType" (ngModelChange)="syncTargeting()" />
+                      <div class="radio-content">
+                        <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
                 
                 <div class="field-item" *ngIf="rule.applyCustomerType === 'GROUP'">
-                   <label tuiLabel>
-                      Chọn nhóm khách hàng
-                      <tui-multi-select 
-                        [(ngModel)]="selectedGroupIds" 
-                        (ngModelChange)="syncTargeting()" 
-                        [stringify]="stringifyGroup">
-                        <tui-data-list-wrapper 
-                          *tuiDataList 
-                          [items]="customerGroups" 
-                          [itemContent]="groupContent">
-                        </tui-data-list-wrapper>
-                        <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-                      </tui-multi-select>
-                   </label>
+                  <div class="choice-field__label">Chọn nhóm khách hàng</div>
+                  <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+                    <label *ngFor="let g of customerGroups" class="modern-check">
+                      <input tuiCheckbox type="checkbox" [ngModel]="isOrderLimitGroupSelected(g)" (ngModelChange)="toggleOrderLimitGroup(g, $event)" />
+                      <span>{{ g.name }}</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -199,52 +195,36 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               <div class="section-card">
                 <h4 class="section-title-premium">Sản phẩm áp dụng</h4>
                 <div class="field-item">
-                   <label tuiLabel>
-                      Loại sản phẩm áp dụng
-                      <tui-select
-                        [(ngModel)]="rule.applyProductType"
-                        (ngModelChange)="syncTargeting()"
-                        tuiTextfieldSize="l"
-                        [stringify]="stringifyProductType"
-                      >
-                        <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
-                      </tui-select>
-                   </label>
-                   <div class="field-hint">{{ 'ORDER_LIMIT.PRODUCT_SCOPE_HINT' | transloco }}</div>
+                  <div class="choice-field__label">Loại sản phẩm áp dụng</div>
+                  <div class="radio-group-modern radio-group-modern--vertical">
+                    <label *ngFor="let opt of productTypeOptions" class="modern-radio">
+                      <input tuiRadio type="radio" name="orderLimitApplyProduct" [value]="opt" [(ngModel)]="rule.applyProductType" (ngModelChange)="syncTargeting()" />
+                      <div class="radio-content">
+                        <span class="radio-title">{{ stringifyProductType(opt) }}</span>
+                      </div>
+                    </label>
+                  </div>
+                  <div class="field-hint">{{ 'ORDER_LIMIT.PRODUCT_SCOPE_HINT' | transloco }}</div>
                 </div>
                 
                 <div class="field-item" *ngIf="rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP'">
-                   <label tuiLabel>
-                      {{ pickCategoriesLabelKey | transloco }}
-                      <tui-multi-select 
-                        [(ngModel)]="selectedCategoryIds" 
-                        (ngModelChange)="syncTargeting()" 
-                        [stringify]="stringifyCategory">
-                        <tui-data-list-wrapper 
-                          *tuiDataList 
-                          [items]="categories" 
-                          [itemContent]="catContent">
-                        </tui-data-list-wrapper>
-                        <ng-template #catContent let-item>{{ item.name }}</ng-template>
-                      </tui-multi-select>
-                   </label>
+                  <div class="choice-field__label">{{ pickCategoriesLabelKey | transloco }}</div>
+                  <div class="checkbox-list-vertical" *ngIf="categories?.length">
+                    <label *ngFor="let c of categories" class="modern-check">
+                      <input tuiCheckbox type="checkbox" [ngModel]="isOrderLimitCategorySelected(c)" (ngModelChange)="toggleOrderLimitCategory(c, $event)" />
+                      <span>{{ c.name }}</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
-                   <label tuiLabel>
-                      Chọn sản phẩm
-                      <tui-multi-select 
-                        [(ngModel)]="selectedProductIds" 
-                        (ngModelChange)="syncTargeting()" 
-                        [stringify]="stringifyProduct">
-                        <tui-data-list-wrapper 
-                          *tuiDataList 
-                          [items]="products" 
-                          [itemContent]="prodContent">
-                        </tui-data-list-wrapper>
-                        <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-                      </tui-multi-select>
-                   </label>
+                  <div class="choice-field__label">Chọn sản phẩm</div>
+                  <div class="checkbox-list-vertical" *ngIf="products?.length">
+                    <label *ngFor="let p of products" class="modern-check">
+                      <input tuiCheckbox type="checkbox" [ngModel]="isOrderLimitProductSelected(p)" (ngModelChange)="toggleOrderLimitProduct(p, $event)" />
+                      <span>{{ formatProductPickLabel(p) }}</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -329,6 +309,10 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
     .field-hint { font-size: 13px; color: #64748b; margin-top: 6px; }
 
     .radio-group-modern { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+    .radio-group-modern--vertical { display: flex; flex-direction: column; gap: 0.65rem; align-items: stretch; }
+    .checkbox-list-vertical { display: flex; flex-direction: column; gap: 0.45rem; max-height: 280px; overflow-y: auto; padding: 0.5rem 0.35rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #fff; }
+    .modern-check { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.5rem 0.65rem; margin: 0 0.15rem; border-radius: 0.55rem; cursor: pointer; }
+    .choice-field__label { font-weight: 700; font-size: 0.9rem; color: #1e293b; margin: 0 0 0.4rem; }
     .modern-radio { display: block; padding: 16px 20px; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
     .modern-radio:hover { border-color: #cbd5e0; background: #f8fafc; }
     .modern-radio :host-context([tuiRadioBlock][data-state='checked']) { border-color: #3b82f6; background: #eff6ff; }
@@ -475,6 +459,60 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
     if (t !== 'MAX_ORDER_QUANTITY' && t !== 'MAX_ORDER_QTY') return false;
     if (this.rule?.limitLevel !== 'PER_PRODUCT' && this.rule?.limitLevel !== 'PER_VARIANT') return false;
     return 4 > v;
+  }
+
+  formatProductPickLabel(p: any): string {
+    if (this.stringifyProduct) {
+      return this.stringifyProduct(p);
+    }
+    const name = p?.name ?? '';
+    const code = p?.productCode;
+    return code ? `${name} (${code})` : name;
+  }
+
+  isOrderLimitGroupSelected(g: any): boolean {
+    return this.selectedGroupIds.some((x: any) => x.id === g.id);
+  }
+
+  toggleOrderLimitGroup(g: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isOrderLimitGroupSelected(g)) {
+        this.selectedGroupIds = [...this.selectedGroupIds, g];
+      }
+    } else {
+      this.selectedGroupIds = this.selectedGroupIds.filter((x: any) => x.id !== g.id);
+    }
+    this.syncTargeting();
+  }
+
+  isOrderLimitCategorySelected(c: any): boolean {
+    return this.selectedCategoryIds.some((x: any) => x.id === c.id);
+  }
+
+  toggleOrderLimitCategory(c: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isOrderLimitCategorySelected(c)) {
+        this.selectedCategoryIds = [...this.selectedCategoryIds, c];
+      }
+    } else {
+      this.selectedCategoryIds = this.selectedCategoryIds.filter((x: any) => x.id !== c.id);
+    }
+    this.syncTargeting();
+  }
+
+  isOrderLimitProductSelected(p: any): boolean {
+    return this.selectedProductIds.some((x: any) => x.id === p.id);
+  }
+
+  toggleOrderLimitProduct(p: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isOrderLimitProductSelected(p)) {
+        this.selectedProductIds = [...this.selectedProductIds, p];
+      }
+    } else {
+      this.selectedProductIds = this.selectedProductIds.filter((x: any) => x.id !== p.id);
+    }
+    this.syncTargeting();
   }
 
   touchLimitForm(): void {

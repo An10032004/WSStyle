@@ -1,13 +1,15 @@
 <div class="page-container">
-  <div class="header-section" style="padding: 16px">
-    <h2 class="title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
-    <button tuiButton type="button" size="m" (click)="onAdd()">
-      {{ 'COMMON.ADD' | transloco }}
-    </button>
+  <div class="page-header">
+    <h2 class="tui-text_h3 page-header__title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
+    <div class="page-actions">
+      <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="onAdd()">
+        {{ 'COMMON.ADD' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
+  <div *ngIf="showForm" class="form-panel">
+    <h4>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h4>
     
     <div class="form-grid">
       <label tuiLabel class="form-field">
@@ -42,7 +44,7 @@
       </label>
 
       <label tuiLabel class="form-field full-width">
-        <span style="color: #1976d2; font-weight: bold;">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
+        <span class="group-label-highlight">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
         <tui-select [(ngModel)]="formData.customerGroupId" [valueContent]="selectedGroupNameTemplate">
           <tui-data-list-wrapper 
             *tuiDataList 
@@ -61,19 +63,41 @@
         </tui-select>
       </label>
 
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)
-        <tui-select [(ngModel)]="formData.role">
-          <tui-data-list-wrapper *tuiDataList [items]="roleOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field full-width choice-field">
+        <div class="choice-field__label">{{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)</div>
+        <div class="radio-group-modern">
+          <label *ngFor="let r of roleOptions" class="modern-radio">
+            <input
+              tuiRadio
+              type="radio"
+              name="userFormRole"
+              [value]="r"
+              [(ngModel)]="formData.role"
+            />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + r | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.STATUS' | transloco }}
-        <tui-select [(ngModel)]="formData.registrationStatus">
-          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field full-width choice-field">
+        <div class="choice-field__label">{{ 'MEMBER.STATUS' | transloco }}</div>
+        <div class="radio-group-modern">
+          <label *ngFor="let s of statusOptions" class="modern-radio">
+            <input
+              tuiRadio
+              type="radio"
+              name="userFormRegStatus"
+              [value]="s"
+              [(ngModel)]="formData.registrationStatus"
+            />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + s | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
       <label tuiLabel class="form-field">
         {{ 'MEMBER.COMPANY' | transloco }}
@@ -90,9 +114,9 @@
       </label>
     </div>
 
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
+    <div class="form-actions">
+      <button tuiButton type="button" appearance="outline" size="m" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
+      <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
     </div>
   </div>
 

@@ -1,0 +1,60 @@
+@use '../../shared/styles/admin-page' as *;
+
+.page-container > .content-table {
+  margin: 0;
+}
+
+.coupon-dialog {
+  padding: 4px 0 0;
+  min-width: 0;
+}
+
+.coupon-dialog-title {
+  margin-bottom: 12px;
+}
+
+.coupon-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 24px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.coupon-field {
+  display: block;
+  margin: 0;
+  min-width: 0;
+}
+
+.coupon-field-span2 {
+  grid-column: 1 / -1;
+}
+
+.coupon-field-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tui-text-secondary);
+  margin-top: 8px;
+}
+
+.coupon-dialog-actions {
+  margin-top: 28px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.coupon-dialog input[tuiTextfield],
+.coupon-dialog textarea[tuiTextfield] {
+  color: var(--tui-text-primary);
+  caret-color: var(--tui-text-primary);
+}
+
+.choice-field__label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--tui-text-primary);
+  margin-bottom: 0.5rem;
+}

@@ -14,17 +14,16 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
   TuiBadge,
   TuiInputNumber,
-  TuiCheckbox
+  TuiCheckbox,
+  TuiRadio
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, HidePriceRule, CustomerGroup, Category, Product } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -39,9 +38,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   standalone: true,
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge, TuiCheckbox,
+    TuiBadge, TuiCheckbox,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, 
-    TuiTextfield, TuiMultiSelectModule
+    TuiTextfield, TuiRadio
   ],
   templateUrl: './hide-price-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -302,4 +301,59 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  hidePriceProductTypeLabel(opt: string): string {
+    if (opt === 'CATEGORY') {
+      return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_CATEGORY');
+    }
+    if (opt === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_PRODUCT');
+    }
+    return this.transloco.translate('ENUMS.' + opt);
+  }
+
+  isHidePriceGroupSelected(g: CustomerGroup): boolean {
+    return this.selectedCustomerGroups.some(x => x.id === g.id);
+  }
+
+  toggleHidePriceGroup(g: CustomerGroup, checked: boolean): void {
+    if (checked) {
+      if (!this.isHidePriceGroupSelected(g)) {
+        this.selectedCustomerGroups = [...this.selectedCustomerGroups, g];
+      }
+    } else {
+      this.selectedCustomerGroups = this.selectedCustomerGroups.filter(x => x.id !== g.id);
+    }
+    this.cdr.markForCheck();
+  }
+
+  isHidePriceCategorySelected(c: Category): boolean {
+    return this.selectedCategories.some(x => x.id === c.id);
+  }
+
+  toggleHidePriceCategory(c: Category, checked: boolean): void {
+    if (checked) {
+      if (!this.isHidePriceCategorySelected(c)) {
+        this.selectedCategories = [...this.selectedCategories, c];
+      }
+    } else {
+      this.selectedCategories = this.selectedCategories.filter(x => x.id !== c.id);
+    }
+    this.cdr.markForCheck();
+  }
+
+  isHidePriceProductSelected(p: Product): boolean {
+    return this.selectedProducts.some(x => x.id === p.id);
+  }
+
+  toggleHidePriceProduct(p: Product, checked: boolean): void {
+    if (checked) {
+      if (!this.isHidePriceProductSelected(p)) {
+        this.selectedProducts = [...this.selectedProducts, p];
+      }
+    } else {
+      this.selectedProducts = this.selectedProducts.filter(x => x.id !== p.id);
+    }
+    this.cdr.markForCheck();
+  }
 }

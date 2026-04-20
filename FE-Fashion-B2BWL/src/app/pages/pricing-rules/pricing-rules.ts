@@ -14,15 +14,15 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
-  TuiBadge
+  TuiBadge,
+  TuiRadio,
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, PricingRule } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -43,15 +43,13 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     FormsModule,
     AgGridAngular,
     TuiButton,
-    TuiSelectModule,
-    TuiDataList,
-    TuiDataListWrapper,
     TuiTextfieldControllerModule,
     TuiLabel,
     TuiIcon,
     TuiBadge,
     TuiTextfield,
-    TuiMultiSelectModule,
+    TuiRadio,
+    TuiCheckbox,
     TranslocoModule,
     ActionRendererComponent,
     QuantityBreakEditorComponent,
@@ -468,5 +466,69 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
 
   cancel(): void {
     this.showForm = false;
+  }
+
+  productApplyTypeLabel(opt: string | null | undefined): string {
+    const v = opt || 'ALL';
+    if (v === 'GROUP') {
+      return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_GROUP');
+    }
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_PRODUCT');
+    }
+    return this.transloco.translate('ENUMS.' + v);
+  }
+
+  customerApplyTypeLabel(opt: string | null | undefined): string {
+    const v = opt || 'ALL';
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + v);
+  }
+
+  isCustomerGroupSelected(g: any): boolean {
+    return this.selectedCustomerGroups.some(x => x.id === g.id);
+  }
+
+  toggleCustomerGroup(g: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCustomerGroupSelected(g)) {
+        this.selectedCustomerGroups = [...this.selectedCustomerGroups, g];
+      }
+    } else {
+      this.selectedCustomerGroups = this.selectedCustomerGroups.filter(x => x.id !== g.id);
+    }
+    this.checkConflicts();
+  }
+
+  isCategorySelected(c: any): boolean {
+    return this.selectedCategories.some(x => x.id === c.id);
+  }
+
+  toggleCategory(c: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCategorySelected(c)) {
+        this.selectedCategories = [...this.selectedCategories, c];
+      }
+    } else {
+      this.selectedCategories = this.selectedCategories.filter(x => x.id !== c.id);
+    }
+    this.checkConflicts();
+  }
+
+  isProductSelected(p: any): boolean {
+    return this.selectedProducts.some(x => x.id === p.id);
+  }
+
+  toggleProduct(p: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isProductSelected(p)) {
+        this.selectedProducts = [...this.selectedProducts, p];
+      }
+    } else {
+      this.selectedProducts = this.selectedProducts.filter(x => x.id !== p.id);
+    }
+    this.checkConflicts();
   }
 }

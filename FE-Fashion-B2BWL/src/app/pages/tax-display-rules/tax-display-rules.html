@@ -43,7 +43,7 @@
         <div class="info-group">
            <p style="margin: 0 0 16px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Đối tượng áp dụng</p>
            <div style="display: flex; flex-direction: column; gap: 12px;">
-              <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
+              <p><strong>Khách hàng:</strong> {{ taxApplyCustomerLabel(selectedRule.applyCustomerType) }}
                  <span *ngIf="getCustomerGroupNames(selectedRule)" style="color: #3b82f6;"> — {{ getCustomerGroupNames(selectedRule) }}</span>
               </p>
            </div>

@@ -1,21 +1,24 @@
-<div class="staff-container">
-  <div class="header-section">
-    <div class="title-group">
-      <h2 class="tui-text_h3">{{ 'MENU.STAFF' | transloco }} / {{ 'MENU.CUSTOMERS' | transloco }}</h2>
-      <p class="tui-text_body-s-2 text-muted">Quản lý tài khoản quản trị viên, nhân viên và khách hàng đại lý</p>
+<div class="page-container staff-page">
+  <div class="page-header">
+    <div>
+      <h2 class="tui-text_h3 page-header__title">{{ 'MENU.STAFF' | transloco }} / {{ 'MENU.CUSTOMERS' | transloco }}</h2>
+      <p class="page-header__subtitle">Quản lý tài khoản quản trị viên, nhân viên và khách hàng đại lý</p>
     </div>
-    <button
-      tuiButton
-      type="button"
-      appearance="primary"
-      size="m"
-      (click)="onAdd()"
-    >
-      {{ 'COMMON.ADD' | transloco }}
-    </button>
+    <div class="page-actions">
+      <button
+        tuiButton
+        type="button"
+        appearance="primary"
+        size="m"
+        iconStart="@tui.plus"
+        (click)="onAdd()"
+      >
+        {{ 'COMMON.ADD' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div class="table-card">
+  <div class="grid-wrapper">
     <ag-grid-angular
       class="ag-theme-alpine"
       style="width: 100%;"
@@ -78,19 +81,39 @@
           </tui-textfield>
         </label>
 
-        <label tuiLabel>
-          {{ 'MEMBER.ROLE' | transloco }}
-          <tui-select [(ngModel)]="formData.role" (ngModelChange)="onPrimaryRoleChange($event)">
-            <tui-data-list-wrapper
-              *tuiDataList
-              [items]="primaryRoleOptions"
-              [itemContent]="roleContent"
-            />
-            <ng-template #roleContent let-item>
-              {{ 'ENUMS.' + item | transloco }}
-            </ng-template>
-          </tui-select>
-        </label>
+        <div class="role-field">
+          <div class="role-field__label">{{ 'MEMBER.ROLE' | transloco }}</div>
+          <div class="radio-group-modern">
+            <label class="modern-radio">
+              <input
+                tuiRadio
+                type="radio"
+                name="primaryRole"
+                value="STAFF"
+                [(ngModel)]="formData.role"
+                (ngModelChange)="onPrimaryRoleChange($event)"
+              />
+              <div class="radio-content">
+                <span class="radio-title">{{ 'ENUMS.STAFF' | transloco }}</span>
+                <span class="radio-desc">Nhân viên nội bộ</span>
+              </div>
+            </label>
+            <label class="modern-radio">
+              <input
+                tuiRadio
+                type="radio"
+                name="primaryRole"
+                value="ADMIN"
+                [(ngModel)]="formData.role"
+                (ngModelChange)="onPrimaryRoleChange($event)"
+              />
+              <div class="radio-content">
+                <span class="radio-title">{{ 'ENUMS.ADMIN' | transloco }}</span>
+                <span class="radio-desc">Toàn quyền quản trị</span>
+              </div>
+            </label>
+          </div>
+        </div>
 
         <label tuiLabel>
           {{ 'MEMBER.ASSIGNED_ROLE' | transloco }}

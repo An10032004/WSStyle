@@ -132,7 +132,7 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
         field: 'applyCustomerType',
         headerValueGetter: () => this.transloco.translate('RULE.CUSTOMER_SCOPE'),
         width: 140,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value),
+        valueFormatter: (params: any) => this.formatApplyCustomerType(params.value),
       },
       {
         field: 'applyProductType',
@@ -179,6 +179,15 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
       const names = this.customerGroups.filter(g => ids.includes(g.id)).map(g => g.name);
       return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
     } catch { return rule.applyCustomerValue || ''; }
+  }
+
+  /** Nhãn phạm vi khách (SPECIFIC = khách cụ thể, không dùng chung nhãn sản phẩm). */
+  formatApplyCustomerType(value: string | null | undefined): string {
+    const v = value || 'ALL';
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + v);
   }
 
   /** Nhãn phạm vi sản phẩm (tránh ENUMS.GROUP = nhóm KH khi hiển thị cột SP). */

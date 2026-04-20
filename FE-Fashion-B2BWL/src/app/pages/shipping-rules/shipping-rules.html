@@ -20,12 +20,17 @@
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
-        {{ 'RULE.BASE_ON' | transloco }}
-        <tui-select [(ngModel)]="formData.baseOn">
-          <tui-data-list-wrapper *tuiDataList [items]="baseOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field">
+        <div class="choice-field__label">{{ 'RULE.BASE_ON' | transloco }}</div>
+        <div class="radio-group-modern radio-group-modern--vertical">
+          <label *ngFor="let opt of baseOptions" class="modern-radio">
+            <input tuiRadio type="radio" name="shipBaseOn" [value]="opt" [(ngModel)]="formData.baseOn" (ngModelChange)="checkConflicts()" />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
       <label tuiLabel class="form-field">
         {{ 'RULE.PRIORITY' | transloco }}
@@ -39,33 +44,45 @@
         <p style="margin: 0 0 12px; color: #64748b; font-size: 13px;">
           Phí ship tính theo <strong>tổng giá trị đơn</strong> hoặc <strong>tổng số lượng</strong> (tùy “Cơ sở tính”), và <strong>loại khách hàng</strong>. Không giới hạn theo danh mục hay sản phẩm — trên storefront chỉ hiển thị ở giỏ hàng / thanh toán.
         </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <label tuiLabel class="form-field">
-            Loại khách hàng áp dụng
-            <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div class="form-field">
+            <div class="choice-field__label">Loại khách hàng áp dụng</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="shipApplyCustomer" [value]="opt" [(ngModel)]="formData.applyCustomerType" (ngModelChange)="checkConflicts()" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
-          <label tuiLabel class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
-            Chọn nhóm khách hàng
-            <tui-multi-select [(ngModel)]="selectedGroupIds" [stringify]="stringifyGroup" (ngModelChange)="checkConflicts()">
-              <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-              <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-            </tui-multi-select>
-          </label>
+          <div class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
+            <div class="choice-field__label">Chọn nhóm khách hàng</div>
+            <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+              <label *ngFor="let g of customerGroups" class="modern-check">
+                <input tuiCheckbox type="checkbox" [ngModel]="isShippingGroupSelected(g)" (ngModelChange)="toggleShippingGroup(g, $event)" />
+                <span>{{ g.name }}</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="json-section full-width" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px;" *ngIf="showShippingDiscountUi">
         <h4 style="margin-bottom: 16px;">{{ 'RULE.DISCOUNT' | transloco }} (Chiết khấu phí vận chuyển)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <label tuiLabel class="form-field">
-            Loại chiết khấu
-            <tui-select [(ngModel)]="formData.discountType">
-              <tui-data-list-wrapper *tuiDataList [items]="discountTypeOptions"></tui-data-list-wrapper>
-            </tui-select>
-          </label>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div class="form-field">
+            <div class="choice-field__label">Loại chiết khấu</div>
+            <div class="radio-group-modern radio-group-modern--vertical">
+              <label *ngFor="let opt of discountTypeOptions" class="modern-radio">
+                <input tuiRadio type="radio" name="shipDiscountType" [value]="opt" [(ngModel)]="formData.discountType" />
+                <div class="radio-content">
+                  <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
           <label tuiLabel class="form-field" *ngIf="formData.discountType !== 'FREE'">
             Giá trị chiết khấu {{ formData.discountType === 'PERCENTAGE' ? '%' : 'đ' }}

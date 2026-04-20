@@ -1,0 +1,31 @@
+@use '../../shared/styles/admin-page' as *;
+
+.page-container > .grid-wrapper {
+  margin: 0;
+}
+
+.form-panel h3 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--tui-text-primary);
+}
+
+.role-field__label,
+.choice-field__label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--tui-text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.choice-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.group-label-highlight {
+  color: var(--tui-text-action);
+  font-weight: 700;
+}

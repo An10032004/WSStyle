@@ -14,16 +14,15 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
   TuiInputNumber,
-  TuiBadge
+  TuiBadge,
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, NetTermRule, CustomerGroup } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -38,9 +37,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   standalone: true,
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield,
-    TuiBadge, TuiMultiSelectModule
+    TuiBadge, TuiCheckbox
   ],
   templateUrl: './net-term-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -233,4 +231,20 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  isNetTermGroupSelected(g: any): boolean {
+    return this.selectedGroupIds.some(x => x.id === g.id);
+  }
+
+  toggleNetTermGroup(g: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isNetTermGroupSelected(g)) {
+        this.selectedGroupIds = [...this.selectedGroupIds, g];
+      }
+    } else {
+      this.selectedGroupIds = this.selectedGroupIds.filter(x => x.id !== g.id);
+    }
+    this.syncTargeting();
+    this.cdr.markForCheck();
+  }
 }

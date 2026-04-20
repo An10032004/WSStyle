@@ -1,0 +1,10 @@
+@use '../../shared/styles/admin-page' as *;
+
+.page-container > .grid-wrapper {
+  margin: 0;
+}
+
+.ag-theme-alpine {
+  --ag-header-background-color: var(--tui-background-base, #f8fafc);
+  --ag-border-color: var(--tui-border-normal, #e2e8f0);
+}

@@ -21,7 +21,8 @@ import {
 import { 
   TuiDataListWrapper, 
   TuiBadge,
-  TuiInputNumber
+  TuiInputNumber,
+  TuiRadio
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -40,10 +41,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
-    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield
+    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield, TuiRadio
   ],
   templateUrl: './users.html',
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrls: ['./users.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersComponent implements OnInit, OnDestroy {

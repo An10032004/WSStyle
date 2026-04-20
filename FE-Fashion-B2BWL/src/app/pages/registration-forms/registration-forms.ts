@@ -24,8 +24,8 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [CommonModule, AgGridAngular, TranslocoModule, ActionRendererComponent, TuiButton],
   template: `
     <div class="page-container">
-      <div class="header-section" style="padding: 16px">
-        <h2 class="title">{{ 'MEMBER.FORMS_TITLE' | transloco }}</h2>
+      <div class="page-header">
+        <h2 class="tui-text_h3 page-header__title">{{ 'MEMBER.FORMS_TITLE' | transloco }}</h2>
       </div>
       <div class="grid-wrapper">
         <ag-grid-angular
@@ -44,47 +44,35 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     </div>
 
     <ng-template #viewDialog let-observer>
-      <div class="view-detail" *ngIf="selectedForm">
-        <div class="detail-row">
-          <span class="label">ID:</span>
-          <span class="value">{{ selectedForm.id }}</span>
+      <div class="registration-detail-dialog" *ngIf="selectedForm">
+        <div class="detail-field">
+          <div class="choice-field__label">ID</div>
+          <div class="detail-field-value">{{ selectedForm.id }}</div>
         </div>
-        <div class="detail-row">
-          <span class="label">{{ 'MEMBER.EMAIL' | transloco }}:</span>
-          <span class="value">{{ selectedForm.user.email }}</span>
+        <div class="detail-field">
+          <div class="choice-field__label">{{ 'MEMBER.EMAIL' | transloco }}</div>
+          <div class="detail-field-value">{{ selectedForm.user.email }}</div>
         </div>
-        <div class="detail-row">
-          <span class="label">{{ 'MEMBER.NAME' | transloco }}:</span>
-          <span class="value">{{ selectedForm.user.fullName }}</span>
+        <div class="detail-field">
+          <div class="choice-field__label">{{ 'MEMBER.NAME' | transloco }}</div>
+          <div class="detail-field-value">{{ selectedForm.user.fullName }}</div>
         </div>
-        <div class="detail-row">
-          <span class="label">{{ 'MEMBER.FORM_DATA' | transloco }}:</span>
+        <div class="detail-field">
+          <div class="choice-field__label">{{ 'MEMBER.FORM_DATA' | transloco }}</div>
           <div class="form-data-list">
             <div *ngFor="let item of getParsedFormData(selectedForm.formData) | keyvalue" class="form-item">
-              <span class="item-key">{{ item.key }}:</span>
-              <span class="item-value">{{ item.value }}</span>
+              <div class="form-item-key">{{ item.key }}</div>
+              <div class="form-item-value">{{ item.value }}</div>
             </div>
           </div>
         </div>
       </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+      <div class="registration-detail-actions">
         <button tuiButton size="m" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
       </div>
     </ng-template>
-
-    <style>
-      .view-detail { padding: 4px; }
-      .detail-row { display: flex; flex-direction: column; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
-      .detail-row .label { font-weight: 600; color: #666; margin-bottom: 4px; }
-      .detail-row .value { color: #333; }
-      .form-data-list { background: #f9f9f9; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
-      .form-item { border-bottom: 1px dashed #e0e0e0; padding-bottom: 4px; }
-      .form-item:last-child { border-bottom: none; }
-      .item-key { font-weight: 600; color: #555; margin-right: 8px; }
-      .item-value { color: #000; }
-    </style>
   `,
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrl: './registration-forms.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegistrationFormsComponent implements OnInit, OnDestroy {

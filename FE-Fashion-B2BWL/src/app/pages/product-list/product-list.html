@@ -72,9 +72,8 @@
 
         <label tuiLabel class="form-field full-width">
           {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
-          <tui-textfield>
+          <tui-textfield iconStart="@tui.image">
             <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://example.com/image.jpg" />
-            <tui-icon *tuiTextfieldElement icon="@tui.image" />
           </tui-textfield>
         </label>
 

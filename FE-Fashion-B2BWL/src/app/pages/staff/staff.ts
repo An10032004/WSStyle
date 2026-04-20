@@ -20,7 +20,8 @@ import {
 import { 
   TuiDataListWrapper, 
   TuiBadge,
-  TuiInputNumber
+  TuiInputNumber,
+  TuiRadio
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -38,7 +39,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   standalone: true,
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
+    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge, TuiRadio,
     TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield
   ],
   templateUrl: './staff.html',

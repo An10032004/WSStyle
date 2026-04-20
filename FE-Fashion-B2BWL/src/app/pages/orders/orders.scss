@@ -1,0 +1,6 @@
+@use '../../shared/styles/admin-page' as *;
+
+.page-container > .grid-wrapper {
+  margin: 0;
+  min-height: 0;
+}

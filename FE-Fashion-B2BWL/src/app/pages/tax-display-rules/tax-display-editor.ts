@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
@@ -11,10 +11,10 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiRadio,
-  TuiDataListWrapper
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services/api.service';
 import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
@@ -27,14 +27,11 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
     TuiButton, 
     TuiIcon, 
     TuiLabel, 
-    TuiRadio, 
-    TuiSelectModule, 
-    TuiDataList, 
-    TuiDataListWrapper, 
+    TuiRadio,
+    TuiCheckbox,
     TuiTextfieldControllerModule, 
     TuiTextfield,
     TuiAppearance,
-    TuiMultiSelectModule,
     TranslocoModule
   ],
   template: `
@@ -65,9 +62,16 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
                 </tui-textfield>
               </label>
 
-              <div class="status-toggle">
-                <span class="label">{{ 'RULE.STATUS' | transloco }}</span>
-                <span [class]="taxRuleStatusPillClass(data.status)">{{ 'ENUMS.' + (data.status || 'ACTIVE') | transloco }}</span>
+              <div class="form-field-tax-status">
+                <div class="choice-field__label">{{ 'RULE.STATUS' | transloco }}</div>
+                <div class="radio-group-modern radio-group-modern--vertical">
+                  <label *ngFor="let s of statusOptionsList" class="modern-radio">
+                    <input tuiRadio type="radio" name="taxDisplayRuleStatus" [value]="s" [(ngModel)]="data.status" />
+                    <div class="radio-content">
+                      <span class="radio-title">{{ 'ENUMS.' + s | transloco }}</span>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -78,18 +82,27 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
           <div class="section-card">
             <h4 class="section-title">Đối tượng khách hàng áp dụng</h4>
             <div class="field-grid">
-               <label tuiLabel>Loại khách hàng áp dụng
-                  <tui-select [(ngModel)]="data.applyCustomerType" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'GUEST', 'LOGGED_IN', 'GROUP']"></tui-data-list-wrapper>
-                  </tui-select>
-               </label>
+               <div class="form-field-tax-target">
+                 <div class="choice-field__label">Loại khách hàng áp dụng</div>
+                 <div class="radio-group-modern radio-group-modern--vertical">
+                   <label *ngFor="let opt of customerApplyTypes" class="modern-radio">
+                     <input tuiRadio type="radio" name="taxDisplayApplyCustomer" [value]="opt" [(ngModel)]="data.applyCustomerType" (ngModelChange)="onTaxCustomerApplyTypeChange()" />
+                     <div class="radio-content">
+                       <span class="radio-title">{{ taxCustomerApplyLabel(opt) }}</span>
+                     </div>
+                   </label>
+                 </div>
+               </div>
 
-               <label tuiLabel *ngIf="data.applyCustomerType === 'GROUP'">Chọn nhóm khách hàng
-                  <tui-multi-select [(ngModel)]="selectedGroups" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-                    <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
+               <div class="form-field-tax-target" *ngIf="data.applyCustomerType === 'GROUP'">
+                 <div class="choice-field__label">Chọn nhóm khách hàng</div>
+                 <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+                   <label *ngFor="let g of customerGroups" class="modern-check">
+                     <input tuiCheckbox type="checkbox" [ngModel]="isTaxGroupSelected(g)" (ngModelChange)="toggleTaxGroup(g, $event)" />
+                     <span>{{ g.name }}</span>
+                   </label>
+                 </div>
+               </div>
             </div>
           </div>
 
@@ -111,9 +124,17 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
     .field-grid { display: grid; gap: 20px; }
     .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .field-grid-3 { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 20px; align-items: end; }
-    
-    .status-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; height: 44px; }
+    .field-grid-3 { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 20px; align-items: start; }
+    .form-field-tax-status { min-width: 0; }
+    .form-field-tax-target { min-width: 0; }
+    .choice-field__label { font-weight: 700; font-size: 0.875rem; color: #334155; margin: 0 0 0.4rem; }
+    .radio-group-modern--vertical { display: flex; flex-direction: column; gap: 0.65rem; align-items: stretch; }
+    .modern-radio { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; cursor: pointer; background: #fff; }
+    .modern-radio:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .radio-content { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .radio-title { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+    .checkbox-list-vertical { display: flex; flex-direction: column; gap: 0.45rem; max-height: 280px; overflow-y: auto; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #fff; }
+    .modern-check { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.45rem 0.5rem; border-radius: 0.5rem; cursor: pointer; }
     
     .style-container { margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 20px; display: flex; flex-direction: column; gap: 20px; }
     .style-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
@@ -135,7 +156,8 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaxDisplayEditorComponent {
+export class TaxDisplayEditorComponent implements OnChanges {
+  private readonly cdr = inject(ChangeDetectorRef);
   @Input() categories: Category[] = [];
   @Input() products: Product[] = [];
   @Input() customerGroups: CustomerGroup[] = [];
@@ -171,11 +193,47 @@ export class TaxDisplayEditorComponent {
   stringifyCategory = (item: any) => item?.name || '';
   stringifyProduct = (item: any) => item?.name || '';
 
+  readonly statusOptionsList = ['ACTIVE', 'INACTIVE'] as const;
+  readonly customerApplyTypes: ('ALL' | 'GROUP' | 'SPECIFIC')[] = ['ALL', 'GROUP', 'SPECIFIC'];
+
+  private readonly transloco = inject(TranslocoService);
+
+  taxCustomerApplyLabel(opt: string): string {
+    if (opt === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + opt);
+  }
+
   taxRuleStatusPillClass(status: string | null | undefined): string {
     return adminLifecycleStatusPillClass(status || 'ACTIVE');
   }
 
-  ngOnChanges() {
+  onTaxCustomerApplyTypeChange(): void {
+    if (this.data.applyCustomerType !== 'GROUP') {
+      this.selectedGroups = [];
+    }
+    this.syncTargeting();
+    this.cdr.markForCheck();
+  }
+
+  isTaxGroupSelected(g: CustomerGroup): boolean {
+    return this.selectedGroups.some(s => s.id === g.id);
+  }
+
+  toggleTaxGroup(g: CustomerGroup, checked: boolean): void {
+    if (checked) {
+      if (!this.isTaxGroupSelected(g)) {
+        this.selectedGroups = [...this.selectedGroups, g];
+      }
+    } else {
+      this.selectedGroups = this.selectedGroups.filter(s => s.id !== g.id);
+    }
+    this.syncTargeting();
+    this.cdr.markForCheck();
+  }
+
+  ngOnChanges(_changes: SimpleChanges) {
     if (this.data.designConfig) {
       try {
         const savedDesign = JSON.parse(this.data.designConfig);
