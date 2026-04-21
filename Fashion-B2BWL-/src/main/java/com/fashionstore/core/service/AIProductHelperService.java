@@ -59,12 +59,16 @@ public class AIProductHelperService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** Fallback khi endpoint cấu hình trả lỗi HTTP (429, 404 model deprecated, …). */
+    /**
+     * Fallback khi endpoint cấu hình trả lỗi HTTP (429, 404, …).
+     * Chỉ dùng model còn hỗ trợ {@code generateContent} trên v1beta (danh sách: ai.google.dev/gemini-api/docs/models).
+     * Không dùng {@code gemini-1.5-flash} / {@code gemini-pro} (thường 404 trên API mới).
+     */
     private static final String[] GEMINI_ENDPOINT_FALLBACKS = {
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
     };
 
     private record VndRange(BigDecimal min, BigDecimal max) {}
