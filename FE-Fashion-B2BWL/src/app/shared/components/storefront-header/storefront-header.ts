@@ -49,7 +49,8 @@ export class StorefrontHeaderComponent implements OnInit {
   navigationItems: { label: string; link: string }[] = [
     { label: 'Xếp hạng', link: '/shop' },
     { label: 'Đánh giá', link: '/customer-reviews' },
-    { label: 'Hỗ trợ', link: '/support' }
+    { label: 'Trợ lý AI', link: '/assistant' },
+    { label: 'Hỗ trợ', link: '/support' },
   ];
 
   allProducts: Product[] = [];

@@ -1,7 +1,5 @@
 <tui-root>
   <router-outlet />
-  <ng-container *ngIf="showBubbles$ | async">
-    <app-ai-assistant-bubble></app-ai-assistant-bubble>
-    <app-support-chat-bubble></app-support-chat-bubble>
-  </ng-container>
+  <app-ai-assistant-bubble *ngIf="showAiBubble$ | async" />
+  <app-support-chat-bubble *ngIf="showSupportBubble$ | async" />
 </tui-root>

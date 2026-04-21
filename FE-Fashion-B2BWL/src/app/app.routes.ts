@@ -203,6 +203,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/support/support').then(m => m.SupportComponent)
   },
   {
+    path: 'assistant',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/ai-assistant-page/ai-assistant-page').then((m) => m.AiAssistantPageComponent),
+  },
+  {
     path: 'customer-reviews',
     loadComponent: () => import('./pages/reviews/reviews').then(m => m.ReviewsComponent)
   },

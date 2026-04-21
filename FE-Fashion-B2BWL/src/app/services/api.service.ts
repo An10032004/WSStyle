@@ -132,6 +132,20 @@ export interface TranslationRequest {
 export interface AIResponse {
   message: string;
   products: Product[];
+  /** Phiên lịch sử (BE); gửi lại ở tin tiếp theo. */
+  sessionId?: number | null;
+}
+
+export interface AssistantSessionItem {
+  id: number;
+  title: string;
+  updatedAt: string;
+}
+
+export interface AssistantTurn {
+  role: string;
+  content: string;
+  productIds: number[];
 }
 
 export interface PricingRule {
@@ -1138,9 +1152,68 @@ export class ApiService {
   }
 
   // ─── AI Assistant ────────────────────────────
-  chatWithAI(message: string): Observable<AIResponse> {
-    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, { message })
-      .pipe(map(res => res.data));
+  listAssistantSessions(userId: number, limit = 30): Observable<AssistantSessionItem[]> {
+    return this.http
+      .get<ApiResponse<AssistantSessionItem[]>>(`${this.base}/ai/sessions`, {
+        params: { userId: String(userId), limit: String(limit) },
+      })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  getAssistantSessionMessages(sessionId: number, userId: number): Observable<AssistantTurn[]> {
+    return this.http
+      .get<ApiResponse<AssistantTurn[]>>(`${this.base}/ai/sessions/${sessionId}/messages`, {
+        params: { userId: String(userId) },
+      })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Optional: userId + storefrontContext (markdown) để map giá rule và bổ sung thuế/ngữ cảnh vào prompt. */
+  chatWithAI(
+    message: string,
+    opts?: {
+      userId?: number | null;
+      storefrontContext?: string | null;
+      sessionId?: number | null;
+    }
+  ): Observable<AIResponse> {
+    const body: Record<string, unknown> = { message };
+    if (opts?.userId != null) body['userId'] = opts.userId;
+    if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
+    if (opts?.storefrontContext != null && opts.storefrontContext !== '')
+      body['storefrontContext'] = opts.storefrontContext;
+    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, body).pipe(
+      map((res) => {
+        if (!res.success || res.data == null) {
+          throw new Error(res.message || 'Yêu cầu AI thất bại');
+        }
+        return res.data;
+      })
+    );
+  }
+
+  /** Cùng pipeline Gemini + DB; prefix nội bộ giúp model ưu tiên product_search. */
+  aiSemanticSearch(
+    query: string,
+    opts?: {
+      userId?: number | null;
+      storefrontContext?: string | null;
+      sessionId?: number | null;
+    }
+  ): Observable<AIResponse> {
+    const body: Record<string, unknown> = { query };
+    if (opts?.userId != null) body['userId'] = opts.userId;
+    if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
+    if (opts?.storefrontContext != null && opts.storefrontContext !== '')
+      body['storefrontContext'] = opts.storefrontContext;
+    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/search`, body).pipe(
+      map((res) => {
+        if (!res.success || res.data == null) {
+          throw new Error(res.message || 'Tìm AI thất bại');
+        }
+        return res.data;
+      })
+    );
   }
 
   // ─── Bundles ──────────────────────────────────────────

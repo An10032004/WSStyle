@@ -1,0 +1,142 @@
+<div class="luxe-assistant-root" *ngIf="isLoggedIn$ | async; else needLogin">
+  <app-storefront-header />
+
+  <div class="assistant-body">
+    <!-- Lịch sử phiên -->
+    <aside class="col-sessions">
+      <div class="col-head">
+        <span class="col-title">Phiên chat</span>
+        <button tuiButton type="button" size="s" appearance="secondary" (click)="newSession()">+ Phiên mới</button>
+      </div>
+      <p class="col-sub">Mỗi phiên lưu theo tài khoản của bạn; chọn để xem lại.</p>
+      <div class="sessions-loading" *ngIf="sessionsLoading">Đang tải…</div>
+      <tui-scrollbar class="sessions-scroll">
+        <ul class="session-list">
+          <li
+            *ngFor="let s of sessions; trackBy: trackSession"
+            [class.active]="selectedSessionId === s.id"
+            (click)="openSession(s.id)"
+          >
+            <span class="session-title">{{ s.title || ('Phiên #' + s.id) }}</span>
+            <span class="session-time">{{ s.updatedAt | date: 'dd/MM HH:mm' }}</span>
+          </li>
+        </ul>
+      </tui-scrollbar>
+    </aside>
+
+    <!-- Chat -->
+    <main class="col-chat">
+      <div class="chat-toolbar">
+        <div>
+          <h1>Luxe Assistant</h1>
+          <p class="tagline">Toàn trang · ảnh &amp; giá theo tài khoản · link chi tiết sản phẩm</p>
+        </div>
+        <a routerLink="/shop" class="link-shop">Mở Shop</a>
+      </div>
+
+      <section class="chat-card">
+        <h2 class="sr-only">Hội thoại</h2>
+        <tui-scrollbar class="chat-scroll">
+          <div class="chat-inner" #scrollArea>
+            <div
+              *ngFor="let m of messages"
+              class="msg-row"
+              [class.from-user]="m.sender === 'user'"
+            >
+              <div class="msg-meta">{{ m.sender === 'user' ? 'Bạn' : 'Luxe' }} · {{ m.time | date: 'HH:mm' }}</div>
+              <div class="msg-bubble" [innerHTML]="m.text"></div>
+              <div class="inline-cards" *ngIf="m.products?.length">
+                <a *ngFor="let p of m.products" [routerLink]="['/product', p.id]" class="mini-card">
+                  <img [src]="p.imageUrl || 'assets/images/placeholder.png'" [alt]="p.name" />
+                  <span class="mini-name">{{ p.name }}</span>
+                  <span class="mini-price" *ngIf="!p.hidePrice">{{ displayPrice(p) | number }} ₫</span>
+                  <span class="mini-muted" *ngIf="p.hidePrice">{{ p.replacementText || 'Liên hệ' }}</span>
+                </a>
+              </div>
+            </div>
+            <div class="typing" *ngIf="isLoading">Đang trả lời…</div>
+          </div>
+        </tui-scrollbar>
+        <div class="composer">
+          <input
+            type="text"
+            [(ngModel)]="userInput"
+            (keyup.enter)="send()"
+            placeholder="Ví dụ: shop có áo màu navy size L không?"
+          />
+          <button tuiButton type="button" size="m" (click)="send()" [disabled]="!userInput.trim() || isLoading">
+            Gửi
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Kết quả sản phẩm — luôn hiển thị vùng -->
+    <aside class="col-products">
+      <div class="col-head">
+        <span class="col-title">Sản phẩm</span>
+      </div>
+      <ng-container *ngIf="lastResultProducts.length; else emptyProducts">
+        <p class="col-sub">Bấm ảnh hoặc “Chi tiết” để vào trang sản phẩm.</p>
+        <div class="table-wrap">
+          <table class="product-table">
+            <thead>
+              <tr>
+                <th>Ảnh</th>
+                <th>Tên</th>
+                <th>Giá</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of lastResultProducts; trackBy: trackById">
+                <td class="td-img">
+                  <a [routerLink]="['/product', p.id]">
+                    <img [src]="p.imageUrl || 'assets/images/placeholder.png'" [alt]="p.name" width="64" height="64" />
+                  </a>
+                </td>
+                <td class="td-name">
+                  <a [routerLink]="['/product', p.id]">{{ p.name }}</a>
+                  <code>{{ p.productCode }}</code>
+                </td>
+                <td class="td-price">
+                  <ng-container *ngIf="!p.hidePrice">
+                    <strong>{{ displayPrice(p) | number }} ₫</strong>
+                    <span class="tax" *ngIf="p.taxDisplayLabel">{{ p.taxDisplayLabel }}</span>
+                  </ng-container>
+                  <span *ngIf="p.hidePrice">{{ p.replacementText || 'Liên hệ' }}</span>
+                </td>
+                <td>
+                  <a [routerLink]="['/product', p.id]" class="detail-link">Chi tiết</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+      <ng-template #emptyProducts>
+        <div class="empty-products">
+          <p>Chưa có danh sách sản phẩm cho tin nhắn gần nhất.</p>
+          <p class="hint">
+            Nếu AI nói “xem bên dưới” mà trống: có thể kho chưa khớp từ khóa — thử từ ngắn hơn hoặc
+            <a routerLink="/shop">Shop</a>.
+          </p>
+        </div>
+      </ng-template>
+    </aside>
+  </div>
+
+  <app-storefront-footer />
+</div>
+
+<ng-template #needLogin>
+  <app-storefront-header />
+  <div class="need-login">
+    <p>
+      Vui lòng
+      <a routerLink="/login" [queryParams]="{ returnUrl: '/assistant' }">đăng nhập</a>
+      để dùng Luxe Assistant.
+    </p>
+  </div>
+  <app-storefront-footer />
+</ng-template>

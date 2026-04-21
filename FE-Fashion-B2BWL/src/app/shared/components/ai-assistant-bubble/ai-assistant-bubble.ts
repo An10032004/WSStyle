@@ -1,11 +1,12 @@
 import { Component, inject, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, AfterViewChecked, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
 import { TuiButton, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
-import { ApiService, Product, AIResponse } from '../../../services/api.service';
+import { ApiService, Product, AIResponse, User } from '../../../services/api.service';
 import { AuthService } from '../../../services/auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { map } from 'rxjs';
+import { catchError, map, of, switchMap } from 'rxjs';
 
 interface Message {
   text: string;
@@ -17,7 +18,7 @@ interface Message {
 @Component({
   selector: 'app-ai-assistant-bubble',
   standalone: true,
-  imports: [CommonModule, FormsModule, TuiButton, TuiIcon, TuiScrollbar],
+  imports: [CommonModule, FormsModule, RouterModule, TuiButton, TuiIcon, TuiScrollbar],
   templateUrl: './ai-assistant-bubble.html',
   styleUrls: ['./ai-assistant-bubble.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,6 +38,7 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly router = inject(Router);
   
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
@@ -82,27 +84,63 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.api.chatWithAI(userMsg).subscribe({
-      next: (response: AIResponse) => {
-        this.messages.push({
-          text: response.message,
-          sender: 'ai',
-          time: new Date(),
-          products: response.products
-        });
-        this.isLoading = false;
-        this.cdr.markForCheck();
-      },
-      error: (err: any) => {
-        this.messages.push({
-          text: 'Rất tiếc, hệ thống AI đang bận. Bạn vui lòng thử lại sau nhé!',
-          sender: 'ai',
-          time: new Date()
-        });
-        this.isLoading = false;
-        this.cdr.markForCheck();
-      }
-    });
+    const u = this.auth.currentUserValue;
+    this.api
+      .quoteTax({ userId: u?.id ?? null, orderAmount: 1_000_000 })
+      .pipe(
+        catchError(() => of(null)),
+        switchMap((tax) => {
+          const storefrontContext = this.buildStorefrontContext(u, tax);
+          return this.api.chatWithAI(userMsg, {
+            userId: u?.id,
+            storefrontContext: storefrontContext ?? undefined,
+          });
+        })
+      )
+      .subscribe({
+        next: (response: AIResponse) => {
+          this.messages.push({
+            text: response.message,
+            sender: 'ai',
+            time: new Date(),
+            products: response.products,
+          });
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.messages.push({
+            text: 'Rất tiếc, hệ thống AI đang bận. Bạn vui lòng thử lại sau nhé!',
+            sender: 'ai',
+            time: new Date(),
+          });
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  /** Markdown ngắn gửi kèm chat: user + quote thuế mẫu (1M) — model chỉ diễn đạt, không thay thế giá SP. */
+  private buildStorefrontContext(u: User | null, tax: Record<string, unknown> | null): string | undefined {
+    const lines: string[] = [];
+    if (u) {
+      lines.push(`- Người dùng đăng nhập: id=${u.id}, role=${u.role ?? 'n/a'}`);
+      if (u.displayRoles) lines.push(`- Vai trò hiển thị: ${u.displayRoles}`);
+      if (u.customerGroup?.name) lines.push(`- Nhóm khách B2B: ${u.customerGroup.name}`);
+    } else {
+      lines.push('- Khách chưa đăng nhập (guest).');
+    }
+    if (tax && tax['applied'] === true) {
+      lines.push(
+        `- Thuế hiển thị (quote thử với đơn hàng 1.000.000₫): loại=${String(tax['taxDisplayType'] ?? '')}, rate=${String(tax['taxRate'] ?? '')}%, taxAmount≈${String(tax['taxAmount'] ?? '')}₫. Đây chỉ là ví dụ; giá từng sản phẩm lấy từ thẻ sản phẩm API.`
+      );
+    } else {
+      lines.push('- Quote thuế mẫu (1M): không áp dụng rule hiển thị hoặc chưa lấy được.');
+    }
+    lines.push(
+      '- Phí ship: phụ thuộc địa chỉ và cấu hình checkout; không cố định trong chat. Hướng dẫn khách xem bước thanh toán hoặc trang hỗ trợ.'
+    );
+    return lines.join('\n');
   }
 
   quickAsk(text: string) {
@@ -110,9 +148,14 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
     this.sendMessage();
   }
 
-  viewProduct(p: Product) {
-    // Navigate to product detail or close chat
-    window.location.href = `/product/${p.id}`;
+  viewProduct(p: Product): void {
+    void this.router.navigate(['/product', p.id]);
+  }
+
+  displayPrice(p: Product): number {
+    if (p.hidePrice) return 0;
+    const c = p.calculatedPrice ?? p.basePrice;
+    return typeof c === 'number' ? c : Number(c);
   }
 
   private scrollToBottom(): void {

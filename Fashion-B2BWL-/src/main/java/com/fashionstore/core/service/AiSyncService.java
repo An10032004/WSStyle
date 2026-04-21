@@ -7,11 +7,13 @@ import com.fashionstore.core.dto.request.GeminiRequest;
 import com.fashionstore.core.dto.response.GeminiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +26,9 @@ public class AiSyncService {
 
     @Autowired
     private WebClient geminiClient;
+
+    @Value("${google.ai.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent}")
+    private String geminiGenerateUrl;
 
     /**
      * Hàm chính: Quét bảng sync và nhờ AI viết mô tả cho những mục chưa có
@@ -68,7 +73,7 @@ public class AiSyncService {
      */
     private Mono<String> callGeminiApi(String prompt) {
         return geminiClient.post()
-                .uri(uriBuilder -> uriBuilder.queryParam("key", "{key}").build())
+                .uri(URI.create(geminiGenerateUrl))
                 .bodyValue(new GeminiRequest(prompt))
                 .retrieve()
                 .bodyToMono(GeminiResponse.class)

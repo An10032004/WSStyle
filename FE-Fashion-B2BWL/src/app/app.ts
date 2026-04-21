@@ -18,20 +18,28 @@ export class App {
   private readonly router = inject(Router);
   title = 'WSSTYLE';
 
-  showBubbles$ = this.router.events.pipe(
-    filter(event => event instanceof NavigationEnd),
-    startWith(null), // Handle initial check
+  /** Khu /admin: ẩn toàn bộ bubble. Trang /assistant: ẩn bubble AI (tránh trùng trang lớn); vẫn giữ hỗ trợ nếu cần. */
+  showAiBubble$ = this.router.events.pipe(
+    filter((e) => e instanceof NavigationEnd),
+    startWith(null),
     map(() => {
-      const url = this.router.url;
-      // Admin layout paths from app.routes.ts
-      const adminBasePaths = [
-        '/dashboard', '/categories', '/products', '/product-variants', 
-        '/rule-engine', '/users', '/customer-groups', '/registration-forms',
-        '/orders', '/ai-sync', '/staff', '/banner-manager', '/coupons',
-        '/sale-campaigns', '/wallets', '/advanced-reports', '/messages', '/permissions'
-      ];
-      const isAdminPath = adminBasePaths.some(path => url.startsWith(path)) || url === '/';
-      return !isAdminPath;
+      const path = this.router.url.split('?')[0];
+      if (path.startsWith('/admin')) {
+        return false;
+      }
+      if (path.startsWith('/assistant')) {
+        return false;
+      }
+      return true;
+    })
+  );
+
+  showSupportBubble$ = this.router.events.pipe(
+    filter((e) => e instanceof NavigationEnd),
+    startWith(null),
+    map(() => {
+      const path = this.router.url.split('?')[0];
+      return !path.startsWith('/admin');
     })
   );
 

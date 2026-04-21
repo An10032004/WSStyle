@@ -2,23 +2,39 @@ package com.fashionstore.core.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fashionstore.core.dto.response.AIResponse;
+import com.fashionstore.core.dto.response.ProductResponseDTO;
+import com.fashionstore.core.model.Category;
 import com.fashionstore.core.model.Product;
+import com.fashionstore.core.model.User;
+import com.fashionstore.core.repository.CategoryRepository;
 import com.fashionstore.core.repository.ProductRepository;
+import com.fashionstore.core.repository.specification.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -26,481 +42,550 @@ import java.util.stream.Collectors;
 public class AIProductHelperService {
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final AiSiteContextLoader siteContextLoader;
+    private final ProductMapperService productMapperService;
+    private final UserService userService;
 
     @Value("${google.ai.api-key:}")
     private String apiKey;
 
+    /**
+     * URL đầy đủ tới {@code :generateContent} — được thử trước mọi fallback.
+     * Đổi model bằng cách đổi đoạn {@code models/MODEL_ID:generateContent} (cùng property {@code google.ai.url} với {@link AiSyncService}).
+     */
+    @Value("${google.ai.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent}")
+    private String geminiGenerateUrl;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String[] ENDPOINTS = {
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key="
+    /** Fallback khi endpoint cấu hình trả lỗi HTTP (429, 404 model deprecated, …). */
+    private static final String[] GEMINI_ENDPOINT_FALLBACKS = {
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
     };
 
-    // ====================================================================
-    // ENTRY POINT
-    // ====================================================================
-    public AIResponse chat(String userMessage) {
+    private record VndRange(BigDecimal min, BigDecimal max) {}
+
+    /** Thứ tự: {@code google.ai.url} trước, sau đó fallback (bỏ trùng). */
+    private List<String> geminiEndpointCandidates() {
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        String primary = geminiGenerateUrl != null ? geminiGenerateUrl.trim() : "";
+        if (!primary.isEmpty()) {
+            set.add(primary);
+        }
+        for (String u : GEMINI_ENDPOINT_FALLBACKS) {
+            set.add(u);
+        }
+        return new ArrayList<>(set);
+    }
+
+    /**
+     * Chat / tìm kiếm ngữ nghĩa — Gemini + truy vấn DB; sản phẩm trả về có thể map theo user (giá rule).
+     *
+     * @param storefrontUserId id user đăng nhập (optional) — map giá qua {@link ProductMapperService}
+     * @param storefrontContext đoạn markdown/text do FE gửi (thuế demo, nhóm B2B, …) đưa vào prompt
+     */
+    @Transactional(readOnly = true)
+    public AIResponse chat(String userMessage, Integer storefrontUserId, String storefrontContext) {
         String cleanKey = (apiKey != null) ? apiKey.trim() : "";
+        boolean hasValidKey = cleanKey.length() >= 8
+                && !cleanKey.equalsIgnoreCase("YOUR_API_KEY_HERE")
+                && !cleanKey.startsWith("${");
 
-        boolean hasValidKey = !cleanKey.isEmpty()
-                && cleanKey.matches("^[A-Za-z0-9_\\-]+$")
-                && !cleanKey.equalsIgnoreCase("YOUR_API_KEY_HERE");
+        if (!hasValidKey) {
+            return new AIResponse(
+                    "Trợ lý AI chưa được cấu hình (thiếu hoặc sai google.ai.api-key). Vui lòng liên hệ quản trị hệ thống.",
+                    Collections.emptyList());
+        }
 
-        if (hasValidKey) {
-            log.info("🔑 Sử dụng Gemini AI");
-            return chatWithGemini(userMessage, cleanKey);
-        } else {
-            log.info("🧠 Offline mode");
-            return chatOffline(userMessage);
+        try {
+            String categoryCatalog = buildCategoryCatalog();
+            String siteCtx = siteContextLoader.getSiteMarkdown();
+            String prompt = buildPrompt(userMessage, siteCtx, categoryCatalog, storefrontContext);
+
+            String aiRaw = null;
+            for (String urlBase : geminiEndpointCandidates()) {
+                log.debug("Gemini try: {}", urlBase);
+                aiRaw = callGeminiApi(urlBase, cleanKey, prompt);
+                if (aiRaw != null && !aiRaw.startsWith("API_ERROR_")) {
+                    break;
+                }
+            }
+
+            if (aiRaw == null || aiRaw.startsWith("API_ERROR_")) {
+                log.warn("Gemini unavailable: {}", aiRaw);
+                return new AIResponse(
+                        "Hiện không kết nối được dịch vụ AI. Bạn vui lòng thử lại sau.",
+                        Collections.emptyList());
+            }
+
+            JsonNode aiJson = parseAiJson(aiRaw);
+            if (aiJson == null) {
+                return new AIResponse(
+                        "Trợ lý nhận được phản hồi không đúng định dạng. Bạn thử diễn đạt lại câu hỏi nhé.",
+                        Collections.emptyList());
+            }
+
+            JsonNode decisionJson = maybeForceProductSearch(userMessage, aiJson);
+            String intent = decisionJson.path("intent").asText("site_help").trim().toLowerCase();
+            String message = decisionJson.path("message").asText("Mình có thể giúp gì thêm?");
+
+            return switch (intent) {
+                case "product_search" -> {
+                    List<Product> products = runProductSearch(decisionJson, userMessage);
+                    List<ProductResponseDTO> dtos = mapProductsForStorefront(products, storefrontUserId);
+                    String msg = message;
+                    if (dtos.isEmpty()) {
+                        msg = message
+                                + "<br><br><small><i>Chưa có sản phẩm khớp từ khóa trong kho. "
+                                + "Thử từ ngắn hơn (vd. chỉ \"áo\") hoặc vào <b>Shop</b> để lọc tay.</i></small>";
+                    }
+                    yield new AIResponse(msg, dtos);
+                }
+                case "chat", "site_help" -> new AIResponse(message, Collections.emptyList());
+                default -> new AIResponse(message, Collections.emptyList());
+            };
+        } catch (Exception e) {
+            log.error("AI chat error", e);
+            return new AIResponse(
+                    "Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.",
+                    Collections.emptyList());
         }
     }
 
-    // ====================================================================
-    // OFFLINE MODE — Trả lời thông minh không cần API
-    // ====================================================================
-    private AIResponse chatOffline(String userMessage) {
-        String msg = userMessage.toLowerCase().trim();
-        List<Product> allProducts = productRepository.findAll();
+    /** Tương thích gọi cũ — không user / không ngữ cảnh FE. */
+    @Transactional(readOnly = true)
+    public AIResponse chat(String userMessage) {
+        return chat(userMessage, null, null);
+    }
 
-        // 1. Chào hỏi
-        if (isGreeting(msg)) {
-            return new AIResponse(
-                    "Chào bạn! 👋 Tôi là Luxe Assistant. Mình có thể giúp bạn:\n" +
-                    "• Tìm sản phẩm (VD: \"tìm áo polo\")\n" +
-                    "• So sánh giá (VD: \"đắt nhất?\", \"rẻ nhất?\")\n" +
-                    "• Tư vấn phối đồ\n" +
-                    "• Hỏi về chính sách shop",
-                    List.of());
+    private List<ProductResponseDTO> mapProductsForStorefront(List<Product> products, Integer storefrontUserId) {
+        if (products == null || products.isEmpty()) {
+            return Collections.emptyList();
         }
-
-        // 2. Sản phẩm đắt nhất
-        if (msg.contains("đắt nhất") || msg.contains("đắt tiền nhất") || msg.contains("cao nhất") || msg.contains("giá cao")) {
-            List<Product> sorted = allProducts.stream()
-                    .filter(p -> p.getBasePrice() != null)
-                    .sorted(Comparator.comparing(p -> p.getBasePrice().doubleValue(), Comparator.reverseOrder()))
-                    .limit(6).toList();
-            return new AIResponse("Đây là những sản phẩm có giá cao nhất của shop ạ! 💎✨", sorted);
-        }
-
-        // 3. Sản phẩm rẻ nhất
-        if (msg.contains("rẻ nhất") || msg.contains("giá rẻ") || msg.contains("thấp nhất") || msg.contains("giá thấp") || msg.contains("tiết kiệm")) {
-            List<Product> sorted = allProducts.stream()
-                    .filter(p -> p.getBasePrice() != null)
-                    .sorted(Comparator.comparing(p -> p.getBasePrice().doubleValue()))
-                    .limit(6).toList();
-            return new AIResponse("Đây là những sản phẩm giá tốt nhất dành cho bạn! 🏷️💰", sorted);
-        }
-
-        // 4. Sản phẩm mới
-        if (msg.contains("mới") || msg.contains("hot") || msg.contains("phổ biến") || msg.contains("bán chạy") || msg.contains("nổi bật")) {
-            List<Product> latest = allProducts.stream()
-                    .sorted(Comparator.comparing(Product::getId, Comparator.reverseOrder()))
-                    .limit(6).toList();
-            return new AIResponse("Đây là những sản phẩm mới nhất của shop! 🔥🆕", latest);
-        }
-
-        // 5. Lọc theo giá
-        Long maxPrice = extractMaxPrice(msg);
-        if (maxPrice != null) {
-            List<Product> filtered = allProducts.stream()
-                    .filter(p -> p.getBasePrice() != null && p.getBasePrice().doubleValue() <= maxPrice)
-                    .sorted(Comparator.comparing(p -> p.getBasePrice().doubleValue(), Comparator.reverseOrder()))
-                    .limit(6).toList();
-            if (filtered.isEmpty()) {
-                return new AIResponse("Xin lỗi, hiện chưa có sản phẩm nào dưới " + formatPrice(maxPrice) + " ạ 😊", List.of());
+        User user = null;
+        if (storefrontUserId != null) {
+            try {
+                user = userService.getUserById(storefrontUserId);
+            } catch (Exception e) {
+                log.debug("AI chat: bỏ qua map giá — userId không hợp lệ: {}", storefrontUserId);
             }
-            return new AIResponse("Đây là các sản phẩm dưới " + formatPrice(maxPrice) + " cho bạn! 💸", filtered);
         }
+        return productMapperService.toDTOs(products, user);
+    }
 
-        // 6. Câu hỏi chung / trò chuyện (KHÔNG phải tìm sản phẩm)
-        if (isGeneralChat(msg)) {
-            return handleGeneralChat(msg, allProducts);
-        }
+    private String buildCategoryCatalog() {
+        List<Category> all = categoryRepository.findAll();
+        return all.stream()
+                .limit(80)
+                .map(c -> c.getId() + ": " + c.getName())
+                .collect(Collectors.joining("\n"));
+    }
 
-        // 7. Tìm kiếm theo từ khóa sản phẩm
-        String keyword = extractKeyword(msg);
-        if (!keyword.isEmpty()) {
-            List<Product> found = allProducts.stream()
-                    .filter(p -> p.getName().toLowerCase().contains(keyword))
-                    .limit(6).toList();
+    private List<Product> runProductSearch(JsonNode aiJson, String userMessageFallback) {
+        String search = firstNonBlank(
+                aiJson.path("search").asText(""),
+                aiJson.path("keyword").asText("")
+        ).trim();
 
-            if (found.isEmpty()) {
-                String[] words = keyword.split("\\s+");
-                found = allProducts.stream()
-                        .filter(p -> {
-                            String name = p.getName().toLowerCase();
-                            for (String w : words) {
-                                if (w.length() >= 2 && name.contains(w)) return true;
-                            }
-                            return false;
-                        })
-                        .limit(6).toList();
+        List<Integer> categoryIds = parseCategoryIds(aiJson);
+
+        BigDecimal minPrice = parseMoney(aiJson, "minPrice");
+        BigDecimal maxPrice = parseMoney(aiJson, "maxPrice");
+        VndRange fromMsg = extractVndRangeFromMessage(userMessageFallback);
+        if (fromMsg != null) {
+            if (minPrice == null) {
+                minPrice = fromMsg.min();
             }
+            if (maxPrice == null) {
+                maxPrice = fromMsg.max();
+            }
+        }
 
-            if (!found.isEmpty()) {
-                return new AIResponse("Mình tìm thấy " + found.size() + " sản phẩm \"" + keyword + "\" đây ạ! 🛍️", found);
+        List<String> brands = parseBrands(aiJson);
+
+        if (search.isEmpty() && userMessageFallback != null) {
+            boolean hasStructuredFilters = minPrice != null || maxPrice != null
+                    || !categoryIds.isEmpty()
+                    || !brands.isEmpty();
+            if (hasStructuredFilters) {
+                // Tránh LIKE trên cả câu tiếng Việt (không khớp tên SP → 0 kết quả dù có khoảng giá).
+                search = "";
             } else {
-                List<Product> suggestions = allProducts.stream().limit(4).toList();
-                return new AIResponse("Xin lỗi, không tìm thấy \"" + keyword + "\". Xem thử gợi ý nhé! 😊", suggestions);
+                String fb = userMessageFallback.replace("[Tìm kiếm cửa hàng]", "").trim();
+                if (fb.length() > 200) {
+                    fb = fb.substring(0, 200);
+                }
+                search = fb;
             }
         }
 
-        // 8. Tổng số sản phẩm
-        if (msg.contains("bao nhiêu") && (msg.contains("sản phẩm") || msg.contains("mặt hàng"))) {
-            return new AIResponse("Shop hiện có " + allProducts.size() + " sản phẩm ạ! 🛒", List.of());
+        String sortBy = aiJson.path("sortBy").asText("none").trim().toLowerCase();
+
+        Sort sort = switch (sortBy) {
+            case "price_desc" -> Sort.by(Sort.Direction.DESC, "basePrice").and(Sort.by(Sort.Direction.DESC, "id"));
+            case "price_asc" -> Sort.by(Sort.Direction.ASC, "basePrice").and(Sort.by(Sort.Direction.DESC, "id"));
+            default -> Sort.by(Sort.Direction.DESC, "id");
+        };
+
+        Specification<Product> baseSpec = ProductSpecification.filterProducts(
+                search.isEmpty() ? null : search,
+                categoryIds,
+                minPrice,
+                maxPrice,
+                brands,
+                null);
+
+        var page = productRepository.findAll(baseSpec, PageRequest.of(0, 20, sort));
+        List<Product> found = page.getContent();
+        if (!found.isEmpty()) {
+            return found;
         }
 
-        // 9. Tất cả
-        if (msg.contains("tất cả") || msg.contains("toàn bộ") || msg.contains("xem hết")) {
-            List<Product> sample = allProducts.stream().limit(6).toList();
-            return new AIResponse("Đây là một số sản phẩm của shop! Tổng cộng " + allProducts.size() + " sản phẩm 🛍️", sample);
-        }
-
-        // 10. Fallback
-        List<Product> suggestions = allProducts.stream().limit(4).toList();
-        return new AIResponse(
-                "Mình chưa hiểu rõ lắm 😅 Bạn thử:\n" +
-                "• \"Sản phẩm đắt nhất?\"\n" +
-                "• \"Tìm áo polo\"\n" +
-                "• \"Sản phẩm dưới 500k\"\n" +
-                "• \"Tư vấn phối đồ\"",
-                suggestions);
-    }
-
-    // ====================================================================
-    // HELPER: Nhận diện chào hỏi
-    // ====================================================================
-    private boolean isGreeting(String msg) {
-        String[] greetings = {"xin chào", "chào", "hello", "hi", "hey", "alo", "allo", "chao"};
-        for (String g : greetings) {
-            if (msg.equals(g) || msg.startsWith(g + " ") || msg.startsWith(g + "!") || msg.startsWith(g + ",")) {
-                return true;
+        LinkedHashSet<String> attempts = new LinkedHashSet<>();
+        if (userMessageFallback != null) {
+            String hint = extractProductSearchHint(userMessageFallback);
+            if (!hint.isBlank()) {
+                attempts.add(hint);
+                for (String t : hint.split("\\s+")) {
+                    if (t.length() >= 2) {
+                        attempts.add(t);
+                    }
+                }
             }
         }
-        return false;
+        if (!search.isBlank()) {
+            for (String t : search.trim().split("\\s+")) {
+                if (t.length() >= 2) {
+                    attempts.add(t);
+                }
+            }
+        }
+        for (String att : attempts) {
+            if (att == null || att.isBlank()) {
+                continue;
+            }
+            if (att.equalsIgnoreCase(search.trim())) {
+                continue;
+            }
+            var page2 = productRepository.findAll(
+                    ProductSpecification.filterProducts(att, categoryIds, minPrice, maxPrice, brands, null),
+                    PageRequest.of(0, 20, sort));
+            if (!page2.getContent().isEmpty()) {
+                log.debug("AI product_search fallback hit: search '{}' → {} rows", att, page2.getContent().size());
+                return page2.getContent();
+            }
+        }
+        return Collections.emptyList();
     }
 
-    // ====================================================================
-    // HELPER: Nhận diện câu hỏi chung (không phải tìm sản phẩm)
-    // ====================================================================
-    private boolean isGeneralChat(String msg) {
-        String[] chatPatterns = {
-                "tư vấn", "giúp tôi", "giúp mình", "cho hỏi",
-                "phối đồ", "mặc gì", "nên mặc", "mix đồ", "phong cách",
-                "cảm ơn", "thanks", "thank you",
-                "tạm biệt", "bye",
-                "shop ở đâu", "địa chỉ", "liên hệ", "hotline", "số điện thoại",
-                "giao hàng", "freeship", "đổi trả", "bảo hành", "chính sách",
-                "bạn là ai", "bạn tên gì",
-                "giờ mở cửa", "mấy giờ"
-        };
-        for (String p : chatPatterns) {
-            if (msg.contains(p)) return true;
+    /**
+     * Trích khoảng giá từ câu khách (vd: {@code 100000 - 2000000}, {@code 100.000 đến 2.000.000}).
+     */
+    private static VndRange extractVndRangeFromMessage(String raw) {
+        if (raw == null) {
+            return null;
         }
-        return false;
-    }
-
-    // ====================================================================
-    // HELPER: Xử lý câu hỏi chung
-    // ====================================================================
-    private AIResponse handleGeneralChat(String msg, List<Product> allProducts) {
-        if (msg.contains("tư vấn") || msg.contains("phối đồ") || msg.contains("mặc gì") || msg.contains("phong cách")) {
-            List<Product> suggestions = allProducts.stream().limit(4).toList();
-            return new AIResponse(
-                    "Mình rất sẵn lòng tư vấn cho bạn! 🎨✨\n\n" +
-                    "Bạn cho mình biết thêm nhé:\n" +
-                    "• Dịp nào? (đi làm, đi chơi, dự tiệc...)\n" +
-                    "• Phong cách thích? (thanh lịch, năng động...)\n" +
-                    "• Ngân sách tầm bao nhiêu?\n\n" +
-                    "Hoặc xem thử sản phẩm nổi bật nhé! 👇",
-                    suggestions);
+        String s = raw.replace("[Tìm kiếm cửa hàng]", "").trim();
+        Pattern p1 = Pattern.compile("(\\d[\\d\\s\\.,]*)\\s*[-–—]+\\s*(\\d[\\d\\s\\.,]*)");
+        Matcher m1 = p1.matcher(s);
+        if (m1.find()) {
+            BigDecimal a = parseLooseVndNumber(m1.group(1));
+            BigDecimal b = parseLooseVndNumber(m1.group(2));
+            if (a != null && b != null) {
+                return a.compareTo(b) <= 0 ? new VndRange(a, b) : new VndRange(b, a);
+            }
         }
-
-        if (msg.contains("cảm ơn") || msg.contains("thanks")) {
-            return new AIResponse("Không có gì ạ! 😊 Rất vui được hỗ trợ bạn. Cần gì thêm cứ hỏi mình nhé! 💕", List.of());
-        }
-
-        if (msg.contains("tạm biệt") || msg.contains("bye")) {
-            return new AIResponse("Tạm biệt bạn! 👋 Hẹn gặp lại, chúc bạn một ngày tuyệt vời! 🌟", List.of());
-        }
-
-        if (msg.contains("shop ở đâu") || msg.contains("địa chỉ") || msg.contains("liên hệ") || msg.contains("hotline")) {
-            return new AIResponse("📍 Luxe Store luôn sẵn sàng phục vụ bạn!\nĐặt hàng trực tiếp trên website hoặc nhắn tin cho mình nhé! 🛒", List.of());
-        }
-
-        if (msg.contains("giao hàng") || msg.contains("freeship") || msg.contains("đổi trả") || msg.contains("bảo hành") || msg.contains("chính sách")) {
-            return new AIResponse(
-                    "📦 Chính sách Luxe Store:\n" +
-                    "• Giao hàng toàn quốc, freeship từ 500k\n" +
-                    "• Đổi trả 7 ngày nếu lỗi\n" +
-                    "• Thanh toán: COD, chuyển khoản, ví điện tử\n\n" +
-                    "Cần biết thêm gì không ạ? 😊", List.of());
-        }
-
-        if (msg.contains("bạn là ai") || msg.contains("bạn tên gì")) {
-            return new AIResponse(
-                    "Mình là Luxe Assistant 🤖✨\n\n" +
-                    "Mình có thể giúp bạn:\n" +
-                    "• Tìm sản phẩm theo ý thích\n" +
-                    "• Tư vấn phối đồ\n" +
-                    "• Trả lời về shop & chính sách\n\n" +
-                    "Hỏi mình bất cứ điều gì nhé!", List.of());
-        }
-
-        return new AIResponse(
-                "Mình hiểu rồi! 😊 Bạn muốn mình hỗ trợ gì ạ?\n\n" +
-                "• Tìm sản phẩm (VD: \"tìm áo polo\")\n" +
-                "• So sánh giá (VD: \"đắt nhất\")\n" +
-                "• Tư vấn phối đồ\n" +
-                "• Hỏi về chính sách shop", List.of());
-    }
-
-    // ====================================================================
-    // HELPER: Trích xuất giá tối đa
-    // ====================================================================
-    private Long extractMaxPrice(String msg) {
-        java.util.regex.Pattern[] patterns = {
-                java.util.regex.Pattern.compile("dưới\\s*(\\d+)\\s*k", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("dưới\\s*(\\d+)\\s*nghìn", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("dưới\\s*(\\d+)\\s*ngàn", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("dưới\\s*(\\d+)\\s*triệu", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("dưới\\s*(\\d+)\\s*tr", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("tầm\\s*(\\d+)\\s*k", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("tầm\\s*(\\d+)\\s*triệu", java.util.regex.Pattern.CASE_INSENSITIVE),
-                java.util.regex.Pattern.compile("khoảng\\s*(\\d+)\\s*k", java.util.regex.Pattern.CASE_INSENSITIVE),
-        };
-        long[] multipliers = {1000, 1000, 1000, 1000000, 1000000, 1000, 1000000, 1000};
-
-        for (int i = 0; i < patterns.length; i++) {
-            java.util.regex.Matcher matcher = patterns[i].matcher(msg);
-            if (matcher.find()) {
-                try {
-                    return Long.parseLong(matcher.group(1).replaceAll("[,.]", "")) * multipliers[i];
-                } catch (NumberFormatException e) { /* skip */ }
+        Pattern p2 = Pattern.compile(
+                "(\\d[\\d\\s\\.,]*)\\s+(?:đến|tới)\\s+(\\d[\\d\\s\\.,]*)",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        Matcher m2 = p2.matcher(s);
+        if (m2.find()) {
+            BigDecimal a = parseLooseVndNumber(m2.group(1));
+            BigDecimal b = parseLooseVndNumber(m2.group(2));
+            if (a != null && b != null) {
+                return a.compareTo(b) <= 0 ? new VndRange(a, b) : new VndRange(b, a);
             }
         }
         return null;
     }
 
-    private String formatPrice(long price) {
-        if (price >= 1000000) return (price / 1000000) + " triệu";
-        if (price >= 1000) return (price / 1000) + "k";
-        return price + "đ";
+    private static BigDecimal parseLooseVndNumber(String g) {
+        if (g == null) {
+            return null;
+        }
+        String t = g.trim().replace(",", "").replace(" ", "").replace("đ", "").replace("₫", "");
+        if (t.matches("\\d{1,3}(\\.\\d{3})+")) {
+            t = t.replace(".", "");
+        }
+        if (t.isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(t);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
-    // ====================================================================
-    // HELPER: Trích xuất từ khóa sản phẩm
-    // ====================================================================
-    private String extractKeyword(String msg) {
-        String[][] productCategories = {
-                {"áo thun", "áo polo", "áo sơ mi", "áo khoác", "áo hoodie", "áo len", "áo vest", "áo dài",
-                 "quần jean", "quần jeans", "quần tây", "quần short", "quần kaki", "quần dài",
-                 "váy đầm", "đầm dạ hội", "chân váy"},
-                {"phụ kiện", "trang sức", "dây chuyền", "vòng cổ", "vòng tay", "nhẫn", "bông tai", "hoa tai",
-                 "mắt kính", "kính mát", "thắt lưng", "ví", "túi xách", "balo", "mũ", "nón", "khăn"},
-                {"giày thể thao", "giày sneaker", "giày da", "giày cao gót", "giày boot", "dép", "sandal", "giày"},
-                {"áo", "quần", "váy", "đầm", "polo", "hoodie", "jacket", "shirt", "dress", "nước hoa"}
-        };
-
-        String lowerMsg = msg.toLowerCase();
-        String bestMatch = "";
-        for (String[] cat : productCategories) {
-            for (String kw : cat) {
-                if (lowerMsg.contains(kw) && kw.length() > bestMatch.length()) {
-                    bestMatch = kw;
+    private static List<Integer> parseCategoryIds(JsonNode aiJson) {
+        List<Integer> out = new ArrayList<>();
+        JsonNode arr = aiJson.path("categoryIds");
+        if (arr.isArray()) {
+            for (JsonNode n : arr) {
+                if (n.isNumber()) {
+                    out.add(n.asInt());
+                } else if (n.isTextual()) {
+                    try {
+                        out.add(Integer.parseInt(n.asText().trim()));
+                    } catch (NumberFormatException ignored) {
+                        // skip
+                    }
                 }
             }
         }
-
-        if (!bestMatch.isEmpty()) {
-            String gender = "";
-            if (lowerMsg.contains(" nam")) gender = "nam";
-            else if (lowerMsg.contains(" nữ")) gender = "nữ";
-            return gender.isEmpty() ? bestMatch : bestMatch + " " + gender;
+        JsonNode single = aiJson.path("categoryId");
+        if (single.isNumber()) {
+            out.add(single.asInt());
+        } else if (single.isTextual()) {
+            try {
+                out.add(Integer.parseInt(single.asText().trim()));
+            } catch (NumberFormatException ignored) {
+                // skip
+            }
         }
-
-        // Fallback: loại bỏ stop words
-        String[] stopWords = {
-                "tôi", "tui", "mình", "em", "anh", "chị", "bạn",
-                "muốn", "cần", "thích", "đang", "sẽ", "hãy", "được",
-                "tìm", "kiếm", "xem", "cho", "với", "và", "hoặc",
-                "mua", "đặt", "lấy",
-                "có", "không", "là", "của", "này", "đó", "ở", "trong",
-                "gì", "nào", "sao", "thế", "đâu", "bao", "mấy",
-                "rất", "lắm", "quá", "hơn", "nhất",
-                "shop", "ơi", "nhé", "nha", "ạ", "vậy", "thì",
-                "giúp", "hỏi", "sản phẩm", "món", "cái", "chiếc",
-                "tư vấn", "đẹp", "tốt"
-        };
-
-        String cleaned = lowerMsg;
-        java.util.Arrays.sort(stopWords, (a, b) -> b.length() - a.length());
-        for (String sw : stopWords) {
-            cleaned = cleaned.replace(sw, " ");
-        }
-        cleaned = cleaned.replaceAll("[?!.,;:\"'()\\[\\]]", "").replaceAll("\\s+", " ").trim();
-
-        if (cleaned.length() >= 2 && cleaned.length() <= 50) return cleaned;
-        return "";
+        return out.isEmpty() ? Collections.emptyList() : out;
     }
 
-    // ====================================================================
-    // GEMINI AI MODE (khi có API key hợp lệ)
-    // ====================================================================
-    private AIResponse chatWithGemini(String userMessage, String cleanKey) {
+    private static List<String> parseBrands(JsonNode aiJson) {
+        JsonNode arr = aiJson.path("brands");
+        if (!arr.isArray()) {
+            String one = aiJson.path("brand").asText("").trim();
+            return one.isEmpty() ? Collections.emptyList() : List.of(one);
+        }
+        return StreamSupport.stream(arr.spliterator(), false)
+                .filter(JsonNode::isTextual)
+                .map(n -> n.asText("").trim())
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    private static BigDecimal parseMoney(JsonNode root, String field) {
+        JsonNode n = root.path(field);
+        if (n.isMissingNode() || n.isNull()) {
+            return null;
+        }
+        if (n.isNumber()) {
+            return BigDecimal.valueOf(n.asDouble());
+        }
+        String s = n.asText("").trim().replace(",", "").replace(" ", "");
+        if (s.matches("\\d{1,3}(\\.\\d{3})+")) {
+            s = s.replace(".", "");
+        }
+        if (s.isEmpty()) {
+            return null;
+        }
         try {
-            List<Product> allProducts = productRepository.findAll();
-            String context = allProducts.stream().limit(50)
-                    .map(p -> p.getName() + " - " + p.getBasePrice() + "₫")
-                    .collect(Collectors.joining("\n"));
-
-            String prompt = buildPrompt(userMessage, context);
-
-            String aiRaw = null;
-            for (String urlBase : ENDPOINTS) {
-                log.info("🔄 Trying: {}", urlBase.substring(0, Math.min(80, urlBase.length())) + "...");
-                aiRaw = callGeminiApi(urlBase + cleanKey, prompt);
-                if (aiRaw != null && !aiRaw.startsWith("API_ERROR_")) break;
-                log.warn("❌ Failed: {}", aiRaw);
-            }
-
-            if (aiRaw == null || aiRaw.startsWith("API_ERROR_")) {
-                log.warn("⚠️ Gemini thất bại → offline mode");
-                return chatOffline(userMessage);
-            }
-
-            JsonNode aiJson = parseAI(aiRaw);
-            if (aiJson == null) {
-                log.warn("⚠️ Parse JSON thất bại → offline mode");
-                return chatOffline(userMessage);
-            }
-
-            String intent = aiJson.path("intent").asText("chat");
-            String message = aiJson.path("message").asText("Mình có thể giúp gì thêm? 😊");
-
-            // Câu hỏi chung → chỉ trả text
-            if ("chat".equals(intent)) {
-                return new AIResponse(message, List.of());
-            }
-
-            // Tìm sản phẩm
-            String keyword = aiJson.path("keyword").asText("");
-            long maxPrice = aiJson.path("maxPrice").asLong(Long.MAX_VALUE);
-            String sortBy = aiJson.path("sortBy").asText("none");
-
-            List<Product> result = allProducts.stream()
-                    .filter(p -> keyword.isEmpty() || p.getName().toLowerCase().contains(keyword.toLowerCase()))
-                    .filter(p -> p.getBasePrice() == null || p.getBasePrice().doubleValue() <= maxPrice)
-                    .collect(Collectors.toList());
-
-            if (result.isEmpty() && !keyword.trim().isEmpty()) {
-                String[] words = keyword.toLowerCase().split("\\s+");
-                result = allProducts.stream()
-                        .filter(p -> {
-                            String name = p.getName().toLowerCase();
-                            for (String w : words) {
-                                if (w.length() >= 2 && name.contains(w)) return true;
-                            }
-                            return false;
-                        })
-                        .collect(Collectors.toList());
-            }
-
-            if ("price_desc".equals(sortBy)) {
-                result.sort(Comparator.comparing(p -> p.getBasePrice() != null ? p.getBasePrice().doubleValue() : 0.0, Comparator.reverseOrder()));
-            } else if ("price_asc".equals(sortBy)) {
-                result.sort(Comparator.comparing(p -> p.getBasePrice() != null ? p.getBasePrice().doubleValue() : 999999999.0));
-            }
-
-            return new AIResponse(message, result.stream().limit(6).toList());
-
-        } catch (Exception e) {
-            log.error("AI Service Error", e);
-            return chatOffline(userMessage);
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
-    private String buildPrompt(String userMessage, String productContext) {
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) {
+            return a;
+        }
+        return b != null ? b : "";
+    }
+
+    private String buildPrompt(String userMessage, String siteMarkdown, String categoryCatalog, String storefrontContext) {
+        String site = (siteMarkdown == null || siteMarkdown.isBlank())
+                ? "(Chưa có tài liệu site-context.)"
+                : siteMarkdown;
+        String ctxBlock = (storefrontContext == null || storefrontContext.isBlank())
+                ? "(Không có ngữ cảnh phiên từ frontend.)"
+                : storefrontContext.trim();
         return String.format(
                 """
-                        Bạn là "Luxe Assistant" — trợ lý ảo thông minh của shop thời trang Luxe Store.
-                        Bạn trả lời được MỌI câu hỏi: tìm sản phẩm, tư vấn, trò chuyện, hỏi chung.
+                        Bạn là "Luxe Assistant" — trợ lý ảo của shop thời trang WSSTYLE (B2B + storefront).
 
-                        SẢN PHẨM CỦA SHOP:
+                        ## TÀI LIỆU VỀ WEB (RAG tĩnh — chỉ trả lời site_help dựa trên đây, không bịa thêm tính năng)
                         %s
 
-                        KHÁCH HỎI: "%s"
+                        ## DANH MỤC (id: tên) — dùng khi product_search
+                        %s
 
-                        LUẬT:
-                        1. intent = "product" nếu khách muốn tìm/xem/mua/so sánh sản phẩm
-                        2. intent = "chat" nếu khách hỏi chung (chào, tư vấn, chính sách, trò chuyện...)
-                        3. Trả lời thân thiện bằng tiếng Việt, có emoji
-                        4. Nếu "đắt nhất" → sortBy="price_desc", keyword=""
-                        5. Nếu "rẻ nhất" → sortBy="price_asc", keyword=""
-                        6. KHÔNG đưa từ "đắt","rẻ","nhất" vào keyword
-                        7. CHỈ trả JSON, KHÔNG text ngoài
+                        ## NGỮ CẢNH PHIÊN (do frontend gửi — chỉ diễn đạt lịch sự, không bịa số nếu khối này nói "không có dữ liệu")
+                        %s
 
-                        JSON:
+                        ## CÂU KHÁCH
+                        "%s"
+
+                        ## QUY TẮC
+                        1. Trả về **duy nhất** một JSON hợp lệ; không bọc JSON trong markdown code fence; không thêm ký tự ngoài JSON. Trường **message** là chuỗi JSON — bên trong **có thể** có HTML an toàn: `<a href="...">`, `<strong>`, `<em>`, `<br>`, `<small>` (để link storefront).
+                        2. intent:
+                           - "site_help" — hỏi về cách dùng web, luồng mua hàng, đăng nhập, đăng ký đối tác… (dựa tài liệu). **Không** dùng site_help để hướng dẫn quản trị nội bộ.
+                           - "product_search" — muốn xem/tìm/mua/lọc sản phẩm, giá, thương hiệu, danh mục, **màu sắc**, **cỡ/size**, hỏi shop **có bán … không** (bắt buộc dùng product_search, không dùng chat/site_help thay cho tra cứu hàng).
+                           - "chat" — chào hỏi, cảm ơn, trò chuyện ngắn không cần DB.
+                        3. message (tiếng Việt, thân thiện; emoji nhẹ được):
+                           - **Tên mục trước, đường dẫn sau**: khi chỉ đường, gọi **tên trang / tên menu** (vd. "Giỏ hàng", "Thanh toán", "Hồ sơ & đơn hàng", "Shop", "Đánh giá sản phẩm", "Hỗ trợ", "Trợ lý AI"). **Hạn chế** viết `/cart` hoặc `/checkout` **trần** ở đầu câu hoặc lặp lại nhiều lần không có ngữ cảnh.
+                           - **Link storefront**: dùng `<a href="/đúng-đường-dẫn-từ-bảng-site-context">Tên mục</a>`; `href` chỉ từ tài liệu site-context (storefront), **không** `/admin`.
+                           - **Luồng mua / sau khi gợi ý sản phẩm**: trong message nên có **2–4** gợi ý liên quan khi phù hợp (vd. thêm vào giỏ → **Giỏ hàng**; thanh toán → **Thanh toán**; xem đơn → **Hồ sơ & đơn hàng** tại `/profile`; xem thêm SP → **Shop** `/shop`; đọc đánh giá → **Đánh giá** `/customer-reviews`; cần trợ giúp → **Hỗ trợ** `/support`).
+                           - **product_search**: ngoài mô tả, có thể thêm 1 dòng gợi ý bước tiếp (Giỏ hàng / Thanh toán / Shop) bằng thẻ `<a>` như trên.
+                        4. product_search:
+                           - Điền search/keyword chỉ khi có **từ khóa ngắn** (tên, mã, thương hiệu, màu, size). Nếu khách chỉ lọc theo **khoảng giá** hoặc "vài sản phẩm" trong khoảng giá → đặt search và keyword là **chuỗi rỗng** "" và điền **minPrice**, **maxPrice** (số VNĐ, ví dụ 100000 và 2000000).
+                           - categoryId / categoryIds, minPrice, maxPrice (VNĐ), brands, sortBy: none | price_asc | price_desc.
+                        5. Không đưa giá cụ thể từng SKU trong message trừ khi ngữ cảnh phiên có số rõ ràng; giá trên thẻ sản phẩm do hệ thống hiển thị sau truy vấn.
+                        6. **Quản trị /admin**: Nếu khách hỏi panel admin, rule nội bộ, API key, SQL, nhân viên, dữ liệu người khác → intent **chat**, message từ chối lịch sự; **không** đưa link `/admin`; gợi **Hỗ trợ** hoặc liên hệ shop.
+                        7. Nếu không chắc intent → site_help hoặc chat, message hỏi lại ngắn gọn.
+
+                        ## JSON SCHEMA
                         {
-                          "intent": "product" hoặc "chat",
-                          "keyword": "từ khóa sản phẩm (rỗng nếu chat hoặc không rõ)",
-                          "maxPrice": 999999999,
-                          "sortBy": "none" hoặc "price_asc" hoặc "price_desc",
-                          "message": "câu trả lời tiếng Việt thân thiện"
+                          "intent": "site_help" | "product_search" | "chat",
+                          "message": "string",
+                          "search": "string hoặc rỗng",
+                          "keyword": "alias của search, có thể rỗng",
+                          "categoryId": null,
+                          "categoryIds": [],
+                          "minPrice": null,
+                          "maxPrice": null,
+                          "brand": "string hoặc rỗng",
+                          "brands": [],
+                          "sortBy": "none" | "price_asc" | "price_desc"
                         }
                         """,
-                productContext, userMessage);
+                site,
+                categoryCatalog.isBlank() ? "(Không có danh mục.)" : categoryCatalog,
+                ctxBlock,
+                userMessage.replace("\"", "'"));
     }
 
-    // ====================================================================
-    // GEMINI API CALL
-    // ====================================================================
-    private String callGeminiApi(String fullUrl, String prompt) {
+    /**
+     * Gọi Gemini: auth qua header {@code x-goog-api-key} (khuyến nghị Google; hỗ trợ key có ký tự {@code .}).
+     */
+    private String callGeminiApi(String url, String apiKey, String prompt) {
         try {
-            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-            com.fasterxml.jackson.databind.node.ObjectNode rootNode = objectMapper.createObjectNode();
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
+            var rootNode = objectMapper.createObjectNode();
             rootNode.putArray("contents").addObject()
                     .putArray("parts").addObject()
                     .put("text", prompt);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(fullUrl))
+                    .uri(URI.create(url))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(rootNode), StandardCharsets.UTF_8))
+                    .header("x-goog-api-key", apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            objectMapper.writeValueAsString(rootNode), StandardCharsets.UTF_8))
                     .build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                log.error("Gemini API Error: {} - {}", response.statusCode(), response.body());
+                log.error("Gemini HTTP {}: {}", response.statusCode(), response.body());
                 return "API_ERROR_" + response.statusCode();
             }
 
             JsonNode resJson = objectMapper.readTree(response.body());
             JsonNode candidates = resJson.path("candidates");
-            if (candidates.isMissingNode() || candidates.isEmpty()) return null;
-
+            if (candidates.isMissingNode() || candidates.isEmpty()) {
+                return null;
+            }
             return candidates.get(0).path("content").path("parts").get(0).path("text").asText();
         } catch (Exception e) {
-            log.error("❌ Gemini API Exception: {}", e.getMessage());
+            log.error("Gemini API exception: {}", e.getMessage());
             return null;
         }
     }
 
-    private JsonNode parseAI(String jsonText) {
+    private JsonNode parseAiJson(String jsonText) {
         try {
-            if (jsonText == null) return null;
+            if (jsonText == null) {
+                return null;
+            }
             String clean = jsonText.trim();
-            int first = clean.indexOf("{");
-            int last = clean.lastIndexOf("}");
+            int first = clean.indexOf('{');
+            int last = clean.lastIndexOf('}');
             if (first != -1 && last > first) {
                 clean = clean.substring(first, last + 1);
             }
             return objectMapper.readTree(clean);
         } catch (Exception e) {
-            log.error("Parse AI JSON failed: {}", jsonText);
+            log.warn("Parse AI JSON failed: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Nếu model trả chat/site_help nhưng câu khách rõ ràng là hỏi hàng → ép product_search + gợi ý search
+     * (tránh chỉ có text "sẽ tìm giúp bạn" mà không có danh sách sản phẩm).
+     */
+    private JsonNode maybeForceProductSearch(String userMessage, JsonNode aiJson) {
+        String intent = aiJson.path("intent").asText("").trim().toLowerCase();
+        if ("product_search".equals(intent)) {
+            return aiJson;
+        }
+        if (userMessage == null || !looksLikeProductCatalogQuestion(userMessage)) {
+            return aiJson;
+        }
+        String hint = "";
+        try {
+            ObjectNode o = (ObjectNode) objectMapper.readTree(aiJson.toString());
+            o.put("intent", "product_search");
+            hint = extractProductSearchHint(userMessage);
+            if (!hint.isBlank()) {
+                o.put("search", hint);
+                o.put("keyword", hint);
+            }
+            log.debug("AI: ép product_search từ intent={}, hint={}", intent, hint);
+            return o;
+        } catch (Exception e) {
+            log.warn("maybeForceProductSearch: {}", e.getMessage());
+            return aiJson;
+        }
+    }
+
+    private static boolean looksLikeProductCatalogQuestion(String msg) {
+        String m = msg.toLowerCase();
+        if (m.contains("sản phẩm") || m.contains("san pham")) {
+            return true;
+        }
+        if (m.contains("mua ") || m.contains("mua áo") || m.contains("tìm ") || m.contains("tim ")) {
+            return true;
+        }
+        if (m.contains("có ") && (m.contains("không") || m.contains("ko") || m.contains("k "))) {
+            return true;
+        }
+        if (m.contains("áo") || m.contains("quần") || m.contains("quan") || m.contains("váy")
+                || m.contains("vay") || m.contains("giày") || m.contains("giay") || m.contains("túi") || m.contains("tui")) {
+            return true;
+        }
+        if (m.contains("màu") || m.contains("mau") || m.contains("size") || m.contains("navy")
+                || m.contains("đen") || m.contains("den") || m.contains("trắng") || m.contains("trang")) {
+            return true;
+        }
+        return m.contains("shop ") && (m.contains("bán") || m.contains("ban"));
+    }
+
+    /** Bỏ từ dừng tiếng Việt, giữ cụm từ khóa tìm kiếm ngắn. */
+    private static String extractProductSearchHint(String userMessage) {
+        String s = userMessage.replace("[Tìm kiếm cửa hàng]", "").trim();
+        s = s.toLowerCase()
+                .replaceAll("\\?+", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        s = s.replaceAll(
+                "(?i)\\b(shop|bạn|ban|cho|tôi|toi|mình|minh|co|không|khong|ko|\\bk\\b|có|hang|hàng|mua|tìm|tim|"
+                        + "giúp|giup|giùm|gium|với|voi|nào|nao|ạ|\\ba\\b|nhé|nhe|luôn|luon|được|duoc|bán|ban|"
+                        + "một|mot|vài|vai|some|any|màu|mau)\\b",
+                " ");
+        s = s.replaceAll("\\s+", " ").trim();
+        if (s.length() > 80) {
+            s = s.substring(0, 80).trim();
+        }
+        return s;
     }
 }
