@@ -1,201 +1,221 @@
-<aside [tuiNavigationAside]="expanded">
+<aside class="sidebar-wrapper">
   <header>
     <button
-      tuiAsideItem
+      class="nav-item"
       (click)="toggle()"
     >
       <tui-icon [icon]="expanded ? '@tui.panel-left-close' : '@tui.panel-left-open'" />
     </button>
   </header>
 
-  <a
-    *ngIf="canSee('dashboard')"
-    tuiAsideItem
-    routerLink="/dashboard"
-    routerLinkActive="active"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.layout-grid" />
-    {{ 'SIDEBAR.DASHBOARD' | transloco }}
-  </a>
+  <!-- TỔNG QUAN -->
+  <div class="nav-group" *ngIf="canSee('dashboard')">
+    <h4 class="group-title" *ngIf="expanded">Tổng quan</h4>
+    <a
+      *ngIf="canSee('dashboard')"
+      class="nav-item"
+      routerLink="/admin/dashboard"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: false }"
+    >
+      <tui-icon icon="@tui.layout-grid" />
+      {{ 'SIDEBAR.DASHBOARD' | transloco }}
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('categories')"
-    tuiAsideItem
-    routerLink="/categories"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.folder-open" />
-    {{ 'SIDEBAR.CATEGORIES' | transloco }}
-  </a>
+  <!-- SẢN PHẨM & KHO -->
+  <div class="nav-group" *ngIf="hasAny('categories', 'products', 'variants', 'bundles')">
+    <h4 class="group-title" *ngIf="expanded">Sản phẩm & Kho</h4>
+    <a
+      *ngIf="canSee('categories')"
+      class="nav-item"
+      routerLink="/admin/categories"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.folder-open" />
+      {{ 'SIDEBAR.CATEGORIES' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('products')"
+      class="nav-item"
+      routerLink="/admin/products"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.package" />
+      {{ 'SIDEBAR.PRODUCTS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('variants')"
+      class="nav-item"
+      routerLink="/admin/product-variants"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.layers" />
+      {{ 'SIDEBAR.VARIANTS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('bundles')"
+      class="nav-item"
+      routerLink="/admin/bundles"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.library-big" />
+      Bundles / Combos
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('products')"
-    tuiAsideItem
-    routerLink="/products"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.package" />
-    {{ 'SIDEBAR.PRODUCTS' | transloco }}
-  </a>
+  <!-- KHÁCH HÀNG & NHÓM -->
+  <div class="nav-group" *ngIf="hasAny('users', 'customer-groups', 'registration-forms')">
+    <h4 class="group-title" *ngIf="expanded">Khách hàng</h4>
+    <a
+      *ngIf="canSee('users')"
+      class="nav-item"
+      routerLink="/admin/users"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.users" />
+      {{ 'MEMBER.USERS_TITLE' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('customer-groups')"
+      class="nav-item"
+      routerLink="/admin/customer-groups"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.users-round" />
+      {{ 'MEMBER.GROUPS_TITLE' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('registration-forms')"
+      class="nav-item"
+      routerLink="/admin/registration-forms"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.file-text" />
+      {{ 'MEMBER.FORMS_TITLE' | transloco }}
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('variants')"
-    tuiAsideItem
-    routerLink="/product-variants"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.layers" />
-    {{ 'SIDEBAR.VARIANTS' | transloco }}
-  </a>
+  <!-- KINH DOANH -->
+  <div class="nav-group" *ngIf="hasAny('orders', 'wallets', 'advanced-reports')">
+    <h4 class="group-title" *ngIf="expanded">Kinh doanh</h4>
+    <a
+      *ngIf="canSee('orders')"
+      class="nav-item"
+      routerLink="/admin/orders"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.shopping-cart" />
+      {{ 'SIDEBAR.ORDERS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('wallets')"
+      class="nav-item"
+      routerLink="/admin/wallets"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.wallet" />
+      {{ 'SIDEBAR.WALLETS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('advanced-reports')"
+      class="nav-item"
+      routerLink="/admin/advanced-reports"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.trending-up" />
+      {{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('rule-engine')"
-    tuiAsideItem
-    routerLink="/rule-engine"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.settings-2" />
-    {{ 'SIDEBAR.RULE_ENGINE' | transloco }}
-  </a>
+  <!-- MARKETING & ĐÁNH GIÁ -->
+  <div class="nav-group" *ngIf="hasAny('coupons', 'sale-campaigns', 'reviews')">
+    <h4 class="group-title" *ngIf="expanded">Tăng trưởng</h4>
+    <a
+      *ngIf="canSee('coupons')"
+      class="nav-item"
+      routerLink="/admin/coupons"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.ticket" />
+      {{ 'SIDEBAR.COUPONS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('sale-campaigns')"
+      class="nav-item"
+      routerLink="/admin/sale-campaigns"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.zap" />
+      {{ 'SIDEBAR.CAMPAIGNS' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('reviews')"
+      class="nav-item"
+      routerLink="/admin/reviews"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.star" />
+      {{ 'SIDEBAR.REVIEWS' | transloco }}
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('users')"
-    tuiAsideItem
-    routerLink="/users"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.users" />
-    {{ 'MEMBER.USERS_TITLE' | transloco }}
-  </a>
+  <!-- CẤU HÌNH HỆ THỐNG -->
+  <div class="nav-group" *ngIf="hasAny('rule-engine', 'staff', 'permissions')">
+    <h4 class="group-title" *ngIf="expanded">Cài đặt & B2B</h4>
+    <a
+      *ngIf="canSee('rule-engine')"
+      class="nav-item"
+      routerLink="/admin/rule-engine"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.settings-2" />
+      Wholesale Engine
+    </a>
+    <a
+      *ngIf="canSee('staff')"
+      class="nav-item"
+      routerLink="/admin/staff"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.shield-check" />
+      {{ 'SIDEBAR.STAFF' | transloco }}
+    </a>
+    <a
+      *ngIf="canSee('permissions')"
+      class="nav-item"
+      routerLink="/admin/permissions"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.user-cog" />
+      {{ 'SIDEBAR.PERMISSIONS' | transloco }}
+    </a>
+  </div>
 
-  <a
-    *ngIf="canSee('customer-groups')"
-    tuiAsideItem
-    routerLink="/customer-groups"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.users-round" />
-    {{ 'MEMBER.GROUPS_TITLE' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('orders')"
-    tuiAsideItem
-    routerLink="/orders"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.shopping-cart" />
-    {{ 'SIDEBAR.ORDERS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('staff')"
-    tuiAsideItem
-    routerLink="/staff"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.shield-check" />
-    {{ 'SIDEBAR.STAFF' | transloco }}
-  </a>
-  
-  <a
-    *ngIf="canSee('coupons')"
-    tuiAsideItem
-    routerLink="/coupons"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.ticket" />
-    {{ 'SIDEBAR.COUPONS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('sale-campaigns')"
-    tuiAsideItem
-    routerLink="/sale-campaigns"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.zap" />
-    {{ 'SIDEBAR.CAMPAIGNS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('wallets')"
-    tuiAsideItem
-    routerLink="/wallets"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.wallet" />
-    {{ 'SIDEBAR.WALLETS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('advanced-reports')"
-    tuiAsideItem
-    routerLink="/advanced-reports"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.trending-up" />
-    {{ 'SIDEBAR.ADVANCED_REPORTS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('messages')"
-    tuiAsideItem
-    routerLink="/messages"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.message-square" />
-    {{ 'SIDEBAR.MESSAGES' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('reviews')"
-    tuiAsideItem
-    routerLink="/reviews"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.star" />
-    {{ 'SIDEBAR.REVIEWS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('permissions')"
-    tuiAsideItem
-    routerLink="/permissions"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.user-cog" />
-    {{ 'SIDEBAR.PERMISSIONS' | transloco }}
-  </a>
-
-  <a
-    *ngIf="canSee('registration-forms')"
-    tuiAsideItem
-    routerLink="/registration-forms"
-    [routerLinkActiveOptions]="{ exact: false }"
-  >
-    <tui-icon icon="@tui.file-text" />
-    {{ 'MEMBER.FORMS_TITLE' | transloco }}
-  </a>
-
-  <a
-    tuiAsideItem
-    routerLink="/storefront"
-    routerLinkActive="active"
-    [routerLinkActiveOptions]="{ exact: false }"
-    target="_blank"
-  >
-    <tui-icon icon="@tui.shopping-bag" />
-    Xem Storefront (Clone)
-  </a>
-
-  <hr />
-
-  <footer>
-    <a tuiAsideItem routerLink="/">
+  <!-- TIỆN ÍCH -->
+  <div class="nav-group footer-group">
+    <h4 class="group-title" *ngIf="expanded">Liên kết</h4>
+    <a
+      *ngIf="canSee('messages')"
+      class="nav-item"
+      routerLink="/admin/messages"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.message-square" />
+      {{ 'SIDEBAR.MESSAGES' | transloco }}
+    </a>
+    <a
+      class="nav-item"
+      routerLink="/storefront"
+      routerLinkActive="active"
+      target="_blank"
+    >
+      <tui-icon icon="@tui.shopping-bag" />
+      Xem Storefront
+    </a>
+    <a class="nav-item" routerLink="/help" routerLinkActive="active">
       <tui-icon icon="@tui.circle-help" />
       Trợ giúp
     </a>
-  </footer>
+  </div>
 </aside>

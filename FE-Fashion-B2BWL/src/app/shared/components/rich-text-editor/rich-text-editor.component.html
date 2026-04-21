@@ -1,0 +1,33 @@
+<div class="rte" [class.rte--disabled]="disabled">
+  <div class="rte__toolbar" *ngIf="!disabled">
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="exec('bold')">
+      <strong>B</strong>
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="exec('italic')">
+      <em>I</em>
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="exec('underline')">
+      <span style="text-decoration: underline">U</span>
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="exec('insertUnorderedList')">
+      • List
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="exec('insertOrderedList')">
+      1. List
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat" (mousedown)="$event.preventDefault()" (click)="promptLink()">
+      Link
+    </button>
+    <button type="button" tuiButton size="xs" appearance="flat-destructive" (mousedown)="$event.preventDefault()" (click)="clearFormat()">
+      Clear
+    </button>
+  </div>
+  <div
+    #editor
+    class="rte__editor"
+    [attr.contenteditable]="disabled ? 'false' : 'true'"
+    (blur)="onBlur()"
+    spellcheck="true"
+    data-placeholder="Nhập mô tả…"
+  ></div>
+</div>

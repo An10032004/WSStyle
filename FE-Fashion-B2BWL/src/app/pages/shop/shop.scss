@@ -142,9 +142,10 @@
 }
 
 .category-list, .brand-list {
-  max-height: 220px;
+  max-height: 400px; // Increased from 220px to allow more visibility
   overflow-y: auto;
   padding-right: 5px;
+  touch-action: pan-y; // Ensure touch devices can scroll
 }
 
 .meta-list {
@@ -210,6 +211,34 @@
   margin-top: 10px;
 }
 
+.ai-search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  .ai-search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: #fff;
+    outline: none;
+    &:focus {
+      border-color: #111;
+    }
+  }
+}
+
+.ai-hint {
+  font-size: 0.9rem;
+  color: #444;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
 
 // MAIN CONTENT
 .main-content {

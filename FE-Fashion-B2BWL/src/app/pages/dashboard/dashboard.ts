@@ -11,10 +11,10 @@ import { forkJoin } from 'rxjs';
   standalone: true,
   imports: [CommonModule, TuiButton, TuiIcon, TuiLabel, TuiBadge, TranslocoModule],
   template: `
-    <div class="dashboard-container" *transloco="let t">
-      <div class="header-section">
-        <h2 class="title">{{ 'DASHBOARD.TITLE' | transloco }}</h2>
-        <div class="date-range">
+    <div class="page-container dashboard-body" *transloco="let t">
+      <div class="page-header page-header--toolbar">
+        <h2 class="tui-text_h3 page-header__title">{{ 'DASHBOARD.TITLE' | transloco }}</h2>
+        <div class="page-actions">
            <tui-badge appearance="info" size="l">Today: {{ today | date:'mediumDate' }}</tui-badge>
         </div>
       </div>
@@ -91,47 +91,7 @@ import { forkJoin } from 'rxjs';
        </div>
     </div>
   `,
-  styles: [`
-    .dashboard-container { padding: 32px; background: var(--bg-light); min-height: 100vh; font-family: var(--font-family); }
-    .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .title { margin: 0; font-size: 28px; font-weight: 800; color: var(--text-main); }
-
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px; }
-    
-    .stat-card { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); display: flex; gap: 20px; align-items: center; border: 1px solid #f1f5f9; transition: all 0.2s; }
-    .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
-    
-    .card-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-    .revenue .card-icon { background: rgba(0, 166, 122, 0.1); color: var(--primary); }
-    .orders .card-icon { background: #f0fdf4; color: #10b981; }
-    .expenses .card-icon { background: #fff1f2; color: #f43f5e; }
-    .vat .card-icon { background: #faf5ff; color: #a855f7; }
-
-    .card-info { flex: 1; display: flex; flex-direction: column; }
-    .card-label { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .card-value { margin: 0; font-size: 26px; font-weight: 800; color: var(--text-main); }
-    .sub-text { font-size: 11px; color: #94a3b8; }
-
-    .trend { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
-    .trend.up { color: #10b981; }
-    .trend.down { color: #f43f5e; }
-
-    .main-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 32px; }
-    .content-card { background: #fff; border-radius: 20px; padding: 24px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .card-title { margin: 0 0 24px 0; font-size: 18px; font-weight: 700; color: #334155; }
-
-    .list-container { display: flex; flex-direction: column; gap: 16px; }
-    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-radius: 12px; border: 1px solid transparent; transition: all 0.2s; }
-    .list-item:hover { border-color: #e2e8f0; background: #fff; shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    
-    .item-info { display: flex; flex-direction: column; }
-    .item-name { font-weight: 700; color: #1e293b; font-size: 15px; }
-    .item-meta { font-size: 12px; color: #64748b; }
-    .item-price { font-weight: 700; color: #1e293b; font-size: 15px; }
-    .item-price.penalty { color: #f43f5e; }
-
-    .empty-state { padding: 40px; text-align: center; color: #94a3b8; font-style: italic; }
-  `],
+  styleUrl: './dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent implements OnInit {

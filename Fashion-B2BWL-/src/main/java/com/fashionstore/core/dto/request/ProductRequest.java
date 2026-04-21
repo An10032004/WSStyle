@@ -21,8 +21,6 @@ public class ProductRequest {
     @NotBlank(message = "Tên sản phẩm không được để trống")
     private String name;
 
-    @NotNull(message = "Giá gốc không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Giá gốc phải lớn hơn 0")
     private BigDecimal basePrice;
 
     private String material;
@@ -34,4 +32,10 @@ public class ProductRequest {
     private String imageUrl;
 
     private String imageUrls;
+
+    /** null = mặc định false khi tạo; khi cập nhật null = giữ nguyên giá trị cũ. */
+    private Boolean isSale;
+
+    /** JSON mảng nhãn 3 chiều (color/size/weight); null khi cập nhật = không đổi cột DB. */
+    private String variantDimensionLabels;
 }

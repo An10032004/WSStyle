@@ -14,23 +14,24 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
   TuiBadge,
   TuiInputNumber,
-  TuiCheckbox
+  TuiCheckbox,
+  TuiRadio
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, HidePriceRule, CustomerGroup, Category, Product } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -39,9 +40,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   standalone: true,
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
-    TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge, TuiCheckbox,
+    TuiBadge, TuiCheckbox,
     TuiTextfieldControllerModule, TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, 
-    TuiTextfield, TuiMultiSelectModule
+    TuiTextfield, TuiRadio, ProductVariantPickerComponent, SelectedVariantsPreviewComponent,
   ],
   templateUrl: './hide-price-rules.html',
   styleUrls: ['../pricing-rules/pricing-rules.scss'],
@@ -78,6 +79,10 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   selectedCustomerGroups: CustomerGroup[] = [];
   selectedCategories: Category[] = [];
   selectedProducts: Product[] = [];
+  selectedVariantIds: number[] = [];
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
 
   readonly stringifyGroup = (item: CustomerGroup): string => item.name || '';
   readonly stringifyCategory = (item: Category): string => item.name || '';
@@ -155,13 +160,23 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
         field: 'hidePrice', 
         headerValueGetter: () => this.transloco.translate('RULE.HIDE_PRICE'), 
         width: 120,
-        cellRenderer: (params: any) => params.value ? '✅' : '❌'
+        cellRenderer: (params: any) => {
+          const on = !!params.value;
+          const cls = on ? 'admin-status-pill admin-status-pill--on' : 'admin-status-pill admin-status-pill--off';
+          const text = on ? 'Bật' : 'Tắt';
+          return `<span class="${cls}">${text}</span>`;
+        },
       },
-      { 
-        field: 'status', 
-        headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
-        width: 120,
-        valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value)
+      {
+        field: 'status',
+        headerValueGetter: () => this.transloco.translate('RULE.STATUS'),
+        width: 140,
+        cellRenderer: (params: any) => {
+          const active = params.value === 'ACTIVE';
+          const text = this.transloco.translate('ENUMS.' + params.value);
+          const cls = active ? 'admin-status-pill admin-status-pill--active' : 'admin-status-pill admin-status-pill--inactive';
+          return `<span class="${cls}">${text}</span>`;
+        },
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
@@ -197,6 +212,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     this.selectedCustomerGroups = [];
     this.selectedCategories = [];
     this.selectedProducts = [];
+    this.selectedVariantIds = [];
     this.showForm = true;
     this.showDetails = false;
     this.cdr.detectChanges();
@@ -219,6 +235,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     // Parse Product selection
     this.selectedCategories = [];
     this.selectedProducts = [];
+    this.selectedVariantIds = [];
     if (this.formData.applyProductType === 'CATEGORY' && this.formData.applyProductValue) {
       try {
         const val = JSON.parse(this.formData.applyProductValue);
@@ -230,6 +247,7 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
         const val = JSON.parse(this.formData.applyProductValue);
         const ids = val.productIds || [];
         this.selectedProducts = this.products.filter(p => ids.includes(p.id));
+        this.selectedVariantIds = Array.isArray(val.variantIds) ? [...val.variantIds] : [];
       } catch (e) {}
     }
 
@@ -263,7 +281,13 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     if (this.formData.applyProductType === 'CATEGORY') {
       this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
     } else if (this.formData.applyProductType === 'SPECIFIC') {
-      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+      const pids = [...new Set(this.selectedProducts.map(p => p.id))].sort((a, b) => a - b);
+      const vids = [...new Set(this.selectedVariantIds)].sort((a, b) => a - b);
+      if (vids.length > 0) {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids, variantIds: vids });
+      } else {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids });
+      }
     } else {
       this.formData.applyProductValue = '{}';
     }
@@ -292,4 +316,57 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  hidePriceProductTypeLabel(opt: string): string {
+    if (opt === 'CATEGORY') {
+      return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_CATEGORY');
+    }
+    if (opt === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_PRODUCT');
+    }
+    return this.transloco.translate('ENUMS.' + opt);
+  }
+
+  isHidePriceGroupSelected(g: CustomerGroup): boolean {
+    return this.selectedCustomerGroups.some(x => x.id === g.id);
+  }
+
+  toggleHidePriceGroup(g: CustomerGroup, checked: boolean): void {
+    if (checked) {
+      if (!this.isHidePriceGroupSelected(g)) {
+        this.selectedCustomerGroups = [...this.selectedCustomerGroups, g];
+      }
+    } else {
+      this.selectedCustomerGroups = this.selectedCustomerGroups.filter(x => x.id !== g.id);
+    }
+    this.cdr.markForCheck();
+  }
+
+  isHidePriceCategorySelected(c: Category): boolean {
+    return this.selectedCategories.some(x => x.id === c.id);
+  }
+
+  toggleHidePriceCategory(c: Category, checked: boolean): void {
+    if (checked) {
+      if (!this.isHidePriceCategorySelected(c)) {
+        this.selectedCategories = [...this.selectedCategories, c];
+      }
+    } else {
+      this.selectedCategories = this.selectedCategories.filter(x => x.id !== c.id);
+    }
+    this.cdr.markForCheck();
+  }
+
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...this.selectedVariantIds];
+    this.pickerInitialProductIdsOnly = this.selectedProducts.map(p => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
+  }
+
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProducts = this.products.filter(p => ev.productIds.includes(p.id));
+    this.cdr.markForCheck();
+  }
 }

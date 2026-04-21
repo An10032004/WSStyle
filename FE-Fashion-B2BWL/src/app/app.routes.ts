@@ -5,6 +5,10 @@ import { authGuard } from './guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
+    loadComponent: () => import('./pages/landing/landing').then(m => m.LandingComponent)
+  },
+  {
+    path: 'admin',
     component: LayoutComponent,
     canActivate: [authGuard],
     data: { expectedRoles: ['ADMIN', 'Administrator', 'STAFF'] },
@@ -33,6 +37,12 @@ export const routes: Routes = [
         data: { module: 'variants' },
         loadComponent: () =>
           import('./pages/variant-list/variant-list').then(m => m.VariantListComponent),
+      },
+      {
+        path: 'bundles',
+        data: { module: 'bundles' },
+        loadComponent: () =>
+          import('./pages/bundles/bundles').then(m => m.BundlesComponent),
       },
       {
         path: 'rule-engine',
@@ -124,6 +134,10 @@ export const routes: Routes = [
       },
     ]
   },
+  { path: 'Administrator', redirectTo: 'admin', pathMatch: 'full' },
+  { path: 'administrator', redirectTo: 'admin', pathMatch: 'full' },
+  { path: 'dashboard', redirectTo: 'admin/dashboard', pathMatch: 'full' },
+  { path: 'reviews', redirectTo: 'admin/reviews', pathMatch: 'full' },
   {
     path: 'product/:id',
     loadComponent: () => import('./pages/product-detail/product-detail').then(m => m.ProductDetailComponent)
@@ -133,8 +147,22 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/storefront/storefront').then(m => m.StorefrontComponent)
   },
   {
+    path: 'bundle/:id',
+    loadComponent: () => import('./pages/bundle-detail/bundle-detail').then(m => m.BundleDetailComponent),
+  },
+  {
     path: 'login',
     loadComponent: () => import('./pages/login/login').then(m => m.LoginComponent)
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./pages/forgot-password/forgot-password').then(m => m.ForgotPasswordComponent),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./pages/reset-password/reset-password').then(m => m.ResetPasswordComponent),
   },
   {
     path: 'register',
@@ -159,6 +187,7 @@ export const routes: Routes = [
   },
   {
     path: 'quick-order',
+    canActivate: [authGuard],
     loadComponent: () => import('./pages/quick-order-form/quick-order-form').then(m => m.QuickOrderFormComponent)
   },
   {
@@ -172,6 +201,12 @@ export const routes: Routes = [
   {
     path: 'support',
     loadComponent: () => import('./pages/support/support').then(m => m.SupportComponent)
+  },
+  {
+    path: 'assistant',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/ai-assistant-page/ai-assistant-page').then((m) => m.AiAssistantPageComponent),
   },
   {
     path: 'customer-reviews',

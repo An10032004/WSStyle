@@ -42,7 +42,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     TuiLabel, TuiIcon, TranslocoModule, ActionRendererComponent, TuiTextfield
   ],
   templateUrl: './customer-groups.html',
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrls: ['./customer-groups.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomerGroupsComponent implements OnInit, OnDestroy {

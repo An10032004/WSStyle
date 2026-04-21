@@ -1,57 +1,182 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { ApiService, Order } from '../../services/api.service';
+import { ApiService, DebtSummary, Order, User } from '../../services/api.service';
 import { CartService } from '../../services/cart.service';
 import { Observable, switchMap, of, tap, BehaviorSubject, combineLatest, map } from 'rxjs';
 import { TuiButton, TuiIcon, TuiAlertService } from '@taiga-ui/core';
 import { TuiBadge, TuiPagination } from '@taiga-ui/kit';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import { VnAddressFormComponent, VnAddressPayload } from '../../shared/components/vn-address-form/vn-address-form';
+import { buildReorderPricingNotice } from '../../utils/order-pricing-snapshot';
+import {
+  buildOrderFlowSteps,
+  canCustomerCancelOrder,
+  canCustomerConfirmRefundReceived,
+  canCustomerMarkReceived,
+  getOrderPaymentCaption,
+  needsCustomerRefundContactNotice,
+  isAwaitingCustomerRefundConfirm,
+  showFulfilmentWaitingNotice,
+  shouldWarnQrRefundOnCancel,
+  type OrderFlowStep,
+} from '../../utils/profile-order-flow';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, TuiButton, TuiIcon, TuiBadge, RouterModule, StorefrontHeaderComponent, StorefrontFooterComponent, TuiPagination],
+  imports: [
+    CommonModule,
+    TuiButton,
+    TuiIcon,
+    TuiBadge,
+    RouterModule,
+    ReactiveFormsModule,
+    StorefrontHeaderComponent,
+    StorefrontFooterComponent,
+    TuiPagination,
+    VnAddressFormComponent,
+  ],
   template: `
     <app-storefront-header></app-storefront-header>
     <div class="profile-container">
       <h1>My Account</h1>
       
       <div class="profile-grid">
-        <!-- Account Info Card -->
-        <div class="profile-card" *ngIf="user$ | async as user">
-          <div class="profile-header">
-            <div class="avatar">{{ user.fullName?.charAt(0) }}</div>
-            <h2>{{ user.fullName }}</h2>
-            <div class="role-badges">
-              <span class="role-badge">{{ user.role }}</span>
-              <span class="role-badge group" *ngIf="user.customerGroup">{{ user.customerGroup.name }}</span>
+        <ng-container *ngIf="user$ | async as me">
+          <div class="profile-top-row">
+            <div class="profile-card info-card">
+              <div class="profile-header">
+                <div class="avatar">{{ me.fullName?.charAt(0) }}</div>
+                <h2>{{ me.fullName }}</h2>
+                <div class="role-badges">
+                  <span class="role-badge">{{ me.role }}</span>
+                  <span class="role-badge group" *ngIf="me.customerGroup">{{ me.customerGroup.name }}</span>
+                </div>
+              </div>
+              <div class="profile-details">
+                <div class="detail-item">
+                  <label>Email Address</label>
+                  <p>{{ me.email }}</p>
+                </div>
+                <div class="detail-item">
+                  <label>Phone Number</label>
+                  <p>{{ me.phone || 'Not provided' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label>Business Name</label>
+                  <p>{{ me.companyName || 'Personal Account' }}</p>
+                </div>
+                <div class="detail-item" *ngIf="me.taxCode">
+                  <label>Tax Code</label>
+                  <p>{{ me.taxCode }}</p>
+                </div>
+                <button tuiButton type="button" appearance="outline" size="m" (click)="logout()" style="width: 100%; margin-top: 10px;">
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            <div class="profile-card password-card">
+              <div class="profile-header" style="text-align:left">
+                <h2 style="margin:0">Đổi mật khẩu</h2>
+              </div>
+              <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
+                <div class="pwd-field">
+                  <label for="pwd-current">Mật khẩu hiện tại</label>
+                  <input id="pwd-current" type="password" formControlName="currentPassword" autocomplete="current-password" />
+                </div>
+                <div class="pwd-field">
+                  <label for="pwd-new">Mật khẩu mới</label>
+                  <input id="pwd-new" type="password" formControlName="newPassword" autocomplete="new-password" />
+                </div>
+                <div class="pwd-field">
+                  <label for="pwd-confirm">Xác nhận mật khẩu mới</label>
+                  <input id="pwd-confirm" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+                </div>
+                <p class="pwd-err" *ngIf="passwordForm.errors?.['mismatch'] && passwordForm.touched">Mật khẩu mới và xác nhận không khớp.</p>
+                <p class="pwd-hint">Tối thiểu 6 ký tự.</p>
+                <button tuiButton type="submit" appearance="primary" size="m" [disabled]="passwordForm.invalid || pwdBusy" style="width:100%; margin-top:4px;">
+                  Cập nhật mật khẩu
+                </button>
+              </form>
+            </div>
+
+            <div class="profile-card debt-card" *ngIf="debtSummary$ | async as debt">
+              <div class="profile-header" style="text-align:left">
+                <h2 style="margin:0">Công nợ</h2>
+                <div class="role-badges" style="justify-content:flex-start; margin-top:8px;">
+                  <span class="role-badge" [style.background]="debt.blocked ? '#fee2e2' : '#ecfdf5'" [style.color]="debt.blocked ? '#b91c1c' : '#065f46'">
+                    {{ debt.blocked ? 'Đang bị khóa đặt đơn' : 'Không quá hạn' }}
+                  </span>
+                </div>
+              </div>
+              <div class="profile-details">
+                <div class="debt-explainer" *ngIf="debt.items.length">
+                  <p>
+                    <strong>Cách thanh toán:</strong> Chuyển khoản đúng số tiền theo hướng dẫn của shop (stk / nội dung CK do shop cung cấp).
+                    Sau khi đã chuyển, bấm <strong>«Báo đã chuyển»</strong> — shop nhận tin trên mục <strong>Tin nhắn</strong> và đối soát.
+                    Khi shop xác nhận đã nhận tiền, dòng đơn sẽ hết nợ.
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <label>Số đơn công nợ quá hạn</label>
+                  <p>{{ debt.overdueCount }}</p>
+                </div>
+                <div class="detail-item" *ngIf="debt.items.length === 0">
+                  <p>Không có đơn công nợ đang mở.</p>
+                </div>
+                <div class="detail-item debt-row" *ngFor="let d of debt.items">
+                  <div class="debt-info">
+                    <label>Đơn #{{ d.orderId }}</label>
+                    <p>{{ debtStatusLabel(d.daysLeft) }} — Hạn: {{ d.dueDate | date:'dd/MM/yyyy' }}</p>
+                    <p class="debt-amount" *ngIf="d.totalAmount != null">Số tiền: <strong>{{ d.totalAmount | number:'1.0-0' }} ₫</strong></p>
+                  </div>
+                  <button tuiButton type="button" size="s" appearance="primary" *ngIf="d.paymentStatus !== 'PAID' && d.paymentStatus !== 'AWAITING_CONFIRMATION'" (click)="payDebt(d.orderId)">
+                    Báo đã chuyển
+                  </button>
+                  <tui-badge *ngIf="d.paymentStatus === 'AWAITING_CONFIRMATION'" appearance="warning" size="s">Chờ shop xác nhận</tui-badge>
+                  <tui-badge *ngIf="d.paymentStatus === 'PAID'" appearance="success" size="s">Đã thanh toán</tui-badge>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="profile-details">
-            <div class="detail-item">
-              <label>Email Address</label>
-              <p>{{ user.email }}</p>
+
+          <div class="profile-card profile-card--wide address-card">
+            <div class="profile-header" style="text-align:left">
+              <h2 style="margin:0">Địa chỉ giao hàng</h2>
+              <p class="address-intro">
+                Chọn tỉnh / thành phố, quận / huyện, phường / xã và nhập số nhà, đường. Địa chỉ được dùng mặc định khi thanh toán (bạn vẫn có thể sửa ở bước checkout).
+              </p>
             </div>
-            <div class="detail-item">
-              <label>Phone Number</label>
-              <p>{{ user.phone || 'Not provided' }}</p>
+            <div class="profile-saved-address" *ngIf="savedShippingLine(me) as saved; else noSavedShip">
+              <div class="profile-saved-address__label">Địa chỉ đang lưu trong hồ sơ</div>
+              <p class="profile-saved-address__line">{{ saved }}</p>
             </div>
-            <div class="detail-item">
-              <label>Business Name</label>
-              <p>{{ user.companyName || 'Personal Account' }}</p>
-            </div>
-            <div class="detail-item" *ngIf="user.taxCode">
-              <label>Tax Code</label>
-              <p>{{ user.taxCode }}</p>
-            </div>
-            <button tuiButton type="button" appearance="outline" size="m" (click)="logout()" style="width: 100%; margin-top: 10px;">
-              Logout
+            <ng-template #noSavedShip>
+              <div class="profile-saved-address profile-saved-address--empty">
+                <p>Chưa có địa chỉ giao hàng. Điền form bên dưới và bấm lưu.</p>
+              </div>
+            </ng-template>
+            <app-vn-address-form
+              [initialJson]="me.shippingAddressJson"
+              [layoutStacked]="true"
+              (valueChange)="onProfileAddressPayload($event)"
+            ></app-vn-address-form>
+            <button tuiButton type="button" appearance="primary" size="m" (click)="saveProfileShipping(me)" [disabled]="!profileAddressPayload" class="address-save-btn">
+              Lưu địa chỉ vào hồ sơ
             </button>
           </div>
-        </div>
+        </ng-container>
 
         <!-- Order History Card -->
         <div class="orders-card">
@@ -93,6 +218,64 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
 
               <!-- Expanded Details -->
               <div class="order-details-pane" *ngIf="isExpanded(order.id)">
+                <div class="order-flow">
+                  <h4 class="flow-title">Quy trình đơn hàng</h4>
+                  <ol class="flow-steps">
+                    <li *ngFor="let step of getFlowSteps(order)" class="flow-step" [ngClass]="'flow-step--' + step.state">
+                      <span class="flow-dot" aria-hidden="true"></span>
+                      <div class="flow-text">
+                        <span class="flow-label">{{ step.label }}</span>
+                        <span class="flow-hint" *ngIf="step.hint">{{ step.hint }}</span>
+                      </div>
+                    </li>
+                  </ol>
+                  <p class="payment-caption">{{ getPaymentCaption(order) }}</p>
+                  <p class="flow-notice" *ngIf="fulfilmentWaitingNotice(order)">
+                    Tiền đã được ghi nhận, nhưng shop chưa xác nhận đơn — bạn <strong>chưa thể</strong> bấm &quot;Đã nhận hàng&quot;. Giao hàng chỉ bắt đầu sau bước xác nhận đơn của shop.
+                  </p>
+                  <p class="flow-notice flow-notice--warn" *ngIf="refundContactNotice(order)">
+                    Đơn đã thu tiền qua chuyển khoản/QR. Vui lòng <strong>liên hệ shop</strong> để được hoàn tiền. Sau khi shop chuyển khoản lại, bạn sẽ thấy nút xác nhận đã nhận tiền hoàn trả bên dưới.
+                  </p>
+                  <p class="flow-notice flow-notice--ok" *ngIf="refundAwaitConfirmNotice(order)">
+                    Shop đã ghi nhận đã chuyển khoản hoàn tiền. Khi bạn kiểm tra đủ số tiền về tài khoản, hãy bấm xác nhận bên dưới.
+                  </p>
+                  <div class="customer-actions" *ngIf="canCancelOrder(order) || canMarkReceived(order) || canConfirmRefund(order)">
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="outline"
+                      *ngIf="canCancelOrder(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="cancelCustomerOrder($event, order)"
+                    >
+                      Hủy đơn
+                    </button>
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="primary"
+                      *ngIf="canMarkReceived(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="markOrderReceived($event, order)"
+                    >
+                      Đã nhận hàng
+                    </button>
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="accent"
+                      *ngIf="canConfirmRefund(order)"
+                      [disabled]="actionBusy.has(order.id)"
+                      (click)="confirmCustomerRefundReceived($event, order)"
+                    >
+                      Xác nhận đã nhận tiền hoàn trả
+                    </button>
+                  </div>
+                </div>
+
                 <div class="items-list">
                    <div class="item-row" *ngFor="let item of order.items || []">
                       <div class="item-pic">
@@ -105,6 +288,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
                         <div class="meta" *ngIf="item.productVariant?.color || item.productVariant?.size">
                           {{ item.productVariant?.color }}{{ item.productVariant?.color && item.productVariant?.size ? ' / ' : '' }}{{ item.productVariant?.size }}
                         </div>
+                        <div class="pricing-note" *ngIf="item.pricingNote">{{ item.pricingNote }}</div>
                       </div>
                       <div class="item-qty">x{{ item.quantity }}</div>
                       <div class="item-sub">{{ (item.unitPrice * item.quantity) | number }}đ</div>
@@ -139,9 +323,20 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
     .profile-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; }
     h1 { font-weight: 800; margin-bottom: 30px; font-size: 32px; }
     
-    .profile-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+    .profile-grid { display: flex; flex-direction: column; gap: 28px; }
+    .profile-top-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+      align-items: stretch;
+    }
+    @media (max-width: 1100px) {
+      .profile-top-row { grid-template-columns: 1fr; }
+    }
+    .profile-card--wide { max-width: 100%; }
     
-    .profile-card, .orders-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+    .profile-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; margin: 0; box-sizing: border-box; }
+    .orders-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; width: 100%; box-sizing: border-box; }
     
     .profile-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; }
     .avatar { width: 80px; height: 80px; background: #111; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; margin: 0 auto 15px; }
@@ -154,6 +349,15 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
       label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
       p { font-size: 15px; color: #333; margin: 0; font-weight: 600; }
     }
+    
+    .debt-explainer {
+      margin-bottom: 16px; padding: 12px 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; font-size: 13px; line-height: 1.45; color: #0c4a6e;
+      p { margin: 0; }
+    }
+    .debt-amount { margin: 6px 0 0; font-size: 13px; color: #444; }
+    .debt-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 12px; flex-wrap: wrap; }
+    .debt-row:last-child { border-bottom: none; }
+    .debt-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
     .orders-card { .card-header { margin-bottom: 24px; } }
     .order-list { display: flex; flex-direction: column; gap: 16px; }
@@ -192,6 +396,53 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
     .order-details-pane { 
       padding: 0 20px 20px;
       border-top: 1px dashed #eee;
+
+      .order-flow {
+        padding: 16px 0 8px;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 8px;
+      }
+      .flow-title { margin: 0 0 12px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+      .flow-steps { list-style: none; margin: 0; padding: 0 0 0 4px; }
+      .flow-step {
+        position: relative;
+        display: flex;
+        gap: 12px;
+        padding: 0 0 14px 0;
+        margin: 0;
+        &:not(:last-child)::before {
+          content: '';
+          position: absolute;
+          left: 5px;
+          top: 14px;
+          bottom: -2px;
+          width: 2px;
+          background: #e8e8e8;
+        }
+      }
+      .flow-step--done .flow-dot { background: #0d9488; border-color: #0d9488; }
+      .flow-step--current .flow-dot { background: #111; border-color: #111; box-shadow: 0 0 0 3px rgba(17,17,17,0.12); }
+      .flow-step--pending .flow-dot { background: #fff; border-color: #ccc; }
+      .flow-step--failed .flow-dot { background: #dc2626; border-color: #dc2626; }
+      .flow-step--failed .flow-label { color: #b91c1c; }
+      .flow-dot {
+        flex-shrink: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #ccc;
+        margin-top: 3px;
+        z-index: 1;
+      }
+      .flow-text { display: flex; flex-direction: column; gap: 4px; }
+      .flow-label { font-size: 14px; font-weight: 600; color: #111; }
+      .flow-hint { font-size: 12px; color: #777; line-height: 1.35; }
+      .payment-caption { margin: 12px 0 0; font-size: 13px; color: #444; padding: 10px 12px; background: #f7f7f7; border-radius: 8px; }
+      .flow-notice { margin: 10px 0 0; font-size: 12px; line-height: 1.45; color: #444; padding: 10px 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd; }
+      .flow-notice--warn { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
+      .flow-notice--ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+      .customer-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
       .items-list { padding: 15px 0; }
       .item-row { 
         display: flex; align-items: center; gap: 15px; padding: 10px 0;
@@ -201,6 +452,7 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
       .item-main { flex: 1; 
         .name { font-weight: 600; font-size: 14px; color: #111; }
         .meta { font-size: 12px; color: #888; margin-top: 2px; }
+        .pricing-note { font-size: 11px; color: #666; margin-top: 6px; line-height: 1.35; font-style: italic; }
       }
       .item-qty { font-weight: 700; color: #666; font-size: 14px; }
       .item-sub { font-weight: 700; color: #111; font-size: 14px; }
@@ -209,6 +461,50 @@ import { StorefrontFooterComponent } from '../../shared/components/storefront-fo
     }
 
     .pagination-wrap { margin-top: 30px; display: flex; justify-content: center; }
+
+    .address-card {
+      .vn-addr { margin-top: 12px; }
+    }
+    .address-intro { margin: 10px 0 0; font-size: 13px; color: #64748b; line-height: 1.5; max-width: 720px; }
+    .profile-saved-address {
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .profile-saved-address__label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #166534;
+      margin-bottom: 6px;
+    }
+    .profile-saved-address__line {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #14532d;
+      line-height: 1.45;
+    }
+    .profile-saved-address--empty {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    .profile-saved-address--empty p { margin: 0; font-size: 14px; color: #64748b; }
+    .address-save-btn { width: 100%; max-width: 360px; margin-top: 16px; }
+
+    .password-card {
+      form { display: flex; flex-direction: column; gap: 12px; padding: 8px 4px 4px; }
+      .pwd-field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; }
+      .pwd-field input {
+        width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px;
+        font-size: 14px; box-sizing: border-box;
+      }
+      .pwd-err { color: #dc2626; font-size: 12px; margin: 0; }
+      .pwd-hint { font-size: 12px; color: #888; margin: 0; }
+    }
 
     .empty-orders { text-align: center; padding: 60px; color: #999; tui-icon { font-size: 48px; margin-bottom: 15px; } }
     .loading-state { text-align: center; padding: 30px; color: #888; }
@@ -220,7 +516,65 @@ export class ProfileComponent {
   private readonly cart = inject(CartService);
   private readonly alerts = inject(TuiAlertService);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   protected readonly Math = Math;
+
+  pwdBusy = false;
+
+  profileAddressPayload: VnAddressPayload | null = null;
+
+  onProfileAddressPayload(p: VnAddressPayload | null): void {
+    this.profileAddressPayload = p;
+  }
+
+  /** Một dòng địa chỉ đã lưu (đọc từ JSON hồ sơ) để hiển thị rõ sau khi lưu. */
+  savedShippingLine(user: User | null | undefined): string | null {
+    const raw = user?.shippingAddressJson;
+    if (!raw || !String(raw).trim()) return null;
+    try {
+      const o = JSON.parse(raw) as Record<string, unknown>;
+      const full = o['fullLine'];
+      if (typeof full === 'string' && full.trim()) return full.trim();
+      const detail = typeof o['addressDetail'] === 'string' ? o['addressDetail'].trim() : '';
+      const ward = typeof o['wardName'] === 'string' ? o['wardName'].trim() : '';
+      const dist = typeof o['districtName'] === 'string' ? o['districtName'].trim() : '';
+      const prov = typeof o['provinceName'] === 'string' ? o['provinceName'].trim() : '';
+      const parts = [detail, ward, dist, prov].filter(Boolean);
+      return parts.length ? parts.join(', ') : null;
+    } catch {
+      return null;
+    }
+  }
+
+  saveProfileShipping(user: { id: number }): void {
+    if (!this.profileAddressPayload) return;
+    this.api.updateUserShippingAddress(user.id, this.profileAddressPayload.json).subscribe({
+      next: (u) => {
+        this.auth.updateStoredUser(u);
+        this.alerts.open('Đã lưu địa chỉ giao hàng.', { appearance: 'success', autoClose: 2500 }).subscribe();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || err?.message || 'Không lưu được địa chỉ.';
+        this.alerts.open(msg, { appearance: 'error' }).subscribe();
+      },
+    });
+  }
+
+  passwordForm = this.fb.nonNullable.group(
+    {
+      currentPassword: ['', Validators.required],
+      newPassword: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required],
+    },
+    { validators: [ProfileComponent.passwordsMatchValidator] },
+  );
+
+  private static passwordsMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const n = control.get('newPassword')?.value;
+    const c = control.get('confirmPassword')?.value;
+    if (n == null || c == null || n === '' || c === '') return null;
+    return n === c ? null : { mismatch: true };
+  }
 
   user$ = this.auth.user$;
   
@@ -228,6 +582,8 @@ export class ProfileComponent {
   size = 5;
   totalElements = 0;
   loading = false;
+  
+  refreshDebt$ = new BehaviorSubject<void>(undefined);
 
   orders$ = combineLatest([this.user$, this.page$]).pipe(
     tap(() => this.loading = true),
@@ -246,14 +602,120 @@ export class ProfileComponent {
     })
   );
 
+  debtSummary$ = combineLatest([this.user$, this.refreshDebt$]).pipe(
+    switchMap(([user]) => user?.id ? this.api.getDebtSummary(user.id) : of({ blocked: false, overdueCount: 0, items: [] } as DebtSummary))
+  );
+
   expandedOrderIds = new Set<number>();
+  /** Tránh double-submit khi gọi API trạng thái đơn. */
+  actionBusy = new Set<number>();
+
+  getFlowSteps(order: Order): OrderFlowStep[] {
+    return buildOrderFlowSteps(order);
+  }
+
+  getPaymentCaption(order: Order): string {
+    return getOrderPaymentCaption(order);
+  }
+
+  canCancelOrder(order: Order): boolean {
+    return canCustomerCancelOrder(order);
+  }
+
+  canMarkReceived(order: Order): boolean {
+    return canCustomerMarkReceived(order);
+  }
+
+  canConfirmRefund(order: Order): boolean {
+    return canCustomerConfirmRefundReceived(order);
+  }
+
+  fulfilmentWaitingNotice(order: Order): boolean {
+    return showFulfilmentWaitingNotice(order);
+  }
+
+  refundContactNotice(order: Order): boolean {
+    return needsCustomerRefundContactNotice(order);
+  }
+
+  refundAwaitConfirmNotice(order: Order): boolean {
+    return isAwaitingCustomerRefundConfirm(order);
+  }
+
+  cancelCustomerOrder(event: Event, order: Order): void {
+    event.stopPropagation();
+    if (shouldWarnQrRefundOnCancel(order)) {
+      if (
+        !confirm(
+          'Đơn đã thanh toán chuyển khoản/QR. Sau khi hủy bạn cần liên hệ shop để hoàn tiền (shop chuyển khoản lại → bạn xác nhận trên trang này). Tiếp tục hủy đơn?'
+        )
+      ) {
+        return;
+      }
+    } else if (!confirm('Bạn có chắc muốn hủy đơn hàng này?')) {
+      return;
+    }
+    this.actionBusy.add(order.id);
+    this.api.updateOrderStatus(order.id, 'CANCELLED').subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Đơn đã được hủy.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Không hủy được đơn. Thử lại hoặc liên hệ shop.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
+
+  confirmCustomerRefundReceived(event: Event, order: Order): void {
+    event.stopPropagation();
+    const uid = this.auth.currentUserValue?.id;
+    if (uid == null) {
+      this.alerts.open('Vui lòng đăng nhập lại.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      return;
+    }
+    if (!confirm('Xác nhận bạn đã nhận đủ tiền hoàn trả về tài khoản?')) return;
+    this.actionBusy.add(order.id);
+    this.api.confirmRefundReceived(order.id, uid).subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Đã ghi nhận. Cảm ơn bạn.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Chưa xác nhận được. Shop có thể chưa đánh dấu hoàn tiền.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
+
+  markOrderReceived(event: Event, order: Order): void {
+    event.stopPropagation();
+    this.actionBusy.add(order.id);
+    this.api.updateOrderStatus(order.id, 'COMPLETED').subscribe({
+      next: (updated) => {
+        Object.assign(order, updated);
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Cảm ơn bạn đã xác nhận nhận hàng.', { label: 'Thành công', appearance: 'success' }).subscribe();
+      },
+      error: () => {
+        this.actionBusy.delete(order.id);
+        this.alerts.open('Không cập nhật được trạng thái. Liên hệ shop.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      },
+    });
+  }
 
   getStatusAppearance(status: string): string {
     switch (status) {
-      case 'COMPLETED': return 'success';
+      case 'COMPLETED':
+      case 'APPROVED': return 'success';
       case 'PENDING': return 'warning';
-      case 'PROCESSING': return 'info';
-      case 'CANCELLED': return 'danger';
+      case 'PROCESSING':
+      case 'SHIPPED': return 'info';
+      case 'CANCELLED': 
+      case 'REJECTED': return 'danger';
       default: return 'neutral';
     }
   }
@@ -272,12 +734,9 @@ export class ProfileComponent {
       this.expandedOrderIds.delete(order.id);
     } else {
       this.expandedOrderIds.add(order.id);
-      // Fetch full order to ensure items are present
-      if (!order.items) {
-        this.api.getOrderById(order.id).subscribe(fullOrder => {
-          order.items = fullOrder.items;
-        });
-      }
+      this.api.getOrderById(order.id).subscribe(fullOrder => {
+        Object.assign(order, fullOrder);
+      });
     }
   }
 
@@ -302,12 +761,74 @@ export class ProfileComponent {
           this.cart.addToCart(product, item.productVariant, item.quantity);
         }
       });
-      this.alerts.open('Tất cả sản phẩm đã được thêm lại vào giỏ hàng!', { label: 'Thành công', appearance: 'success' }).subscribe();
+      const msg =
+        'Đã thêm lại vào giỏ. ' + buildReorderPricingNotice(order);
+      this.alerts.open(msg, { label: 'Reorder', appearance: 'info', autoClose: 12000 }).subscribe();
     }
+  }
+
+  submitPassword(): void {
+    const u = this.auth.currentUserValue;
+    if (!u?.email) {
+      this.alerts.open('Vui lòng đăng nhập lại.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+      return;
+    }
+    this.passwordForm.markAllAsTouched();
+    if (this.passwordForm.invalid) return;
+    const v = this.passwordForm.getRawValue();
+    this.pwdBusy = true;
+    this.api
+      .changePassword({
+        email: u.email,
+        currentPassword: v.currentPassword,
+        newPassword: v.newPassword,
+      })
+      .subscribe({
+        next: (res) => {
+          this.pwdBusy = false;
+          if (res.success) {
+            this.passwordForm.reset();
+            this.alerts
+              .open(res.message || 'Đã cập nhật mật khẩu.', { label: 'Thành công', appearance: 'success' })
+              .subscribe();
+          } else {
+            this.alerts.open(res.message || 'Không đổi được mật khẩu.', { label: 'Lỗi', appearance: 'error' }).subscribe();
+          }
+        },
+        error: (err) => {
+          this.pwdBusy = false;
+          const body = err?.error;
+          const msg =
+            (typeof body?.message === 'string' && body.message) ||
+            (body?.success === false && body?.message) ||
+            'Không đổi được mật khẩu. Kiểm tra mật khẩu hiện tại.';
+          this.alerts.open(msg, { label: 'Lỗi', appearance: 'error' }).subscribe();
+        },
+      });
   }
 
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
+  }
+
+  payDebt(orderId: number): void {
+    this.api.updatePaymentStatus(orderId, 'AWAITING_CONFIRMATION').pipe(
+      tap(() => {
+        this.alerts
+          .open(
+            'Shop đã nhận thông báo trên Tin nhắn và sẽ đối soát chuyển khoản. Trạng thái đơn hiển thị «Chờ shop xác nhận» cho đến khi shop ghi nhận thanh toán công nợ.',
+            { label: 'Đã gửi', appearance: 'success', autoClose: 8000 },
+          )
+          .subscribe();
+        this.refreshDebt$.next();
+      }),
+    ).subscribe();
+  }
+
+  debtStatusLabel(daysLeft: number): string {
+    if (daysLeft < 0) return `Quá hạn ${Math.abs(daysLeft)} ngày`;
+    if (daysLeft === 0) return 'Đến hạn hôm nay';
+    return `Còn ${daysLeft} ngày`;
   }
 }

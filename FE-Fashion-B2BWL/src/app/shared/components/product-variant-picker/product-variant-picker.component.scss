@@ -1,0 +1,262 @@
+.pvp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.pvp-modal {
+  width: min(720px, 100%);
+  max-height: min(92vh, 920px);
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.pvp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.pvp-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pvp-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pvp-close:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.pvp-search {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pvp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 16px;
+  min-height: 160px;
+  background: #ffffff;
+}
+
+.pvp-empty,
+.pvp-empty-inline {
+  color: #64748b;
+  font-size: 0.875rem;
+  padding: 16px;
+  text-align: center;
+}
+
+.pvp-product-block {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 0;
+}
+
+.pvp-product-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pvp-product-row:hover {
+  background: #f8fafc;
+}
+
+.pvp-check {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.pvp-check--indent {
+  margin-left: 8px;
+}
+
+.pvp-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.pvp-thumb--empty {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  border: 1px solid #e2e8f0;
+}
+
+.pvp-product-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.pvp-product-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.pvp-product-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.pvp-chevron {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  transition: transform 0.2s;
+}
+
+.pvp-chevron:hover {
+  color: #0f172a;
+}
+
+.pvp-chevron--open {
+  transform: rotate(180deg);
+}
+
+.pvp-variants {
+  padding: 4px 0 8px 8px;
+}
+
+.pvp-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 28px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.pvp-variant-row:hover {
+  background: #f8fafc;
+}
+
+.pvp-variant-label {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+}
+
+.pvp-variant-price {
+  font-weight: 600;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.pvp-loading {
+  font-size: 0.8125rem;
+  color: #64748b;
+  padding: 8px 28px;
+}
+
+.pvp-selected-preview {
+  flex-shrink: 0;
+  max-height: min(200px, 28vh);
+  overflow-y: auto;
+  padding: 10px 20px 12px;
+  border-top: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.pvp-selected-preview__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.pvp-selected-preview__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pvp-selected-preview__row {
+  font-size: 13px;
+  color: #0f172a;
+  padding: 5px 0;
+  line-height: 1.35;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pvp-selected-preview__row:last-child {
+  border-bottom: none;
+}
+
+.pvp-selected-preview__product {
+  font-weight: 600;
+}
+
+.pvp-selected-preview__sep {
+  color: #94a3b8;
+  margin: 0 6px;
+}
+
+.pvp-selected-preview__variant {
+  color: #475569;
+}
+
+.pvp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pvp-count {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.pvp-actions {
+  display: flex;
+  gap: 10px;
+}

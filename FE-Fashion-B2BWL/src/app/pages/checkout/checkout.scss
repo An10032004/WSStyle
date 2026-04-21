@@ -78,6 +78,16 @@
     transform: translateY(-2px);
   }
 
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: auto;
+    transform: none !important;
+    &:hover {
+      border-color: #eee;
+    }
+  }
+
   &.active {
     border-color: #000;
     background: #fdfdfd;
@@ -203,6 +213,18 @@
     font-size: 15px;
     font-weight: 700;
     color: #111;
+  }
+
+  .discount-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #15803d;
+    background: #f0fdf4;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+    border: 1px solid #dcfce7;
   }
 }
 
@@ -430,5 +452,87 @@
         letter-spacing: 0.5px;
       }
     }
+  }
+}
+
+.checkout-addr-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.checkout-ship-mode .ship-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ship-mode-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  input {
+    margin-top: 4px;
+  }
+  &:hover {
+    border-color: #cbd5e1;
+    background: #fafafa;
+  }
+  &.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.ship-mode-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  strong {
+    font-size: 14px;
+    color: #111;
+  }
+  small {
+    font-size: 12px;
+    color: #64748b;
+  }
+}
+
+.ship-mode-list--rule {
+  margin-bottom: 4px;
+}
+
+.checkout-ship-zones {
+  margin-top: 18px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+
+  &.is-muted {
+    opacity: 0.92;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+
+  &__hint {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.45;
   }
 }

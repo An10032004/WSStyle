@@ -1,0 +1,52 @@
+<div class="vn-addr" [class.vn-addr--stacked]="layoutStacked">
+  <div class="vn-addr__row vn-addr__row--3">
+    <label class="vn-addr__field">
+      <span class="vn-addr__label">Tỉnh / Thành phố</span>
+      <select
+        class="vn-addr__select"
+        [(ngModel)]="provinceCode"
+        (ngModelChange)="onProvinceChange()"
+        [disabled]="loadingProvinces"
+      >
+        <option value="">— Chọn —</option>
+        <option *ngFor="let pr of provinces" [value]="pr.code">{{ pr.name }}</option>
+      </select>
+    </label>
+    <label class="vn-addr__field">
+      <span class="vn-addr__label">Quận / Huyện</span>
+      <select
+        class="vn-addr__select"
+        [(ngModel)]="districtCode"
+        (ngModelChange)="onDistrictChange()"
+        [disabled]="!provinceCode || districts.length <= 1"
+      >
+        <option value="">— Chọn —</option>
+        <option *ngFor="let di of districts" [value]="di.code">{{ di.name }}</option>
+      </select>
+    </label>
+    <label class="vn-addr__field">
+      <span class="vn-addr__label">Phường / Xã</span>
+      <select
+        class="vn-addr__select"
+        [(ngModel)]="wardCode"
+        (ngModelChange)="onWardOrDetailChange()"
+        [disabled]="!districtCode"
+      >
+        <option value="">— Chọn —</option>
+        <option *ngFor="let wa of wards" [value]="wa.code">{{ wa.name }}</option>
+      </select>
+    </label>
+  </div>
+  <label class="vn-addr__field vn-addr__field--full">
+    <span class="vn-addr__label">Địa chỉ chi tiết (số nhà, ngõ, tên đường…)</span>
+    <input
+      type="text"
+      class="vn-addr__input"
+      [(ngModel)]="addressDetail"
+      (ngModelChange)="onWardOrDetailChange()"
+      placeholder="Ví dụ: 12 ngõ 4 Trần Duy Hưng"
+      autocomplete="street-address"
+    />
+  </label>
+  <p class="vn-addr__hint" *ngIf="loadingProvinces">Đang tải danh sách tỉnh thành…</p>
+</div>

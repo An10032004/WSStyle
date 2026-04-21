@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -18,6 +19,7 @@ import { ApiService, Category, TranslationRequest } from '../../services/api.ser
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
+import { readApiErrorMessage } from '../../utils/auth-http.util';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -42,12 +44,15 @@ export class CategoryListComponent implements OnInit {
   originalCategory: Category | null = null;
   categoryTranslations: Map<number, string> = new Map();
   formData = { name: '', parentId: null as number | null };
+  formErrors: Record<string, string> = {};
 
   currentLanguage: string = 'vi';
   langSub!: Subscription;
 
   @ViewChild('deleteDialog') deleteDialogTemplate!: TemplateRef<any>;
+  @ViewChild('deleteErrorDialog') deleteErrorDialogTemplate!: TemplateRef<any>;
   deleteTargetName: string = '';
+  deleteErrorMessage: string | null = null;
 
   columnDefs: ColDef[] = [];
 
@@ -103,6 +108,9 @@ export class CategoryListComponent implements OnInit {
 
   onGridReady(params: GridReadyEvent): void {
     this.gridApi = params.api;
+    setTimeout(() => {
+      this.gridApi.autoSizeAllColumns();
+    }, 100);
   }
 
   loadData(): void {
@@ -162,6 +170,8 @@ export class CategoryListComponent implements OnInit {
         width: 260,
         sortable: false,
         filter: false,
+        pinned: 'right',
+        suppressSizeToFit: true
       },
     ];
   }
@@ -264,6 +274,26 @@ export class CategoryListComponent implements OnInit {
     return this.rowData.find(c => c.id === id)?.name || '';
   }
 
+  clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private handleApiError(err: any): void {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 400 && err.error && err.error.data) {
+        this.formErrors = err.error.data;
+        this.alerts.open('Dữ liệu không hợp lệ. Vui lòng kiểm tra các trường.', { appearance: 'warning' }).subscribe();
+        return;
+      }
+      if (err.status === 409 && err.error && err.error.message) {
+        this.alerts.open(err.error.message, { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
+    const msg = readApiErrorMessage(err, err?.message || 'Lỗi hệ thống');
+    this.alerts.open(msg, { appearance: 'error' }).subscribe();
+  }
+
   readonly renderCategory = (context: any): string => {
     return this.getCategoryName(context?.$implicit);
   };
@@ -276,15 +306,36 @@ export class CategoryListComponent implements OnInit {
       })
       .subscribe((response) => {
         if (response) {
-          this.api.deleteCategory(cat.id).subscribe(() => {
-            this.alerts.open('Đã xóa danh mục thành công', { appearance: 'success' }).subscribe();
-            this.loadData();
+          this.api.deleteCategory(cat.id).subscribe({
+            next: () => {
+              this.alerts.open('Đã xóa danh mục thành công', { appearance: 'success' }).subscribe();
+              this.loadData();
+            },
+            error: (err) => {
+              // If constraint error, show detailed dialog with server message
+              if (err instanceof HttpErrorResponse && err.status === 409 && err.error && err.error.message) {
+                this.deleteErrorMessage = err.error.message;
+                this.dialogs.open(this.deleteErrorDialogTemplate, { size: 'm' }).subscribe();
+                return;
+              }
+              this.handleApiError(err);
+            }
           });
         }
       });
   }
 
   onSave(): void {
+    this.clearFormErrors();
+
+    if (this.currentLanguage === 'vi') {
+      if (!this.formData.name || !String(this.formData.name).trim()) {
+        this.formErrors['name'] = 'Tên danh mục không được để trống';
+        this.alerts.open('Vui lòng nhập tên danh mục', { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
+
     if (this.formData.parentId && this.editingId === this.formData.parentId) {
       this.alerts.open('Không thể chọn danh mục này làm danh mục cha của chính nó', { appearance: 'warning' }).subscribe();
       return;
@@ -297,35 +348,50 @@ export class CategoryListComponent implements OnInit {
         parentId: this.formData.parentId
       };
       
-      this.api.updateCategory(this.editingId, globalUpdate).subscribe(() => {
-        // 2. Save Translation for Name
-        const req: TranslationRequest = {
-           resourceId: this.editingId!,
-           resourceType: 'CATEGORY',
-           languageCode: this.currentLanguage,
-           translatedName: this.formData.name
-        };
-        
-        this.api.saveTranslation(req).subscribe(() => {
-           this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
-           this.showForm = false;
-           this.loadData();
-        });
+      this.api.updateCategory(this.editingId, globalUpdate).subscribe({
+        next: () => {
+          const req: TranslationRequest = {
+            resourceId: this.editingId!,
+            resourceType: 'CATEGORY',
+            languageCode: this.currentLanguage,
+            translatedName: this.formData.name,
+          };
+
+          this.api.saveTranslation(req).subscribe({
+            next: () => {
+              this.alerts
+                .open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, {
+                  appearance: 'success',
+                })
+                .subscribe();
+              this.showForm = false;
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err),
+          });
+        },
+        error: (err) => this.handleApiError(err),
       });
     } else {
       // Normal save mode (vi or New)
       const body = { name: this.formData.name, parentId: this.formData.parentId };
       if (this.editingId) {
-        this.api.updateCategory(this.editingId, body).subscribe(() => {
-          this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
-          this.showForm = false;
-          this.loadData();
+        this.api.updateCategory(this.editingId, body).subscribe({
+          next: () => {
+            this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
+            this.showForm = false;
+            this.loadData();
+          },
+          error: (err) => this.handleApiError(err),
         });
       } else {
-        this.api.createCategory(body).subscribe(() => {
-          this.alerts.open('Tạo thành công', { appearance: 'success' }).subscribe();
-          this.showForm = false;
-          this.loadData();
+        this.api.createCategory(body).subscribe({
+          next: () => {
+            this.alerts.open('Tạo thành công', { appearance: 'success' }).subscribe();
+            this.showForm = false;
+            this.loadData();
+          },
+          error: (err) => this.handleApiError(err),
         });
       }
     }

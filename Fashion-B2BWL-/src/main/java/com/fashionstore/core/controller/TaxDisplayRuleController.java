@@ -42,4 +42,14 @@ public class TaxDisplayRuleController {
         taxDisplayRuleService.deleteRule(id);
         return ResponseEntity.ok(new ApiResponse<>(true, "Deleted successfully", null));
     }
+
+    @PostMapping("/quote")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> quoteTax(@RequestBody java.util.Map<String, Object> request) {
+        Integer userId = null;
+        if (request.get("userId") != null) {
+            userId = Integer.parseInt(request.get("userId").toString());
+        }
+        java.math.BigDecimal orderAmount = new java.math.BigDecimal(request.get("orderAmount").toString());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Tax quoted", taxDisplayRuleService.quoteTax(userId, orderAmount)));
+    }
 }

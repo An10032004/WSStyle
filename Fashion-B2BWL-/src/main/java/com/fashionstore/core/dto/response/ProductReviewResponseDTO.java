@@ -16,6 +16,8 @@ public class ProductReviewResponseDTO {
     private Integer rating;
     private String comment;
     private String replyMessage;
+    private String productName;
+    private String productImage;
     private Boolean isPinned;
     private LocalDateTime createdAt;
 }

@@ -1,4 +1,5 @@
 <tui-root>
   <router-outlet />
-  <app-ai-assistant-bubble></app-ai-assistant-bubble>
+  <app-ai-assistant-bubble *ngIf="showAiBubble$ | async" />
+  <app-support-chat-bubble *ngIf="showSupportBubble$ | async" />
 </tui-root>

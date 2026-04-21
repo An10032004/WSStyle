@@ -2,25 +2,47 @@
 <div class="quick-order-container">
   <div class="quick-order-header">
     <div class="header-left">
-      <h1>Quick Order Form</h1>
-      <p class="subtitle">Bulk select items and variants quickly</p>
+      <h1>ĐẶT HÀNG NHANH</h1>
+      <p class="subtitle">Chọn mã hàng và số lượng đại lý dễ dàng</p>
     </div>
     
     <div class="summary-top" *ngIf="totalItemsSelected > 0">
       <div class="stat">
-        <span class="badge">{{ totalItemsSelected }}</span> item(s) selected
+        <span class="badge">{{ totalItemsSelected }}</span> mẫu đã chọn
       </div>
-      <div class="stat">
-        Cart total: <strong>{{ totalAmount | number }}đ</strong>
+      <div class="stat" *ngIf="!hasHiddenPriceInSelection">
+        Tổng cộng: <strong>{{ totalAmount | number }}đ</strong>
       </div>
-      <button tuiButton type="button" size="s" (click)="addToCart()">Add to Cart</button>
-      <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()">Checkout</button>
+      <div class="stat replacement-stat" *ngIf="hasHiddenPriceInSelection">
+        Tổng cộng: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong>
+      </div>
+      <button tuiButton type="button" size="s" (click)="addToCart()" class="premium-black-btn">Thêm vào giỏ</button>
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="checkout()" class="modern-btn">Thanh toán</button>
+    </div>
+  </div>
+
+  <div class="active-rules-info" *ngIf="appliedOrderLimits.length > 0">
+    <div class="rule-box">
+      <div class="rule-content">
+        <div class="rule-title">Chính sách đặt hàng áp dụng:</div>
+        <div class="rule-list">
+          <span class="rule-tag" *ngFor="let limit of appliedOrderLimits">
+            {{ limit.name }}: 
+            <ng-container [ngSwitch]="limit.limitType">
+              <span *ngSwitchCase="'MIN_ORDER_QTY'">Tối thiểu {{ limit.limitValue }} sp</span>
+              <span *ngSwitchCase="'MIN_ORDER_VAL'">Tối thiểu {{ limit.limitValue | number }}đ</span>
+              <span *ngSwitchDefault>{{ limit.limitValue }} ({{ limit.limitType }})</span>
+            </ng-container>
+            ({{ limit.limitLevel === 'PER_ORDER' ? 'Cả đơn' : 'Từng dòng' }})
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="filter-section">
     <div class="filter-group">
-      <label tuiLabel="Product Category">
+      <label tuiLabel="Danh mục sản phẩm">
         <tui-select
           class="category-select"
           [(ngModel)]="selectedCategory"
@@ -32,23 +54,24 @@
             *tuiDataList
             [items]="categories"
             [itemContent]="catContent"
-          ></tui-data-list-wrapper>
+          >
+            <button tuiOption [value]="null">Tất cả danh mục</button>
+          </tui-data-list-wrapper>
           
           <ng-template #catContent let-item>
-            {{ item?.name || 'All Categories' }}
+            {{ item?.name || 'Tất cả danh mục' }}
           </ng-template>
         </tui-select>
       </label>
 
-      <label tuiLabel="Product Search">
+      <label tuiLabel="Tìm kiếm">
         <tui-textfield 
           tuiTextfieldSize="m" 
           [tuiTextfieldCleaner]="true"
-          iconStart="@tui.search"
         >
           <input
             tuiTextfield
-            placeholder="Search by name or SKU..."
+            placeholder="Tìm theo tên hoặc mã SKU..."
             [(ngModel)]="searchQuery"
             (ngModelChange)="filterProducts()"
           />
@@ -62,16 +85,16 @@
       <thead>
         <tr>
           <th width="30"></th>
-          <th width="80">Image</th>
-          <th>Product name</th>
-          <th width="100">Stock</th>
-          <th width="150">Price</th>
-          <th width="150">Product SKU</th>
-          <th width="150">Quantity</th>
+          <th width="80">Ảnh</th>
+          <th>Tên sản phẩm</th>
+          <th width="100">Tồn kho</th>
+          <th width="220">Giá</th>
+          <th width="150">Mã SKU</th>
+          <th width="150">Số lượng</th>
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let item of filteredProducts">
+        <ng-container *ngFor="let item of paginatedProducts">
           <tr [class.expanded]="item.isExpanded">
             <td>
               <button
@@ -80,8 +103,9 @@
                 size="xs"
                 appearance="flat"
                 (click)="toggleExpand(item)"
+                class="expand-btn"
               >
-                <tui-icon [icon]="item.isExpanded ? '@tui.chevron-up' : '@tui.chevron-down'"></tui-icon>
+                {{ item.isExpanded ? 'Thu gọn' : 'Chi tiết' }}
               </button>
             </td>
             <td>
@@ -91,20 +115,22 @@
               <span class="prod-name">{{ item.product.name }}</span>
               <span class="prod-code">{{ item.product.productCode }}</span>
             </td>
-            <td>{{ item.product.basePrice === 0 ? 'N/A' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
-            <td>{{ item.product.basePrice | number }}đ</td>
-            <td>{{ item.product.productCode }}</td>
+            <td>{{ item.product.basePrice === 0 ? 'Hết hàng' : (item.variants.reduce((acc, v) => acc + v.stockQuantity, 0) | number) }}</td>
             <td>
-              <div class="variant-btn-container" *ngIf="!item.isExpanded">
-                <button tuiButton type="button" size="s" appearance="outline" (click)="toggleExpand(item)">
-                  Choose variant
-                </button>
-                <div class="selection-badge" *ngIf="item.totalSelected > 0">
-                  {{ item.totalSelected }} variant(s) selected
-                </div>
+              <div class="price-cell" *ngIf="!item.product.hidePrice; else qoRowHidden">
+                <div class="final-price">Từ {{ item.minPrice | number }}đ</div>
+                <div class="original-price" *ngIf="item.product.basePrice > (item.minPrice || 0)">{{ item.product.basePrice | number }}đ</div>
               </div>
-              <div *ngIf="item.isExpanded" class="qty-status-tag" [class.active]="item.totalSelected > 0">
-                {{ item.totalSelected }} variant(s) selected
+              <ng-template #qoRowHidden>
+                <span class="replacement-text">{{ replacementLabel(item.product) }}</span>
+              </ng-template>
+            </td>
+            <td><code>{{ item.product.productCode }}</code></td>
+            <td>
+              <div class="selection-toggle" (click)="toggleExpand(item)">
+                <span class="selection-text" [class.active]="item.totalSelected > 0">
+                  Đã chọn {{ item.totalSelected }} phân loại
+                </span>
               </div>
             </td>
           </tr>
@@ -115,17 +141,19 @@
               <div class="variants-container">
                 <table class="variants-table">
                   <thead>
-                    <tr>
-                      <th width="60">Image</th>
-                      <th>Variant</th>
-                      <th width="100">Stock</th>
-                      <th width="120">Price</th>
-                      <th width="150">SKU</th>
-                      <th width="180">Quantity</th>
+                    <tr class="v-header">
+                      <th width="30"></th>
+                      <th width="80">Ảnh</th>
+                      <th>Phân loại</th>
+                      <th width="100">Tồn kho</th>
+                      <th width="220">Giá</th>
+                      <th width="150">Mã SKU</th>
+                      <th width="150">Số lượng</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let v of item.variants">
+                      <td></td>
                       <td>
                         <img [src]="v.imageUrl || item.product.imageUrl || 'assets/placeholder-product.png'" class="variant-thumb">
                       </td>
@@ -133,18 +161,54 @@
                         <strong>{{ v.color }} / {{ v.size }}</strong>
                       </td>
                       <td>{{ v.stockQuantity | number }}</td>
-                      <td>{{ (v.price || item.product.basePrice) | number }}đ</td>
+                      <td class="price-cell">
+                        <ng-container *ngIf="!item.product.hidePrice; else qoVarHidden">
+                          <div class="final-price">{{ (v.calculatedPrice || v.price || item.product.basePrice) | number }}đ</div>
+                          <div class="original-price" *ngIf="v.calculatedPrice && v.calculatedPrice < (v.price || item.product.basePrice)">
+                            {{ (v.price || item.product.basePrice) | number }}đ
+                          </div>
+                          <div class="rule-desc" *ngIf="v.appliedRulesText">
+                            {{ v.appliedRulesText }}
+                          </div>
+                        </ng-container>
+                        <ng-template #qoVarHidden>
+                          <span class="replacement-text">{{ replacementLabel(item.product) }}</span>
+                        </ng-template>
+                        
+                        <!-- QUANTITY BREAK POPUP -->
+                        <div class="qb-info-trigger" *ngIf="getQB(item.product, v).length > 0">
+                           <button
+                             tuiButton
+                             type="button"
+                             size="xs"
+                             appearance="flat"
+                             [tuiDropdown]="qbDropdown"
+                           >Bảng giá theo SL</button>
+                           <ng-template #qbDropdown>
+                             <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+                               <app-quantity-break-table 
+                                 [breaks]="getQB(item.product, v)" 
+                                 [basePrice]="v.price || item.product.basePrice"
+                                 [currentQty]="v.selectedQuantity"
+                                 [hidePrice]="!!item.product.hidePrice"
+                                 [replacementText]="item.product.replacementText"
+                                 [hideAddToCart]="!!item.product.hideAddToCart">
+                               </app-quantity-break-table>
+                             </div>
+                           </ng-template>
+                        </div>
+                      </td>
                       <td><code>{{ v.sku }}</code></td>
                       <td>
-                        <div class="quantity-input-container">
-                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item)">
-                             <tui-icon icon="@tui.minus"></tui-icon>
-                           </button>
-                           <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item)" class="qty-input">
-                           <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item)">
-                             <tui-icon icon="@tui.plus"></tui-icon>
-                           </button>
-                        </div>
+                         <div class="quantity-input-container">
+                            <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = Math.max(0, v.selectedQuantity - 1); onQuantityChange(item, v)">
+                              −
+                            </button>
+                            <input type="number" [(ngModel)]="v.selectedQuantity" (ngModelChange)="onQuantityChange(item, v)" class="qty-input">
+                            <button tuiButton type="button" size="xs" appearance="flat" (click)="v.selectedQuantity = v.selectedQuantity + 1; onQuantityChange(item, v)">
+                              +
+                            </button>
+                         </div>
                       </td>
                     </tr>
                   </tbody>
@@ -155,23 +219,31 @@
         </ng-container>
       </tbody>
     </table>
+
+    <div class="pagination-container" *ngIf="filteredProducts.length > pageSize">
+      <tui-pagination
+        [length]="Math.ceil(filteredProducts.length / pageSize)"
+        [(index)]="index"
+      ></tui-pagination>
+    </div>
   </div>
 
   <div class="summary-footer" *ngIf="totalItemsSelected > 0">
     <div class="footer-inner">
       <div class="footer-stats">
-        <span class="count-tag">{{ totalItemsSelected }} item(s) selected</span>
-        <span class="total-tag">Cart total: <strong>{{ totalAmount | number }}đ</strong></span>
+        <span class="count-tag">Đã chọn {{ totalItemsSelected }} mẫu</span>
+        <span class="total-tag" *ngIf="!hasHiddenPriceInSelection">Tạm tính: <strong>{{ totalAmount | number }}đ</strong></span>
+        <span class="total-tag" *ngIf="hasHiddenPriceInSelection">Tạm tính: <strong class="replacement-text">{{ hiddenSelectionReplacement }}</strong></span>
       </div>
       <div class="footer-actions">
-        <button tuiButton type="button" (click)="addToCart()" appearance="outline">Add to Cart</button>
-        <button tuiButton type="button" (click)="checkout()" appearance="primary">Checkout Now</button>
+        <button tuiButton type="button" (click)="addToCart()" appearance="outline">Thêm vào giỏ</button>
+        <button tuiButton type="button" (click)="checkout()" appearance="primary">Thanh toán ngay</button>
       </div>
     </div>
   </div>
 
   <div *ngIf="loading && products.length === 0" class="loading-overlay">
-    <tui-icon icon="@tui.loader"></tui-icon>
-    <p>Loading products...</p>
+    <span>Đang tải…</span>
+    <p>Đang tải sản phẩm…</p>
   </div>
 </div>

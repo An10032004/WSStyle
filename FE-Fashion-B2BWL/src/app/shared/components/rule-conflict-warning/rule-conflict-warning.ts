@@ -21,6 +21,8 @@ export class RuleConflictWarningComponent {
   @Input() conflicts: string[] = [];
 
   getAppearance(msg: string): 'warning' | 'error' | 'info' {
+    if (msg.startsWith('WARNING:')) return 'warning';
+    if (msg.startsWith('INFO:')) return 'info';
     if (msg.startsWith('BLOCKED')) return 'error';
     if (msg.startsWith('CRITICAL')) return 'error';
     if (msg.startsWith('WARNING')) return 'warning';

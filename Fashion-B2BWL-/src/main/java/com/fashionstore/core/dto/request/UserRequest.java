@@ -14,4 +14,6 @@ public class UserRequest {
     private String registrationStatus;
     private String companyName;
     private String taxCode;
+    /** ACTIVE | SUSPENDED — quản trị tạm ngừng tài khoản */
+    private String accountStatus;
 }

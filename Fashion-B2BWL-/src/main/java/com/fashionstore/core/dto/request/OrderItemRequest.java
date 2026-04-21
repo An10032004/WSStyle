@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class OrderItemRequest {
     private Integer variantId;
+    private Integer productId;
     private Integer quantity;
     private BigDecimal unitPrice;
     private Integer appliedRuleId;
+    /** Mô tả ưu đãi áp dụng khi đặt (lưu cùng đơn để đối chiếu khi reorder). */
+    private String pricingNote;
 }

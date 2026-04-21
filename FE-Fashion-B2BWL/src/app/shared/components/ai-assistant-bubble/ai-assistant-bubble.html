@@ -1,4 +1,4 @@
-<div class="ai-assistant-container">
+<div class="ai-assistant-container" *ngIf="isLoggedIn$ | async">
   <!-- CHAT WINDOW -->
   <div 
     class="chat-window luxe-glass" 
@@ -13,9 +13,12 @@
           <span class="ai-status">Đang trực tuyến</span>
         </div>
       </div>
-      <button class="close-btn" (click)="toggleChat()">
-        <tui-icon icon="@tui.x"></tui-icon>
-      </button>
+      <div class="header-actions">
+        <a routerLink="/assistant" class="open-full" (click)="toggleChat()">Mở rộng</a>
+        <button class="close-btn" type="button" (click)="toggleChat()">
+          <tui-icon icon="@tui.x"></tui-icon>
+        </button>
+      </div>
     </div>
 
     <div class="chat-messages" #scrollContainer>
@@ -35,7 +38,8 @@
               </div>
               <div class="card-body">
                 <span class="card-name">{{ p.name }}</span>
-                <span class="card-price">{{ p.basePrice | number }} ₫</span>
+                <span class="card-price" *ngIf="!p.hidePrice">{{ displayPrice(p) | number }} ₫</span>
+                <span class="card-muted" *ngIf="p.hidePrice">{{ p.replacementText || 'Liên hệ' }}</span>
               </div>
             </div>
           </div>

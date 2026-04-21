@@ -52,6 +52,7 @@ public class ProductController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) List<String> brands,
+            @RequestParam(required = false) List<Integer> productIds,
             @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
@@ -67,7 +68,8 @@ public class ProductController {
         }
         
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Product> productsPage = productService.getProductsPaged(search, categoryIds, minPrice, maxPrice, brands, pageable);
+        Page<Product> productsPage = productService.getProductsPaged(
+                search, categoryIds, minPrice, maxPrice, brands, productIds, pageable);
         Page<ProductResponseDTO> dtosPage = productMapperService.toDTOs(productsPage, user);
         
         return ResponseEntity.ok(ApiResponse.success(dtosPage));

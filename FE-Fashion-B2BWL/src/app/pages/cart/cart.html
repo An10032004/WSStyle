@@ -3,13 +3,13 @@
 <div class="cart-page">
   <div class="container">
     <div class="breadcrumb">
-      <a routerLink="/storefront">Home</a> / <span>Your Shopping Cart</span>
+      <a routerLink="/storefront">Trang chủ</a> / <span>Giỏ hàng của bạn</span>
     </div>
 
-    <h1 class="page-title">Shopping Cart</h1>
+    <h1 class="page-title">Giỏ hàng</h1>
 
-    <ng-container *ngIf="(cart$ | async) as items; else loading">
-      <div class="cart-layout" *ngIf="items.length > 0; else emptyCart">
+    <ng-container *ngIf="(cartLayout$ | async) as layout; else loading">
+      <div class="cart-layout" *ngIf="layout.items.length > 0; else emptyCart">
         
         <!-- Cart Items Table -->
         <div class="cart-main">
@@ -23,90 +23,214 @@
                   (ngModelChange)="toggleAll($event)"
                 />
               </span>
-              <span class="col-prod">Product</span>
-              <span class="col-price">Price</span>
-              <span class="col-qty">Quantity</span>
-              <span class="col-total">Subtotal</span>
+              <span class="col-prod">Sản phẩm</span>
+              <span class="col-price">Đơn giá</span>
+              <span class="col-qty">Số lượng</span>
+              <span class="col-total">Tạm tính</span>
               <span class="col-actions"></span>
             </div>
 
-            <div class="table-row" *ngFor="let item of items" [class.selected]="item.selected">
-              <div class="col-cb">
-                <input
-                  tuiCheckbox
-                  type="checkbox"
-                  [ngModel]="item.selected"
-                  (ngModelChange)="toggleItem(item, $event)"
-                />
-              </div>
-              <div class="col-prod">
-                <div class="prod-info">
-                  <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
-                  <div class="texts">
-                    <a [routerLink]="['/product', item.productId]" class="prod-name">{{ item.name }}</a>
-                    <div class="prod-variant" *ngIf="item.color || item.size">
-                      {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-price">
-                <span class="price-val">{{ item.price | number:'1.0-0' }} ₫</span>
-              </div>
-              <div class="col-qty">
-                <div class="qty-picker">
-                  <button (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
-                    <tui-icon icon="@tui.minus"></tui-icon>
+            <ng-container *ngFor="let g of layout.bundleGroups">
+              <details class="combo-block" open>
+                <summary class="combo-block__summary">
+                  <tui-icon icon="@tui.package" class="combo-block__icon"></tui-icon>
+                  <span class="combo-block__title">{{ g.label }}</span>
+                  <span class="combo-block__sub" *ngIf="!g.hasHiddenSelected">
+                    Tạm tính đã chọn: {{ g.selectedSubtotal | number:'1.0-0' }} ₫
+                  </span>
+                  <span class="combo-block__sub" *ngIf="g.hasHiddenSelected && g.selectedSubtotalVisible > 0">
+                    Tạm tính (phần hiện giá): {{ g.selectedSubtotalVisible | number:'1.0-0' }} ₫
+                    <span class="combo-block__hint"> — có dòng liên hệ giá trong combo</span>
+                  </span>
+                  <span class="combo-block__sub replacement-text" *ngIf="g.hasHiddenSelected && g.selectedSubtotalVisible === 0">
+                    Có mặt hàng liên hệ để có giá trong combo
+                  </span>
+                  <button
+                    type="button"
+                    class="combo-block__remove"
+                    (click)="removeBundleGroup($event, g.bundleId)"
+                  >
+                    <tui-icon icon="@tui.trash-2"></tui-icon>
+                    Xóa combo
                   </button>
-                  <input type="number" [(ngModel)]="item.quantity" (change)="updateQuantity(item, item.quantity)">
-                  <button (click)="updateQuantity(item, item.quantity + 1)">
-                    <tui-icon icon="@tui.plus"></tui-icon>
-                  </button>
+                </summary>
+                <div class="combo-block__rows">
+                  <ng-container *ngFor="let item of g.items">
+                    <ng-container *ngTemplateOutlet="cartRow; context: { $implicit: item }"></ng-container>
+                  </ng-container>
                 </div>
-              </div>
-              <div class="col-total">
-                <span class="total-val">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
-              </div>
-              <div class="col-actions">
-                <button class="remove-btn" (click)="removeItem(item)" title="Xóa">
-                  <tui-icon icon="@tui.trash"></tui-icon>
-                </button>
-              </div>
-            </div>
+              </details>
+            </ng-container>
+
+            <h3 class="cart-section-title" *ngIf="layout.regularItems.length && layout.bundleGroups.length">
+              Sản phẩm lẻ
+            </h3>
+            <ng-container *ngFor="let item of layout.regularItems">
+              <ng-container *ngTemplateOutlet="cartRow; context: { $implicit: item }"></ng-container>
+            </ng-container>
           </div>
 
           <div class="cart-footer">
-            <button tuiButton appearance="flat" size="m" routerLink="/shop">
-              <tui-icon icon="@tui.chevron-left"></tui-icon> Continue Shopping
+            <button tuiButton appearance="flat" size="m" routerLink="/shop" iconStart="@tui.chevron-left">
+              Tiếp tục mua sắm
             </button>
-            <button tuiButton appearance="secondary-grayscale" size="m" (click)="clear()">Clear Cart</button>
+            <button tuiButton appearance="secondary-grayscale" size="m" (click)="clear()">Xóa giỏ hàng</button>
           </div>
         </div>
 
         <!-- Order Summary Side Panel -->
         <div class="cart-summary">
           <div class="summary-card">
-            <h3 class="summary-title">Summary</h3>
+            <h3 class="summary-title">Tóm tắt</h3>
             
             <div class="summary-row">
-              <span>Total Items</span>
+              <span>Số mặt hàng</span>
               <strong>{{ totalItems$ | async }}</strong>
+            </div>
+
+            <ng-container *ngIf="(selectionHasHiddenPrice$ | async) !== true">
+            <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+              <span>Combo (đã chọn)</span>
+              <strong>{{ comboSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+            <div class="summary-row summary-split" *ngIf="hasRegularSelection$ | async">
+              <span>Sản phẩm lẻ (đã chọn)</span>
+              <strong>{{ regularSubtotalSelected$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <div class="summary-row">
+              <span>Tạm tính</span>
+              <strong>{{ totalPrice$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <!-- COUPON: danh sách mã đủ điều kiện (radio, tối đa 1) -->
+            <div class="summary-row coupon-row" style="margin: 8px 0; border-top: 1px dashed #eee; border-bottom: 1px dashed #eee; padding: 10px 0;">
+              <div style="width: 100%;">
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #64748b;">Ưu đãi</div>
+                <ng-container *ngIf="(auth.user$ | async)?.id; else cartCouponGuest">
+                  <ng-container *ngIf="(eligibleCoupons$ | async) as list">
+                    <label *ngIf="list.length" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                      <input type="radio" name="cart-store-coupon" [checked]="(selectedCouponCode$ | async) === null"
+                        (change)="selectCartCoupon(null)" />
+                      <span>Không dùng mã giảm giá</span>
+                    </label>
+                    <label *ngFor="let c of list" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                      <input type="radio" name="cart-store-coupon" [checked]="(selectedCouponCode$ | async) === c.code"
+                        (change)="selectCartCoupon(c.code)" />
+                      <span>
+                        <strong style="text-transform: uppercase;">{{ c.code }}</strong>
+                        <span *ngIf="c.discountType === 'PERCENTAGE'"> — {{ c.discountValue }}%</span>
+                        <span *ngIf="c.discountType !== 'PERCENTAGE'"> — {{ c.discountValue | number:'1.0-0' }} ₫</span>
+                        <span *ngIf="c.minimumPriorOrders" style="color: #64748b;"> (từ {{ c.minimumPriorOrders }} đơn)</span>
+                      </span>
+                    </label>
+                    <div *ngIf="!list.length" style="font-size: 12px; color: #94a3b8;">Không có mã áp dụng cho giỏ hiện tại.</div>
+                  </ng-container>
+                </ng-container>
+                <ng-template #cartCouponGuest>
+                  <div style="font-size: 12px; color: #94a3b8;">Đăng nhập để xem mã ưu đãi dành cho bạn.</div>
+                </ng-template>
+              </div>
+            </div>
+
+            <div class="summary-row discount" *ngIf="(discountAmount$ | async) as discount">
+              <span style="color: #10b981; font-weight: 500;">
+                Giảm giá <span *ngIf="(appliedCoupon$ | async) as c">(-{{ c.discountValue }}{{ c.discountType === 'PERCENTAGE' ? '%' : '' }})</span>
+              </span>
+              <strong style="color: #10b981;">- {{ discount | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <div class="summary-row after-discount" *ngIf="(appliedCoupon$ | async)" style="margin-bottom: 8px;">
+              <span style="font-size: 13px; font-weight: 600;">Sau giảm giá</span>
+              <strong style="font-size: 15px; color: #333;">{{ afterDiscountSubtotal$ | async | number:'1.0-0' }} ₫</strong>
+            </div>
+
+            <div class="cart-ship-mode" *ngIf="shippingQuote$ | async as sq">
+              <div class="cart-ship-mode__head">
+                <span class="cart-ship-mode__title">Phí vận chuyển (ước tính)</span>
+                <ng-container *ngIf="(shippingFee$ | async) as shipFee">
+                  <strong class="cart-ship-mode__fee" *ngIf="shipFee !== 0">{{ shipFee | number:'1.0-0' }} ₫</strong>
+                  <span class="cart-ship-mode__fee free" *ngIf="shipFee === 0">Miễn phí</span>
+                </ng-container>
+              </div>
+              <label class="cart-ship-opt">
+                <input type="radio" name="cartShipMode" [checked]="(shippingCtx.selection$ | async) === 'RULE'" (change)="selectCartShipMode('RULE')" />
+                <span>Theo quy tắc ({{ sq.ruleFee ?? sq.fee | number:'1.0-0' }} ₫)</span>
+              </label>
+              <label class="cart-ship-opt" [class.is-muted]="!sq.zoneMatched || !(auth.user$ | async)?.id">
+                <input
+                  type="radio"
+                  name="cartShipMode"
+                  [disabled]="!sq.zoneMatched || !(auth.user$ | async)?.id"
+                  [checked]="(shippingCtx.selection$ | async) === 'STANDARD'"
+                  (change)="selectCartShipMode('STANDARD')"
+                />
+                <span>Standard <ng-container *ngIf="sq.zoneMatched && (auth.user$ | async)?.id">({{ sq.zoneStandardFee | number:'1.0-0' }} ₫)</ng-container></span>
+              </label>
+              <label class="cart-ship-opt" [class.is-muted]="!sq.zoneMatched || !(auth.user$ | async)?.id">
+                <input
+                  type="radio"
+                  name="cartShipMode"
+                  [disabled]="!sq.zoneMatched || !(auth.user$ | async)?.id"
+                  [checked]="(shippingCtx.selection$ | async) === 'EXPRESS'"
+                  (change)="selectCartShipMode('EXPRESS')"
+                />
+                <span>Express <ng-container *ngIf="sq.zoneMatched && (auth.user$ | async)?.id">({{ sq.zoneExpressFee | number:'1.0-0' }} ₫)</ng-container></span>
+              </label>
+              <p class="cart-ship-hint" *ngIf="!(auth.user$ | async)?.id">
+                Phí theo vùng (Standard/Express): đăng nhập và lưu địa chỉ có tỉnh trong hồ sơ, hoặc nhập đủ địa chỉ ở bước thanh toán.
+              </p>
+            </div>
+
+            <div class="summary-row" *ngIf="(taxQuote$ | async) as taxQuote">
+              <span *ngIf="taxQuote.applied">Thuế ({{ taxQuote.taxDisplayType || 'VAT' }} {{ taxQuote.taxRate }}%)</span>
+              <strong *ngIf="taxQuote.applied">{{ taxQuote.taxAmount | number:'1.0-0' }} ₫</strong>
             </div>
             
             <div class="summary-row total">
-              <span>Grand Total</span>
-              <span class="total-price-val">{{ totalPrice$ | async | number:'1.0-0' }} ₫</span>
+              <span>Tổng thanh toán</span>
+              <span class="total-price-val">{{ grandTotal$ | async | number:'1.0-0' }} ₫</span>
             </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectionHasHiddenPrice$ | async">
+              <div class="summary-row summary-split" *ngIf="hasComboInCart$ | async">
+                <span>Combo (phần hiện giá)</span>
+                <strong>{{ comboSubtotalSelectedVisible$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <p class="summary-hint" *ngIf="comboSelectionHasHidden$ | async" style="font-size: 12px; color: #9a3412; margin: 0 0 8px;">
+                * Trong combo có biến thể / sản phẩm cần liên hệ để có giá — các dòng đó không cộng vào số trên.
+              </p>
+              <div class="summary-row summary-split" *ngIf="hasRegularSelection$ | async">
+                <span>Sản phẩm lẻ (phần hiện giá)</span>
+                <strong>{{ regularSubtotalSelectedVisible$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <p class="summary-hint" *ngIf="regularSelectionHasHidden$ | async" style="font-size: 12px; color: #9a3412; margin: 0 0 8px;">
+                * Có sản phẩm lẻ cần liên hệ để có giá — các dòng đó không cộng vào số trên.
+              </p>
+              <div class="summary-row">
+                <span>Tạm tính (phần hiện giá)</span>
+                <strong>{{ selectedVisibleSubtotal$ | async | number:'1.0-0' }} ₫</strong>
+              </div>
+              <div class="summary-row invalid-msg" style="margin-top: 12px;">
+                <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
+                <span>Đơn có sản phẩm liên hệ để có giá — không thanh toán trực tuyến. Không hiển thị mã giảm giá / tổng cuối cho đến khi bỏ chọn hoặc xóa các dòng đó.</span>
+              </div>
+            </ng-container>
 
             <!-- RULE VALIDATION MESSAGES -->
             <div class="validation-section" *ngIf="(validationResults$ | async) as results">
+               <div class="invalid-msg" *ngIf="(isBlockedByDebt$ | async)">
+                 <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
+                 <span>Bạn có công nợ quá hạn. Vui lòng vào hồ sơ để thanh toán trước khi thanh toán.</span>
+               </div>
                <div class="valid-msg" *ngIf="results.length === 0 || results.every(r => r.success)">
                  <tui-icon icon="@tui.check-circle" class="success-icon"></tui-icon>
-                 Your order is eligible for checkout.
+                 <span>Đơn hàng đủ điều kiện để thanh toán.</span>
                </div>
                <div class="invalid-msg" *ngFor="let res of results" [hidden]="res.success">
                  <tui-icon icon="@tui.triangle-alert" class="warning-icon"></tui-icon>
-                 {{ res.message }}
+                 <span>{{ res.message }}</span>
                </div>
             </div>
 
@@ -114,14 +238,14 @@
               tuiButton 
               size="l" 
               class="checkout-btn" 
-              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async)"
+              [disabled]="!(isValid$ | async) || !(isAnySelected$ | async) || (isBlockedByDebt$ | async) || (selectionHasHiddenPrice$ | async) || (selectionHasUnavailableLine$ | async)"
               (click)="goToCheckout()"
             >
-              CHECKOUT NOW
+              Thanh toán ngay
             </button>
 
             <div class="payment-methods">
-              <p>We accept:</p>
+              <p>Chúng tôi chấp nhận:</p>
               <div class="method-icons">
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/momo.png" alt="momo">
                  <img src="https://vcdn.dosi-in.com/media/icons/payment/vnpay.png" alt="vnpay">
@@ -138,20 +262,120 @@
 <ng-template #emptyCart>
   <div class="empty-state">
     <div class="empty-icon">
-       <tui-icon icon="@tui.shopping-bag"></tui-icon>
+      <tui-icon icon="@tui.shopping-bag"></tui-icon>
     </div>
-    <h2>Your cart is empty</h2>
-    <p>Looks like you haven't added anything to your cart yet.<br>Explore our latest arrivals and find something you love!</p>
-    <button tuiButton size="l" appearance="primary" routerLink="/shop">EXPLORE SHOP</button>
+    <h2>Giỏ hàng trống</h2>
+    <p>Bạn chưa thêm sản phẩm nào.<br>Hãy khám phá cửa hàng và chọn món bạn thích!</p>
+    <button tuiButton size="l" appearance="primary" routerLink="/shop">Vào cửa hàng</button>
   </div>
 </ng-template>
 
 <ng-template #loading>
   <div class="loading-state">
     <div class="container py-120 text-center">
-       <p class="text-xl font-bold">Synchronizing your cart...</p>
+       <p class="text-xl font-bold">Đang đồng bộ giỏ hàng...</p>
     </div>
   </div>
 </ng-template>
 
 <app-storefront-footer></app-storefront-footer>
+
+<ng-template #cartRow let-item>
+  <div class="table-row" [class.selected]="item.selected" [class.row-combo]="item.bundleId != null">
+    <div class="col-cb">
+      <input
+        tuiCheckbox
+        type="checkbox"
+        [ngModel]="item.selected"
+        (ngModelChange)="toggleItem(item, $event)"
+      />
+    </div>
+    <div class="col-prod">
+      <div class="prod-info">
+        <img [src]="item.imageUrl || 'assets/placeholder-product.png'" alt="prod">
+        <div class="texts">
+          <a [routerLink]="['/product', item.productId]" class="prod-name">{{ item.name }}</a>
+          <div class="prod-variant" *ngIf="item.color || item.size">
+            {{ item.color }}{{ item.color && item.size ? ' / ' : '' }}{{ item.size }}
+          </div>
+          <div class="cart-line-unavailable" *ngIf="item.variantInactive || item.bundleInactive">
+            <tui-icon icon="@tui.circle-alert" class="cart-line-unavailable__icon"></tui-icon>
+            <span *ngIf="item.bundleInactive">Combo đã ngừng bán — chỉ có thể giảm SL hoặc xóa.</span>
+            <span *ngIf="!item.bundleInactive && item.variantInactive">Biến thể đã ngừng bán — chỉ có thể giảm SL hoặc xóa.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-price">
+      <div class="price-display">
+        <span class="price-val" *ngIf="!item.hidePrice">{{ item.price | number:'1.0-0' }} ₫</span>
+        <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
+        <div class="qb-trigger" *ngIf="getQB(item).length > 0 && !item.isFixedPrice">
+          <button
+            tuiButton
+            type="button"
+            size="xs"
+            appearance="flat"
+            iconStart="@tui.info"
+            [tuiDropdown]="cartQbDropdown"
+            title="Bảng giá theo số lượng"
+          ></button>
+          <ng-template #cartQbDropdown>
+            <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px;">
+              <app-quantity-break-table 
+                [breaks]="getQB(item)" 
+                [basePrice]="item.basePrice || item.price"
+                [currentQty]="item.quantity"
+                [hidePrice]="!!item.hidePrice"
+                [replacementText]="item.replacementText"
+                [hideAddToCart]="!!item.hideAddToCart">
+              </app-quantity-break-table>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+      <div class="discount-notif" *ngIf="item.discountLabel && !item.hidePrice">
+         <tui-icon icon="@tui.sparkles" class="sp-icon"></tui-icon>
+         {{ item.discountLabel }}
+      </div>
+    </div>
+    <div class="col-qty">
+      <div class="qty-readonly" *ngIf="item.bundleId != null" title="Số lượng cố định theo combo">
+        {{ item.quantity }}
+      </div>
+      <div class="qty-picker" *ngIf="item.bundleId == null">
+        <button type="button" (click)="updateQuantity(item, item.quantity - 1)" [disabled]="item.quantity <= 1">
+          <tui-icon icon="@tui.minus"></tui-icon>
+        </button>
+        <input
+          type="number"
+          [(ngModel)]="item.quantity"
+          (change)="updateQuantity(item, item.quantity)"
+          [readOnly]="item.variantInactive || item.bundleInactive"
+        >
+        <button
+          type="button"
+          (click)="updateQuantity(item, item.quantity + 1)"
+          [disabled]="item.variantInactive || item.bundleInactive"
+        >
+          <tui-icon icon="@tui.plus"></tui-icon>
+        </button>
+      </div>
+    </div>
+    <div class="col-total">
+      <span class="total-val" *ngIf="!item.hidePrice">{{ (item.price * item.quantity) | number:'1.0-0' }} ₫</span>
+      <span class="replacement-text" *ngIf="item.hidePrice">{{ item.replacementText || 'Liên hệ để có giá' }}</span>
+    </div>
+    <div class="col-actions">
+      <button
+        *ngIf="item.bundleId == null"
+        type="button"
+        class="remove-btn"
+        (click)="removeItem(item)"
+        title="Xóa"
+      >
+        <tui-icon icon="@tui.trash"></tui-icon>
+      </button>
+    </div>
+  </div>
+</ng-template>

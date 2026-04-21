@@ -35,30 +35,20 @@
           <div style="display: flex; flex-direction: column; gap: 12px;">
              <p><strong>ID:</strong> {{ selectedRule.id }}</p>
              <p><strong>{{ 'RULE.NAME' | transloco }}:</strong> {{ selectedRule.name }}</p>
-             <p><strong>Giảm giá:</strong> <span style="color: #ef4444; font-weight: 700;">{{ selectedRule.discountRate || 0 }}%</span></p>
-             <p><strong>Loại thuế:</strong> <tui-badge appearance="info" size="s">{{ selectedRule.taxDisplayType }}</tui-badge></p>
-             <p><strong>Kiểu hiển thị:</strong> {{ selectedRule.displayType }}</p>
-          </div>
-       </div>
+              <p><strong>Mức thuế:</strong> <span style="color: #ef4444; font-weight: 700;">{{ selectedRule.discountRate || 0 }}%</span></p>
+              <p><strong>Loại thuế:</strong> <tui-badge appearance="info" size="s">{{ selectedRule.taxDisplayType }}</tui-badge></p>
+           </div>
+        </div>
 
-       <div class="info-group">
-          <p style="margin: 0 0 16px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Đối tượng áp dụng</p>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-             <p><strong>Khách hàng:</strong> {{ 'ENUMS.' + selectedRule.applyCustomerType | transloco }}
-                <span *ngIf="getCustomerGroupNames(selectedRule)" style="color: #3b82f6;"> — {{ getCustomerGroupNames(selectedRule) }}</span>
-             </p>
-             <p><strong>Sản phẩm:</strong> {{ 'ENUMS.' + selectedRule.applyProductType | transloco }}
-                <span *ngIf="getCategoryNames(selectedRule)" style="color: #3b82f6;"> — Danh mục: {{ getCategoryNames(selectedRule) }}</span>
-                <span *ngIf="getProductNames(selectedRule)" style="color: #3b82f6;"> — Sản phẩm: {{ getProductNames(selectedRule) }}</span>
-             </p>
-          </div>
-       </div>
-       
-       <div class="full-width" style="grid-column: span 2; margin-top: 12px; border-top: 1px dashed #e2e8f0; padding-top: 16px;">
-          <p style="margin: 0 0 12px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Cấu hình thiết kế (JSON)</p>
-          <pre style="background: #f8fafc; padding: 16px; border-radius: 8px; overflow: auto; border: 1px solid #f1f5f9; font-size: 0.8125rem; color: #475569;">{{ selectedRule.designConfig }}</pre>
-       </div>
-    </div>
+        <div class="info-group">
+           <p style="margin: 0 0 16px; color: #64748b; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Đối tượng áp dụng</p>
+           <div style="display: flex; flex-direction: column; gap: 12px;">
+              <p><strong>Khách hàng:</strong> {{ taxApplyCustomerLabel(selectedRule.applyCustomerType) }}
+                 <span *ngIf="getCustomerGroupNames(selectedRule)" style="color: #3b82f6;"> — {{ getCustomerGroupNames(selectedRule) }}</span>
+              </p>
+           </div>
+        </div>
+     </div>
 
     <div class="form-actions" style="margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
        <button tuiButton type="button" appearance="outline" (click)="showDetails = false">{{ 'COMMON.CLOSE' | transloco }}</button>

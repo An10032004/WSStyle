@@ -1,14 +1,17 @@
 package com.fashionstore.core.service;
 
 import com.fashionstore.core.dto.response.SalesReportResponse;
+import com.fashionstore.core.dto.response.VariantReportResponse;
 import com.fashionstore.core.dto.response.VatReportResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.model.OrderItem;
+import com.fashionstore.core.model.ProductVariant;
 import com.fashionstore.core.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -26,9 +29,10 @@ public class ReportService {
         LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
         LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
 
-        List<Order> orders = orderRepository.findByCreatedAtBetween(start, end);
+        List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
 
         BigDecimal totalRevenue = orders.stream()
+                .filter(this::countsTowardPaidRevenue)
                 .map(Order::getTotalAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -60,7 +64,9 @@ public class ReportService {
                 BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
 
                 bs.setQuantity(bs.getQuantity() + qty);
-                bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
+                if (countsTowardPaidRevenue(order)) {
+                    bs.setRevenue(bs.getRevenue().add(unitPrice.multiply(new BigDecimal(qty))));
+                }
                 bestSellerMap.put(name, bs);
             }
         }
@@ -70,19 +76,43 @@ public class ReportService {
                 .limit(10)
                 .collect(Collectors.toList());
 
-        // Revenue by date
+        // Revenue by date (+ số đơn PAID / SL hàng theo ngày)
         Map<String, BigDecimal> revenueMap = new TreeMap<>();
+        Map<String, Integer> paidOrderCountByDate = new TreeMap<>();
+        Map<String, Integer> itemsQtyByDate = new TreeMap<>();
+        Map<String, List<SalesReportResponse.PaidOrderLine>> paidOrdersByDate = new TreeMap<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (Order order : orders) {
             String date = order.getCreatedAt().format(formatter);
-            revenueMap.put(date, revenueMap.getOrDefault(date, BigDecimal.ZERO).add(order.getTotalAmount()));
+            if (countsTowardPaidRevenue(order)) {
+                BigDecimal amt = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
+                revenueMap.merge(date, amt, BigDecimal::add);
+                paidOrderCountByDate.merge(date, 1, Integer::sum);
+                paidOrdersByDate.computeIfAbsent(date, k -> new ArrayList<>()).add(toPaidOrderLine(order));
+                if (order.getItems() != null) {
+                    for (OrderItem item : order.getItems()) {
+                        int q = item.getQuantity() != null ? item.getQuantity() : 0;
+                        itemsQtyByDate.merge(date, q, Integer::sum);
+                    }
+                }
+            }
         }
 
         List<SalesReportResponse.RevenuePoint> revenueByDate = revenueMap.entrySet().stream()
-                .map(e -> SalesReportResponse.RevenuePoint.builder()
+                .map(e -> {
+                    List<SalesReportResponse.PaidOrderLine> paid = paidOrdersByDate.getOrDefault(e.getKey(), List.of());
+                    String summary = paid.isEmpty()
+                        ? null
+                        : paid.stream().map(ReportService::formatPaidOrderLineFromDto).collect(Collectors.joining("\n"));
+                    return SalesReportResponse.RevenuePoint.builder()
                         .date(e.getKey())
                         .amount(e.getValue())
-                        .build())
+                        .paidOrderCount(paidOrderCountByDate.getOrDefault(e.getKey(), 0))
+                        .itemsSoldQuantity(itemsQtyByDate.getOrDefault(e.getKey(), 0))
+                        .paidOrdersSummary(summary)
+                        .paidOrders(paid.isEmpty() ? null : paid)
+                        .build();
+                })
                 .collect(Collectors.toList());
 
         return SalesReportResponse.builder()
@@ -95,11 +125,52 @@ public class ReportService {
                 .build();
     }
 
+    public VariantReportResponse getVariantSalesReport(String startDateStr, String endDateStr) {
+        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
+        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
+
+        List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
+
+        Map<Integer, VariantReportResponse.Row> map = new HashMap<>();
+        for (Order order : orders) {
+            if (order.getItems() == null) continue;
+            for (OrderItem item : order.getItems()) {
+                if (item.getProductVariant() == null) continue;
+                ProductVariant v = item.getProductVariant();
+                int qty = item.getQuantity() != null ? item.getQuantity() : 0;
+                java.math.BigDecimal itemRevenue = item.getUnitPrice() != null ? item.getUnitPrice().multiply(new java.math.BigDecimal(qty)) : java.math.BigDecimal.ZERO;
+
+                VariantReportResponse.Row row = map.get(v.getId());
+                if (row == null) {
+                    row = VariantReportResponse.Row.builder()
+                            .variantId(v.getId())
+                            .sku(v.getSku())
+                            .productName(v.getProduct() != null ? v.getProduct().getName() : null)
+                            .soldQuantity(0)
+                            .revenue(java.math.BigDecimal.ZERO)
+                            .currentStock(v.getStockQuantity() != null ? v.getStockQuantity() : 0)
+                            .build();
+                }
+
+                row.setSoldQuantity(row.getSoldQuantity() + qty);
+                if (countsTowardPaidRevenue(order)) {
+                    row.setRevenue(row.getRevenue().add(itemRevenue));
+                }
+
+                map.put(v.getId(), row);
+            }
+        }
+
+        List<VariantReportResponse.Row> rows = new ArrayList<>(map.values());
+        rows.sort((a, b) -> Integer.compare(b.getSoldQuantity(), a.getSoldQuantity()));
+        return VariantReportResponse.builder().items(rows).build();
+    }
+
     public VatReportResponse getVatReport(String startDateStr, String endDateStr) {
         LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
         LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
 
-        List<Order> orders = orderRepository.findByCreatedAtBetween(start, end);
+        List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
 
         // Sum up collected VAT from all orders
         BigDecimal collectedVat = orders.stream()
@@ -116,6 +187,55 @@ public class ReportService {
                 .payableVat(payableVat)
                 .netVat(netVat)
                 .build();
+    }
+
+    /**
+     * Doanh thu tiền mặt đã thu: PAID, đơn không hủy/từ chối, không hoàn tiền đã đóng (REFUNDED / khách xác nhận hoàn).
+     */
+    private static String buildCustomerLabel(Order o) {
+        String name = o.getFullName();
+        if (name == null || name.isBlank()) {
+            if (o.getUser() != null) {
+                if (o.getUser().getFullName() != null && !o.getUser().getFullName().isBlank()) {
+                    name = o.getUser().getFullName();
+                } else if (o.getUser().getEmail() != null && !o.getUser().getEmail().isBlank()) {
+                    name = o.getUser().getEmail();
+                }
+            }
+        }
+        if (name == null || name.isBlank()) {
+            name = "Khách";
+        }
+        return name.trim().replace('\n', ' ').replace('\r', ' ');
+    }
+
+    private static SalesReportResponse.PaidOrderLine toPaidOrderLine(Order o) {
+        BigDecimal amt = o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO;
+        return SalesReportResponse.PaidOrderLine.builder()
+                .orderId(o.getId())
+                .customerLabel(buildCustomerLabel(o))
+                .amount(amt)
+                .build();
+    }
+
+    private static String formatPaidOrderLineFromDto(SalesReportResponse.PaidOrderLine line) {
+        String amtStr = line.getAmount() != null
+                ? line.getAmount().setScale(0, RoundingMode.HALF_UP).toPlainString()
+                : "0";
+        return String.format("#%d · %s · %s₫", line.getOrderId(), line.getCustomerLabel(), amtStr);
+    }
+
+    private boolean countsTowardPaidRevenue(Order o) {
+        if (o == null) return false;
+        if ("REFUNDED".equalsIgnoreCase(o.getPaymentStatus())) return false;
+        if (!"PAID".equalsIgnoreCase(o.getPaymentStatus())) return false;
+        if (o.getRefundConfirmedByCustomerAt() != null) return false;
+        String st = o.getStatus();
+        if (st != null) {
+            String u = st.trim().toUpperCase();
+            if ("CANCELLED".equals(u) || "REJECTED".equals(u)) return false;
+        }
+        return true;
     }
 
     private LocalDateTime parseDateTime(String dateStr, LocalDateTime defaultDate) {

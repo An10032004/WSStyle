@@ -15,13 +15,18 @@ import {
   TuiInputNumber,
   TuiInputDate,
   TuiInputTime,
-  TuiCheckbox
+  TuiCheckbox,
+  TuiBadge,
+  TuiRadio
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule, TuiInputDateModule, TuiInputTimeModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TuiTextfieldControllerModule, TuiInputDateModule, TuiInputTimeModule } from '@taiga-ui/legacy';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { PricingRule } from '../../services/api.service';
 import { TuiDay, TuiTime } from '@taiga-ui/cdk';
+import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
 
 interface QuantityBracket {
   min: number;
@@ -39,15 +44,22 @@ interface QuantityBracket {
     TuiButton, 
     TuiInputNumber, 
     TuiTabs,
+    TuiRadio,
+    TuiCheckbox,
+    TuiDataList,
+    TuiDataListWrapper,
+    TuiBadge,
+    TuiDropdown,
+    TuiTextfield,
+    TuiLabel,
+    TuiIcon,
+    TranslocoModule,
+    TuiTextfieldControllerModule,
     TuiInputDateModule,
     TuiInputTimeModule,
-    TuiCheckbox,
-    TuiTextfieldControllerModule, 
-    TuiLabel, 
-    TuiIcon, 
-    TranslocoModule, 
-    TuiTextfield,
-    TuiDropdown
+    RichTextEditorComponent,
+    ProductVariantPickerComponent,
+    SelectedVariantsPreviewComponent,
   ],
   template: `
     <div class="editor-container" *transloco="let t">
@@ -61,6 +73,7 @@ interface QuantityBracket {
         <div class="config-panel">
           <nav tuiTabs [(activeItemIndex)]="activeTab" class="tabs-nav">
             <button tuiTab>{{ 'QUANTITY_BREAK.GENERAL_TAB' | transloco }}</button>
+            <button tuiTab>Đối tượng áp dụng</button>
             <button tuiTab>{{ 'QUANTITY_BREAK.DISCOUNT_TAB' | transloco }}</button>
             <button tuiTab>{{ 'QUANTITY_BREAK.TABLE_TAB' | transloco }}</button>
           </nav>
@@ -85,10 +98,8 @@ interface QuantityBracket {
               </div>
 
               <div class="field-item">
-                <tui-textfield tuiTextfieldSize="l" [tuiTextfieldCleaner]="true">
-                   <input tuiTextfield [(ngModel)]="description" [ngModelOptions]="{standalone: true}" />
-                   {{ 'QUANTITY_BREAK.DESCRIPTION' | transloco }}
-                </tui-textfield>
+                <div class="field-item__rte-label">{{ 'QUANTITY_BREAK.DESCRIPTION' | transloco }}</div>
+                <app-rich-text-editor [(ngModel)]="description" [ngModelOptions]="{standalone: true}"></app-rich-text-editor>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.DESCRIPTION_HINT' | transloco }}</div>
               </div>
 
@@ -98,6 +109,19 @@ interface QuantityBracket {
                    {{ 'RULE.PRIORITY' | transloco }}
                 </tui-textfield>
                 <div class="field-hint">{{ 'QUANTITY_BREAK.PRIORITY_HINT' | transloco }}</div>
+              </div>
+
+              <div class="field-item">
+                <div class="choice-field__label">{{ 'RULE.STATUS' | transloco }}</div>
+                <div class="radio-group-modern radio-group-modern--vertical">
+                  <label *ngFor="let s of statusOptions" class="modern-radio">
+                    <input tuiRadio type="radio" name="qbRuleStatus" [value]="s" [(ngModel)]="rule.status" [ngModelOptions]="{standalone: true}" (ngModelChange)="onTargetingChange()" />
+                    <div class="radio-content">
+                      <span class="radio-title">{{ 'ENUMS.' + s | transloco }}</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="field-hint">ACTIVE: áp dụng · INACTIVE: tạm tắt (không tính giá)</div>
               </div>
 
               <div class="date-section">
@@ -131,8 +155,83 @@ interface QuantityBracket {
               </div>
             </div>
 
-            <!-- DISCOUNT SETTINGS -->
+            <!-- TARGETING SETTINGS -->
             <div *ngSwitchCase="1" class="form-section">
+               <div class="field-item">
+                 <div class="choice-field__label">Đối tượng khách hàng áp dụng</div>
+                 <div class="radio-group-modern radio-group-modern--vertical">
+                   <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+                     <input tuiRadio type="radio" name="qbApplyCustomer" [value]="opt" [(ngModel)]="rule.applyCustomerType" [ngModelOptions]="{standalone: true}" (ngModelChange)="onTargetingChange()" />
+                     <div class="radio-content">
+                       <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+                     </div>
+                   </label>
+                 </div>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyCustomerType === 'GROUP'">
+                 <div class="choice-field__label">Chọn nhóm khách hàng</div>
+                 <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+                   <label *ngFor="let g of customerGroups" class="modern-check">
+                     <input tuiCheckbox type="checkbox" [ngModel]="isCustomerGroupSelected(g)" (ngModelChange)="toggleCustomerGroup(g, $event)" />
+                     <span>{{ g.name }}</span>
+                   </label>
+                 </div>
+               </div>
+
+               <div class="field-item">
+                 <div class="choice-field__label">Loại sản phẩm áp dụng</div>
+                 <div class="radio-group-modern radio-group-modern--vertical">
+                   <label *ngFor="let opt of productTypeOptions" class="modern-radio">
+                     <input tuiRadio type="radio" name="qbApplyProduct" [value]="opt" [(ngModel)]="rule.applyProductType" [ngModelOptions]="{standalone: true}" (ngModelChange)="onTargetingChange()" />
+                     <div class="radio-content">
+                       <span class="radio-title">{{ qbProductTypeLabel(opt) }}</span>
+                     </div>
+                   </label>
+                 </div>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyProductType === 'GROUP' || rule.applyProductType === 'CATEGORY'">
+                 <div class="choice-field__label">Chọn danh mục áp dụng</div>
+                 <div class="checkbox-list-vertical" *ngIf="categories?.length">
+                   <label *ngFor="let c of categories" class="modern-check">
+                     <input tuiCheckbox type="checkbox" [ngModel]="isCategorySelected(c)" (ngModelChange)="toggleCategory(c, $event)" />
+                     <span>{{ c.name }}</span>
+                   </label>
+                 </div>
+               </div>
+
+               <div class="field-item" *ngIf="rule.applyProductType === 'SPECIFIC'">
+                 <div class="choice-field__label">Chọn sản phẩm / biến thể áp dụng cụ thể</div>
+                 <p *ngIf="products?.length" style="margin:0 0 10px;font-size:13px;color:#64748b;">
+                   <ng-container *ngIf="selectedVariantIds.length">
+                     Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+                     <span *ngIf="selectedProducts.length"> trên <strong>{{ selectedProducts.length }}</strong> sản phẩm</span>.
+                   </ng-container>
+                   <ng-container *ngIf="!selectedVariantIds.length && selectedProducts.length">
+                     <strong>{{ selectedProducts.length }}</strong> sản phẩm (quy tắc cũ). Mở hộp chọn để giới hạn theo biến thể.
+                   </ng-container>
+                   <ng-container *ngIf="!selectedVariantIds.length && !selectedProducts.length">
+                     Chưa chọn — nhấn nút bên dưới.
+                   </ng-container>
+                 </p>
+                 <button *ngIf="products?.length" tuiButton type="button" size="s" appearance="secondary" (click)="openVariantPicker()">
+                   Chọn sản phẩm / biến thể…
+                 </button>
+               </div>
+
+               <app-product-variant-picker
+                 [(visible)]="variantPickerOpen"
+                 [products]="products"
+                 [initialVariantIds]="pickerInitialVariantIds"
+                 [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+                 (confirmed)="onVariantPickerConfirmed($event)"
+               />
+               <app-selected-variants-preview [variantIds]="selectedVariantIds" [products]="selectedProducts" />
+            </div>
+
+            <!-- DISCOUNT SETTINGS -->
+            <div *ngSwitchCase="2" class="form-section">
               <div class="bracket-list">
                 <div *ngFor="let b of brackets; let i = index; trackBy: trackByFn" class="bracket-row">
                    <div class="bracket-field">
@@ -169,7 +268,7 @@ interface QuantityBracket {
             </div>
 
             <!-- TABLE SETTINGS -->
-            <div *ngSwitchCase="2" class="form-section">
+            <div *ngSwitchCase="3" class="form-section">
                <div class="empty-tab-message">
                   <tui-icon icon="@tui.settings-2" size="xl"></tui-icon>
                   <p>{{ 'SAAS.FEATURES_JSON' | transloco }} - Coming Soon</p>
@@ -251,7 +350,16 @@ interface QuantityBracket {
     
     .form-section { display: flex; flex-direction: column; gap: 28px; }
     .field-item { display: flex; flex-direction: column; gap: 10px; }
+    .field-item__rte-label { font-weight: 600; font-size: 14px; color: #444; }
     .premium-label { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 2px; }
+    .choice-field__label { font-weight: 700; font-size: 14px; color: #2c3e50; margin: 0 0 6px; }
+    .radio-group-modern--vertical { display: flex; flex-direction: column; gap: 0.65rem; align-items: stretch; }
+    .modern-radio { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #ecf0f1; border-radius: 12px; cursor: pointer; background: #fff; }
+    .modern-radio:hover { border-color: #cbd5e0; background: #f8fafc; }
+    .radio-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .radio-title { font-weight: 600; color: #2c3e50; font-size: 14px; }
+    .checkbox-list-vertical { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; padding: 10px; border: 1px solid #ecf0f1; border-radius: 12px; background: #fafafa; }
+    .modern-check { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
     .field-hint { font-size: 13px; color: #95a5a6; margin-top: 4px; line-height: 1.4; }
     
     .section-title { margin: 16px 0 8px 0; color: #2c3e50; border-left: 4px solid #3498db; padding-left: 12px; }
@@ -306,10 +414,30 @@ interface QuantityBracket {
 })
 export class QuantityBreakEditorComponent implements OnInit {
   @Input() rule!: Partial<PricingRule>;
+  @Input() customerGroups: any[] = [];
+  @Input() categories: any[] = [];
+  @Input() products: any[] = [];
+  
+  @Input() selectedCustomerGroups: any[] = [];
+  @Input() selectedCategories: any[] = [];
+  @Input() selectedProducts: any[] = [];
+  @Input() selectedVariantIds: number[] = [];
+
+  @Output() selectedCustomerGroupsChange = new EventEmitter<any[]>();
+  @Output() selectedCategoriesChange = new EventEmitter<any[]>();
+  @Output() selectedProductsChange = new EventEmitter<any[]>();
+  @Output() selectedVariantIdsChange = new EventEmitter<number[]>();
+  @Output() targetingChanged = new EventEmitter<void>();
+
   @Output() save = new EventEmitter<Partial<PricingRule>>();
   @Output() cancel = new EventEmitter<void>();
   
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly transloco = inject(TranslocoService);
+
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
 
   activeTab = 0;
   message = '';
@@ -318,6 +446,14 @@ export class QuantityBreakEditorComponent implements OnInit {
   startDate: TuiDay | null = null;
   startTime: TuiTime | null = null;
   hasEndDate = false;
+
+  customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'];
+  productTypeOptions = ['ALL', 'SPECIFIC', 'GROUP'];
+  statusOptions = ['ACTIVE', 'INACTIVE'];
+
+  readonly stringifyGroup = (item: any): string => item.name || '';
+  readonly stringifyCategory = (item: any): string => item.name || '';
+  readonly stringifyProduct = (item: any): string => item.name ? `${item.name} (${item.productCode})` : '';
 
   brackets: QuantityBracket[] = [
     { min: 1, max: 30, discount: 5 },
@@ -328,11 +464,76 @@ export class QuantityBreakEditorComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  onTargetingChange() {
+    this.selectedCustomerGroupsChange.emit(this.selectedCustomerGroups);
+    this.selectedCategoriesChange.emit(this.selectedCategories);
+    this.selectedProductsChange.emit(this.selectedProducts);
+    this.selectedVariantIdsChange.emit(this.selectedVariantIds);
+    this.targetingChanged.emit();
+    this.cdr.markForCheck();
+  }
+
+  qbProductTypeLabel(opt: string): string {
+    if (opt === 'GROUP') {
+      return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_GROUP');
+    }
+    if (opt === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_PRODUCT');
+    }
+    return this.transloco.translate('ENUMS.' + opt);
+  }
+
+  isCustomerGroupSelected(g: any): boolean {
+    return this.selectedCustomerGroups.some(x => x.id === g.id);
+  }
+
+  toggleCustomerGroup(g: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCustomerGroupSelected(g)) {
+        this.selectedCustomerGroups = [...this.selectedCustomerGroups, g];
+      }
+    } else {
+      this.selectedCustomerGroups = this.selectedCustomerGroups.filter(x => x.id !== g.id);
+    }
+    this.onTargetingChange();
+  }
+
+  isCategorySelected(c: any): boolean {
+    return this.selectedCategories.some(x => x.id === c.id);
+  }
+
+  toggleCategory(c: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCategorySelected(c)) {
+        this.selectedCategories = [...this.selectedCategories, c];
+      }
+    } else {
+      this.selectedCategories = this.selectedCategories.filter(x => x.id !== c.id);
+    }
+    this.onTargetingChange();
+  }
+
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...(this.selectedVariantIds || [])];
+    this.pickerInitialProductIdsOnly = (this.selectedProducts || []).map((p: any) => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
+  }
+
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProducts = (this.products || []).filter((p: any) => ev.productIds.includes(p.id));
+    this.onTargetingChange();
+  }
+
   trackByFn(index: number) {
     return index;
   }
 
   ngOnInit() {
+    if (!this.rule.status) {
+      this.rule.status = 'ACTIVE';
+    }
     if (this.rule.actionConfig) {
       try {
         const config = JSON.parse(this.rule.actionConfig);

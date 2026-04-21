@@ -1,41 +1,15 @@
-@use '../product-list/product-list' as *;
+@use '../../shared/styles/admin-page' as *;
 
-.staff-container {
-  padding: 24px;
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
-
-  .header-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-
-    .title-group {
-      h2 {
-        margin: 0;
-        font-weight: 700;
-        color: #1e293b;
-      }
-      p {
-        margin: 4px 0 0;
-        color: #64748b;
-      }
-    }
-  }
-
-  .table-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    overflow: hidden;
-    padding: 1px;
-  }
+.staff-page > .grid-wrapper {
+  margin: 0;
 }
 
 .form-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
@@ -45,98 +19,128 @@
 }
 
 .form-card {
-  background: white;
+  background: var(--tui-background-elevation-1);
   border-radius: 16px;
-  width: 450px;
-  max-width: 95vw;
+  width: min(520px, 95vw);
+  max-height: 90vh;
+  overflow: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   animation: slideUp 0.3s ease-out;
+  border: 1px solid var(--tui-border-normal);
+}
 
-  .form-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f8fafc;
+.form-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--tui-border-normal);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--tui-background-base);
 
-    h3 {
-      margin: 0;
-      color: #1e293b;
-      font-weight: 600;
-    }
+  h3 {
+    margin: 0;
+    color: var(--tui-text-primary);
+    font-weight: 650;
+  }
+}
+
+.form-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .tui-form__row {
+    margin: 0;
   }
 
-  .form-content {
-    padding: 24px;
+  tui-textfield,
+  tui-select {
+    width: 100%;
+  }
+
+  .role-field {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-
-    .tui-form__row {
-      margin: 0;
-    }
-
-    tui-textfield, tui-select {
-        width: 100%;
-    }
+    gap: 0.65rem;
   }
 
-  .form-actions {
-    padding: 16px 24px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+  .role-field__label {
+    font-weight: 700;
+    color: var(--tui-text-primary);
+    font-size: 0.9rem;
   }
+}
+
+.form-card .form-actions {
+  padding: 1rem 1.5rem;
+  background: var(--tui-background-base);
+  border-top: 1px solid var(--tui-border-normal);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0;
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .view-detail {
-    padding: 8px;
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 12px 0;
-        border-bottom: 1px solid #f1f5f9;
-        
-        &:last-child {
-            border-bottom: none;
-        }
+  padding: 0.5rem;
+}
 
-        .label {
-            color: #64748b;
-            font-weight: 500;
-        }
-        
-        .value {
-            color: #1e293b;
-            font-weight: 600;
-        }
-    }
-    
-    .tui-form__buttons {
-        margin-top: 24px;
-        display: flex;
-        justify-content: flex-end;
-    }
+.view-detail .detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--tui-border-normal);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .label {
+    color: var(--tui-text-secondary);
+    font-weight: 650;
+  }
+
+  .value {
+    color: var(--tui-text-primary);
+    font-weight: 600;
+  }
+}
+
+.view-detail .tui-form__buttons {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .dialog-content {
-    h3 { margin-bottom: 12px; color: #1e293b; }
-    p { color: #64748b; line-height: 1.5; }
-    .dialog-actions {
-        margin-top: 24px;
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-    }
+  h3 {
+    margin-bottom: 0.75rem;
+    color: var(--tui-text-primary);
+  }
+
+  p {
+    color: var(--tui-text-secondary);
+    line-height: 1.5;
+  }
+
+  .dialog-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
 }

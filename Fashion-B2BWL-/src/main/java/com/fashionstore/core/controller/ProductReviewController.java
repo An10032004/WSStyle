@@ -23,9 +23,12 @@ public class ProductReviewController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.fashionstore.core.repository.ProductRepository productRepository;
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductReviewResponseDTO>>> getAll() {
-        List<ProductReviewResponseDTO> dtos = repository.findAll().stream()
+        List<ProductReviewResponseDTO> dtos = repository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(dtos));
@@ -33,7 +36,7 @@ public class ProductReviewController {
 
     @GetMapping("/product/{productId}")
     public ResponseEntity<ApiResponse<List<ProductReviewResponseDTO>>> getByProduct(@PathVariable("productId") Integer productId) {
-        List<ProductReviewResponseDTO> dtos = repository.findByProductId(productId).stream()
+        List<ProductReviewResponseDTO> dtos = repository.findByProductIdOrderByCreatedAtDesc(productId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(dtos));
@@ -44,9 +47,20 @@ public class ProductReviewController {
                 .map(u -> u.getFullName() != null ? u.getFullName() : "Khách hàng #" + u.getId())
                 .orElse("Người dùng ẩn danh");
 
+        String productName = "Sản phẩm #" + review.getProductId();
+        String productImage = null;
+
+        com.fashionstore.core.model.Product product = productRepository.findById(review.getProductId()).orElse(null);
+        if (product != null) {
+            productName = product.getName();
+            productImage = product.getImageUrl();
+        }
+
         return ProductReviewResponseDTO.builder()
                 .id(review.getId())
                 .productId(review.getProductId())
+                .productName(productName)
+                .productImage(productImage)
                 .userId(review.getUserId())
                 .userName(userName)
                 .rating(review.getRating())

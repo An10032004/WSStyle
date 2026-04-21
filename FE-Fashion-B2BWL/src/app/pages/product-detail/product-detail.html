@@ -32,7 +32,7 @@
       <div class="info-section">
         <div class="brand-link">Thương hiệu: <span>{{ brandName }}</span></div>
         <h1 class="product-name">{{ product.name }}</h1>
-        <div class="sku-info">SKU: {{ selectedVariant?.sku || product.productCode }}</div>
+        <div class="sku-info">Mã SKU: {{ selectedVariant?.sku || product.productCode }}</div>
 
         <div class="pricing-card" [class.rule-active]="isB2BApplied">
           <div class="rule-badge" *ngIf="isB2BApplied">
@@ -40,34 +40,13 @@
             {{ b2bRule.ruleName }}{{ b2bRule.parsedConfig?.discountValue ? ' (-' + b2bRule.parsedConfig.discountValue + '%)' : '' }}
           </div>
           <div class="main-price" *ngIf="!product.hidePrice; else hiddenPrice">
-            <!-- BOTH PRICES MODE -->
-            <ng-container *ngIf="product.taxDisplayLabel === 'BOTH_PRICES'; else singlePrice">
-               <div class="combined-prices">
-                 <div class="price-row">
-                    <span class="current">{{ currentPrice | number:'1.0-0' }} ₫</span>
-                    <span class="tag incl" *ngIf="!isVariantPriceApplied">(Đã bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
-                 </div>
-                 <div class="price-row excl" *ngIf="isB2BApplied || isQBApplied">
-                    <span class="val">{{ currentPrice / 1.1 | number:'1.0-0' }} ₫</span>
-                    <span class="tag">(Chưa bao gồm {{ product.taxDisplayType || 'VAT' }})</span>
-                 </div>
-               </div>
-            </ng-container>
-
-            <!-- SINGLE PRICE MODE -->
-            <ng-template #singlePrice>
                <span class="current">
                  {{ currentPrice | number:'1.0-0' }} ₫
                </span>
                
-               <span class="original" *ngIf="isVariantPriceApplied && (selectedVariant?.price || 0) > currentPrice">
+               <span class="original" *ngIf="(selectedVariant?.price || 0) > currentPrice">
                  {{ selectedVariant?.price | number:'1.0-0' }} ₫
                </span>
-               
-               <span class="tax-info" *ngIf="!isVariantPriceApplied && product.taxDisplayLabel && product.taxDisplayLabel !== 'BOTH_PRICES'">
-                 ({{ product.taxDisplayLabel === 'EXCLUDE_TAX_ONLY' ? 'Chưa bao gồm ' : 'Đã bao gồm ' }}{{ product.taxDisplayType || 'thuế' }})
-               </span>
-            </ng-template>
           </div>
           <ng-template #hiddenPrice>
             <div class="main-price">
@@ -93,47 +72,78 @@
           </div>
         </div>
 
-        <div class="variant-selector" *ngIf="availableColors.length > 0">
-          <div class="selector-label">Màu sắc | <span>{{ selectedColor || 'Chưa chọn' }}</span></div>
-          <div class="swatch-group">
-            <div 
-              class="color-circle" 
-              *ngFor="let color of availableColors"
-              [class.active]="selectedColor === color"
-              [class.light-color]="color === 'White' || color === 'Trắng' || color === 'Cream'"
-              (click)="selectColor(color)"
-              [title]="color"
-              [style.background-color]="getColorHex(color)"
+        <div class="pdp-bundles-wrap">
+          <h3 class="pdp-bundles__title">Combo gồm biến thể đang chọn</h3>
+          <p class="pdp-bundles__loading" *ngIf="!productBundlesLoaded">Đang tải danh sách combo…</p>
+          <ng-container *ngIf="productBundlesLoaded">
+            <ng-container *ngIf="cartBundleIds$ | async as bidSet">
+              <ul class="pdp-bundles__list" *ngIf="productBundles.length">
+                <li *ngFor="let b of productBundles">
+                  <a [routerLink]="['/bundle', b.id]" class="pdp-bundles__row">
+                    <span class="pdp-bundles__name">{{ b.name }}</span>
+                    <span class="pdp-bundles__badge" *ngIf="bidSet.has(b.id)">Đã có trong giỏ</span>
+                    <span class="pdp-bundles__price" *ngIf="b.newPrice != null">
+                      {{ b.newPrice | number:'1.0-0' }} ₫
+                    </span>
+                    <tui-icon icon="@tui.chevron-right" class="pdp-bundles__chev"></tui-icon>
+                  </a>
+                </li>
+              </ul>
+              <p class="pdp-bundles__empty" *ngIf="!productBundles.length">
+                <ng-container *ngIf="!selectedVariant?.id">
+                  Chọn đủ màu / size (hoặc biến thể khác) để xem combo — hệ thống lọc combo theo đúng biến thể đang chọn.
+                </ng-container>
+                <ng-container *ngIf="selectedVariant?.id">
+                  Chưa có combo đang hoạt động nào gồm đúng biến thể này. Trong admin, mỗi dòng combo phải gán đúng variant (variant_id).
+                </ng-container>
+              </p>
+            </ng-container>
+          </ng-container>
+        </div>
+        
+        <!-- QUANTITY BREAK TABLE (Show if QB is the winner, or if NO rules exist and we have product-level QB) -->
+        <app-quantity-break-table 
+           *ngIf="winnerType !== 'B2B' && quantityBreaks && quantityBreaks.length > 0"
+           [breaks]="quantityBreaks" 
+           [basePrice]="selectedVariant?.price || product?.basePrice || 0"
+           [currentQty]="quantity"
+           [hidePrice]="!!product?.hidePrice"
+           [replacementText]="product?.replacementText"
+           [hideAddToCart]="!!product?.hideAddToCart"
+           [buyDisabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
+           (onBuy)="handleTableBuy($event)">
+        </app-quantity-break-table>
+
+        <div class="variant-selector" *ngFor="let p of pdpDimPickers; trackBy: trackPdpDim">
+          <div class="selector-label">
+            <span class="selector-label__k">{{ p.label }}</span>
+            <span class="selector-label__sep" aria-hidden="true">·</span>
+            <span class="selector-label__v">{{ p.selected || ('PRODUCT_DETAIL.SELECT_PLACEHOLDER' | transloco) }}</span>
+          </div>
+          <div class="swatch-group" *ngIf="p.ui === 'swatch'">
+            <div
+              class="color-circle"
+              *ngFor="let val of p.values"
+              [class.active]="p.selected === val"
+              [class.unavailable]="!pdpDimHasOpenSale(p.dim, val)"
+              [class.light-color]="p.dim === 'color' && isLightSwatchValue(val)"
+              (click)="onPdpDimPick(p.dim, val)"
+              [title]="val"
+              [style.background-color]="getColorHex(val)"
             >
-              <tui-icon icon="@tui.check" *ngIf="selectedColor === color"></tui-icon>
+              <tui-icon icon="@tui.check" *ngIf="p.selected === val"></tui-icon>
             </div>
           </div>
-        </div>
-
-        <div class="variant-selector" *ngIf="availableSizes.length > 0">
-          <div class="selector-label">Kích thước | <span>{{ selectedSize || 'Chưa chọn' }}</span></div>
-          <div class="size-options">
-            <button 
-              class="size-btn" 
-              *ngFor="let size of availableSizes"
-              [class.active]="selectedSize === size"
-              (click)="selectSize(size)"
+          <div class="size-options" *ngIf="p.ui === 'buttons'">
+            <button
+              type="button"
+              class="size-btn"
+              *ngFor="let val of p.values"
+              [class.active]="p.selected === val"
+              [class.unavailable]="!pdpDimHasOpenSale(p.dim, val)"
+              (click)="onPdpDimPick(p.dim, val)"
             >
-              {{ size }}
-            </button>
-          </div>
-        </div>
-
-        <div class="variant-selector" *ngIf="availableWeights.length > 0">
-          <div class="selector-label">Cân nặng | <span>{{ selectedWeight || 'Chưa chọn' }}</span></div>
-          <div class="size-options">
-            <button 
-              class="size-btn" 
-              *ngFor="let weight of availableWeights"
-              [class.active]="selectedWeight === weight"
-              (click)="selectWeight(weight)"
-            >
-              {{ weight }}
+              {{ val }}
             </button>
           </div>
         </div>
@@ -141,45 +151,40 @@
 
         <!-- PRICE CHANGE NOTIFICATION -->
         <tui-notification
+          *ngIf="isSelectedVariantInactive"
+          status="warning"
+          icon="@tui.circle-alert"
+          class="price-notif"
+        >
+          <strong>Ngừng bán:</strong> Biến thể đang chọn không còn mở bán. Bạn vẫn có thể xem thông tin; vui lòng chọn biến thể khác hoặc liên hệ nhân viên.
+        </tui-notification>
+
+        <tui-notification
           *ngIf="isVariantPriceApplied"
           status="info"
           class="price-notif"
         >
           <strong>Giá đã thay đổi:</strong> Bạn đang chọn một biến thể có mức giá riêng. 
-          Giá gốc là {{ product?.basePrice | number:'1.0-0' }} ₫.
         </tui-notification>
-
-        <!-- QUANTITY BREAK TABLE -->
-        <div class="qb-section" *ngIf="quantityBreaks.length > 0">
-           <div class="qb-title">
-             <tui-icon icon="@tui.tags"></tui-icon>
-             Mua càng nhiều, giá càng rẻ (Ưu đãi mua sỉ)
-           </div>
-           <div class="qb-table-wrapper">
-             <table class="qb-table">
-               <thead>
-                 <tr>
-                   <th>Số lượng</th>
-                   <th>Giá đơn vị</th>
-                   <th>Giảm</th>
-                 </tr>
-               </thead>
-               <tbody>
-                  <tr *ngFor="let b of quantityBreaks">
-                    <td>{{ b.min }}{{ b.max ? ' - ' + b.max : '+' }} sản phẩm</td>
-                    <td class="price-val">
-                      {{ ((product.calculatedPrice || product.basePrice) * (1 - b.discount/100)) | number:'1.0-0' }} ₫
-                    </td>
-                    <td class="discount-val">-{{ b.discount }}%</td>
-                  </tr>
-               </tbody>
-             </table>
-           </div>
-        </div>
 
         <div class="moq-warning" *ngIf="isMoqViolation">
           <tui-notification status="warning" icon="@tui.circle-alert" class="anim-fade">
              Bạn cần mua tối thiểu {{ activeOrderLimit?.limitValue }} sản phẩm cho mặt hàng này.
+          </tui-notification>
+        </div>
+        <div class="moq-warning" *ngIf="isMaxQtyViolation">
+          <tui-notification status="warning" icon="@tui.circle-alert" class="anim-fade">
+             Số lượng vượt mức tối đa {{ activeMaxQtyLimit?.limitValue }} sản phẩm cho mặt hàng này (theo quy định đơn hàng).
+          </tui-notification>
+        </div>
+        <div class="moq-warning order-limit-policy-info" *ngIf="showMoqPolicyNotice">
+          <tui-notification status="info" icon="@tui.info" class="anim-fade">
+            Quy định đơn hàng: mua tối thiểu <strong>{{ activeOrderLimit?.limitValue }}</strong> sản phẩm mỗi lần cho mặt hàng này.
+          </tui-notification>
+        </div>
+        <div class="moq-warning order-limit-policy-info" *ngIf="showMaxQtyPolicyNotice">
+          <tui-notification status="info" icon="@tui.info" class="anim-fade">
+            Quy định đơn hàng: tối đa <strong>{{ activeMaxQtyLimit?.limitValue }}</strong> sản phẩm mỗi lần cho mặt hàng này.
           </tui-notification>
         </div>
 
@@ -193,12 +198,11 @@
         </div>
 
         <div class="main-cta" *ngIf="!product.hideAddToCart">
-          <button 
-             tuiButton 
-             appearance="secondary" 
-             class="buy-btn" 
-             (click)="addToCart()"
-             [disabled]="isMoqViolation"
+          <button
+            type="button"
+            class="buy-btn"
+            (click)="addToCart()"
+            [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
           >
             Thêm vào giỏ hàng
           </button>
@@ -226,7 +230,7 @@
             <span class="val">{{ brandName }}</span>
           </div>
           <div class="spec-row">
-            <span class="label">SKU</span>
+            <span class="label">Mã SKU</span>
             <span class="val">{{ selectedVariant?.sku || product.productCode }}</span>
           </div>
         </div>
@@ -315,6 +319,38 @@
     </div>
   </div>
 
+  <section
+    class="product-extra"
+    *ngIf="product && relatedProducts.length"
+  >
+    <div class="product-detail-container">
+      <div class="product-extra__inner">
+        <div class="product-extra__block" *ngIf="relatedProducts.length">
+          <h2 class="product-extra__title">Sản phẩm liên quan</h2>
+          <div class="product-extra__related">
+            <a
+              *ngFor="let rp of relatedProducts"
+              [routerLink]="['/product', rp.id]"
+              class="product-extra__related-card"
+            >
+              <img
+                [src]="rp.imageUrl || 'assets/placeholder-product.png'"
+                [alt]="rp.name"
+              />
+              <span class="product-extra__related-name">{{ rp.name }}</span>
+              <span
+                class="product-extra__related-price"
+                *ngIf="!rp.hidePrice"
+              >
+                {{ (rp.calculatedPrice ?? rp.basePrice) | number:'1.0-0' }} ₫
+              </span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- STICKY BOTTOM BAR -->
   <div class="sticky-bar" *ngIf="product">
     <div class="container">
@@ -334,18 +370,27 @@
         <div class="moq-mini-warning" *ngIf="isMoqViolation">
            Cần mua tối thiểu {{ activeOrderLimit?.limitValue }}
         </div>
+        <div class="moq-mini-warning" *ngIf="isMaxQtyViolation">
+           Vượt tối đa {{ activeMaxQtyLimit?.limitValue }} sản phẩm / lần
+        </div>
+        <div class="moq-mini-info" *ngIf="showMoqPolicyNotice">
+          Tối thiểu {{ activeOrderLimit?.limitValue }} / lần
+        </div>
+        <div class="moq-mini-info" *ngIf="showMaxQtyPolicyNotice">
+          Tối đa {{ activeMaxQtyLimit?.limitValue }} / lần
+        </div>
         <div class="total-price" *ngIf="!product.hidePrice">
           Tạm tính: 
           <span>
             {{ (currentPrice * quantity) | number:'1.0-0' }} ₫
           </span>
         </div>
-        <button 
-           class="sticky-buy-btn" 
-           *ngIf="!product.hideAddToCart" 
-           (click)="addToCart()"
-           [disabled]="isMoqViolation"
-        >
+              <button 
+                class="sticky-buy-btn" 
+                *ngIf="!product.hideAddToCart" 
+                (click)="addToCart()"
+                [disabled]="orderLimitBuyBlocked || isSelectedVariantOutOfStock || isSelectedVariantInactive"
+              >
           Thêm vào giỏ hàng
         </button>
         <div class="sticky-replacement" *ngIf="product.hidePrice">

@@ -7,10 +7,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import com.fashionstore.core.repository.ProductVariantRepository;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -20,7 +25,11 @@ import org.springframework.data.domain.PageImpl;
 public class ProductMapperService {
 
     private final RuleCoreService ruleCoreService;
+    private final ProductVariantRepository productVariantRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** Giá từ biến thể bán được đầu tiên (MIN id), khớp discount/price/adjustment như giỏ hàng; có fallback khi SKU đầu không có giá dương. */
+    private record FirstVariantPricing(BigDecimal discountPrice, BigDecimal unitPrice, BigDecimal adjustment) {}
 
     public List<ProductResponseDTO> toDTOs(List<Product> products, User user) {
         if (products == null || products.isEmpty()) return new ArrayList<>();
@@ -32,8 +41,14 @@ public class ProductMapperService {
         List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
         List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
 
+        List<Integer> productIds = products.stream().map(Product::getId).filter(Objects::nonNull).toList();
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+        Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(productIds);
+        Map<Integer, FirstVariantPricing> listingVariantPricing =
+                mergeListingVariantPricingForProducts(products, variantCounts, primary);
+
         return products.stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts, listingVariantPricing))
                 .toList();
     }
 
@@ -46,44 +61,186 @@ public class ProductMapperService {
         List<TaxDisplayRule> taxRules = ruleCoreService.getAllActiveTaxRules();
         List<NetTermRule> netTermRules = ruleCoreService.getAllActiveNetTermRules();
 
-        List<ProductResponseDTO> dtos = productsPage.getContent().stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules))
+        List<Product> pageProducts = productsPage.getContent();
+        List<Integer> productIds = pageProducts.stream().map(Product::getId).filter(Objects::nonNull).toList();
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+        Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(productIds);
+        Map<Integer, FirstVariantPricing> listingVariantPricing =
+                mergeListingVariantPricingForProducts(pageProducts, variantCounts, primary);
+
+        List<ProductResponseDTO> dtos = pageProducts.stream()
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts, listingVariantPricing))
                 .toList();
 
         return new PageImpl<>(dtos, productsPage.getPageable(), productsPage.getTotalElements());
     }
 
     public ProductResponseDTO toDTO(Product product, User user) {
-        return toDTO(product, user, 
+        List<Integer> pids = product.getId() == null ? List.of() : List.of(product.getId());
+        Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(pids);
+        Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(pids);
+        Map<Integer, FirstVariantPricing> listingVariantPricing =
+                mergeListingVariantPricingForProducts(List.of(product), variantCounts, primary);
+        return toDTO(product, user,
             ruleCoreService.getAllActiveHidePriceRules(),
             ruleCoreService.getAllActiveSaleCampaigns(),
             ruleCoreService.getAllActivePricingRules(),
             ruleCoreService.getAllActiveTaxRules(),
-            ruleCoreService.getAllActiveNetTermRules()
+            ruleCoreService.getAllActiveNetTermRules(),
+            variantCounts,
+            listingVariantPricing
         );
     }
 
-    public ProductResponseDTO toDTO(Product product, User user, 
+    private Map<Integer, Integer> fetchVariantCountsByProductIds(List<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = productVariantRepository.countByProductIdGrouped(productIds);
+        Map<Integer, Integer> out = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] != null && row[1] != null) {
+                out.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
+            }
+        }
+        return out;
+    }
+
+    private Map<Integer, FirstVariantPricing> fetchFirstVariantPricingByProductIds(List<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = productVariantRepository.findFirstSellableVariantPricingByProductIds(productIds);
+        return rowsToVariantPricingMap(rows);
+    }
+
+    private static Map<Integer, FirstVariantPricing> rowsToVariantPricingMap(List<Object[]> rows) {
+        Map<Integer, FirstVariantPricing> out = new HashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (Object[] row : rows) {
+            if (row == null || row.length < 4 || row[0] == null) {
+                continue;
+            }
+            int pid = ((Number) row[0]).intValue();
+            out.put(pid, new FirstVariantPricing(toBigDecimal(row[1]), toBigDecimal(row[2]), toBigDecimal(row[3])));
+        }
+        return out;
+    }
+
+    /**
+     * Nếu biến thể MIN(id) không cho giá niêm yết &gt; 0 nhưng vẫn có SKU: thay bằng biến thể MIN(id) trong tập «có giá dương»
+     * (tránh 0 đ trên shop khi base sản phẩm = 0 hoặc SKU đầu không gán price).
+     */
+    private Map<Integer, FirstVariantPricing> mergeListingVariantPricingForProducts(
+            List<Product> products,
+            Map<Integer, Integer> variantCounts,
+            Map<Integer, FirstVariantPricing> primary) {
+        Map<Integer, FirstVariantPricing> out = new HashMap<>(primary != null ? primary : Map.of());
+        if (products == null || products.isEmpty()) {
+            return out;
+        }
+        List<Integer> badIds = new ArrayList<>();
+        for (Product p : products) {
+            Integer id = p.getId();
+            if (id == null) {
+                continue;
+            }
+            int vc = variantCounts == null ? 0 : variantCounts.getOrDefault(id, 0);
+            if (vc <= 0) {
+                continue;
+            }
+            BigDecimal pb = Optional.ofNullable(p.getBasePrice()).orElse(BigDecimal.ZERO);
+            FirstVariantPricing fp = out.get(id);
+            BigDecimal anchor = resolveListingAnchor(pb, fp);
+            if (anchor.compareTo(BigDecimal.ZERO) <= 0) {
+                badIds.add(id);
+            }
+        }
+        if (badIds.isEmpty()) {
+            return out;
+        }
+        List<Object[]> rows = productVariantRepository.findFirstSellableVariantWithPositiveListPriceByProductIds(badIds);
+        Map<Integer, FirstVariantPricing> secondary = rowsToVariantPricingMap(rows);
+        for (Integer bid : badIds) {
+            FirstVariantPricing fp2 = secondary.get(bid);
+            if (fp2 != null) {
+                out.put(bid, fp2);
+            }
+        }
+        return out;
+    }
+
+    private static BigDecimal toBigDecimal(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof BigDecimal b) {
+            return b;
+        }
+        if (o instanceof Number n) {
+            return BigDecimal.valueOf(n.doubleValue());
+        }
+        try {
+            return new BigDecimal(o.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Giá niêm yết trên grid: ưu tiên discount_price &gt; 0, sau đó price &gt; 0, không thì base sản phẩm + price_adjustment
+     * (cùng thứ tự ưu tiên như FE khi thêm giỏ với biến thể).
+     */
+    private static BigDecimal resolveListingAnchor(BigDecimal productBase, FirstVariantPricing fp) {
+        if (fp == null) {
+            return productBase;
+        }
+        if (fp.discountPrice() != null && fp.discountPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return fp.discountPrice().setScale(0, RoundingMode.HALF_UP);
+        }
+        if (fp.unitPrice() != null && fp.unitPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return fp.unitPrice().setScale(0, RoundingMode.HALF_UP);
+        }
+        BigDecimal adj = fp.adjustment() != null ? fp.adjustment() : BigDecimal.ZERO;
+        return productBase.add(adj).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    public ProductResponseDTO toDTO(Product product, User user,
                                     List<HidePriceRule> hidePriceRules,
                                     List<SaleCampaign> campaigns,
                                     List<PricingRule> pricingRules,
                                     List<TaxDisplayRule> taxRules,
-                                    List<NetTermRule> netTermRules) {
+                                    List<NetTermRule> netTermRules,
+                                    Map<Integer, Integer> variantCountsByProductId,
+                                    Map<Integer, FirstVariantPricing> firstVariantPricingByProductId) {
         Integer productId = product.getId();
         Integer categoryId = product.getCategoryId();
+        int variantCount = variantCountsByProductId == null || productId == null
+                ? 0
+                : variantCountsByProductId.getOrDefault(productId, 0);
+
+        BigDecimal productBase = Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO);
+        FirstVariantPricing fp = firstVariantPricingByProductId == null || productId == null
+                ? null
+                : firstVariantPricingByProductId.get(productId);
+        BigDecimal listAnchor = resolveListingAnchor(productBase, fp);
 
         ProductResponseDTO dto = ProductResponseDTO.builder()
                 .id(product.getId())
                 .categoryId(categoryId)
                 .productCode(product.getProductCode())
                 .name(product.getName())
-                .basePrice(product.getBasePrice())
-                .calculatedPrice(product.getBasePrice())
+                .basePrice(listAnchor)
+                .calculatedPrice(listAnchor)
                 .imageUrl(product.getImageUrl())
                 .imageUrls(product.getImageUrls())
                 .brand(product.getBrand())
                 .material(product.getMaterial())
                 .origin(product.getOrigin())
+                .variantDimensionLabels(product.getVariantDimensionLabels())
+                .variantCount(variantCount)
                 .hidePrice(false)
                 .hideAddToCart(false)
                 .isNetTermEligible(false)
@@ -109,18 +266,28 @@ public class ProductMapperService {
         });
 
         // 3. Apply Pricing Rules
+        // First, find the best matching Quantity Break rule for UI discovery
+        pricingRules.stream()
+                .filter(r -> "QUANTITY_BREAK".equals(r.getRuleType()))
+                .filter(r -> ruleCoreService.isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
+                .filter(r -> ruleCoreService.isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .min((r1, r2) -> (r1.getPriority() != null ? r1.getPriority() : 999) - (r2.getPriority() != null ? r2.getPriority() : 999))
+                .ifPresent(qbRule -> {
+                    dto.setQuantityBreaksJson(qbRule.getActionConfig());
+                });
+
+        // Apply best pricing rule (Lowest priority wins)
         ruleCoreService.findBestPricingRule(productId, categoryId, user, pricingRules).ifPresent(rule -> {
             if ("QUANTITY_BREAK".equals(rule.getRuleType())) {
-                dto.setQuantityBreaksJson(rule.getActionConfig());
                 dto.setDiscountLabel("Ưu đãi mua sỉ");
             } else {
                 BigDecimal price = dto.getCalculatedPrice();
                 if ("PERCENTAGE".equals(rule.getDiscountType()) && rule.getDiscountValue() != null) {
                     BigDecimal factor = BigDecimal.valueOf(100).subtract(rule.getDiscountValue())
                             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                    dto.setCalculatedPrice(price.multiply(factor));
+                    dto.setCalculatedPrice(price.multiply(factor).setScale(0, RoundingMode.HALF_UP));
                 } else if (("FIXED".equals(rule.getDiscountType()) || "FIXED_AMOUNT".equals(rule.getDiscountType())) && rule.getDiscountValue() != null) {
-                    dto.setCalculatedPrice(price.subtract(rule.getDiscountValue()));
+                    dto.setCalculatedPrice(price.subtract(rule.getDiscountValue()).setScale(0, RoundingMode.HALF_UP));
                 }
                 dto.setDiscountLabel(rule.getName());
             }

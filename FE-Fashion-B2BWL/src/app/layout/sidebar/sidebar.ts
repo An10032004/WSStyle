@@ -1,17 +1,19 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TuiIcon } from '@taiga-ui/core';
-import { TuiNavigation } from '@taiga-ui/layout';
 import { TranslocoModule } from '@jsverse/transloco';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, TuiNavigation, TuiIcon, TranslocoModule],
+  imports: [CommonModule, RouterLink, RouterLinkActive, TuiIcon, TranslocoModule],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.scss',
+  host: {
+    '[class.expanded]': 'expanded',
+  },
 })
 export class SidebarComponent {
   @Input() expanded = true;
@@ -19,14 +21,30 @@ export class SidebarComponent {
 
   private readonly auth = inject(AuthService);
 
+  /** True if any of the modules is visible — used to hide empty sidebar sections. */
+  hasAny(...modules: string[]): boolean {
+    return modules.some((m) => this.canSee(m));
+  }
+
   canSee(module: string): boolean {
     const user = this.auth.currentUserValue;
     if (!user) return false;
-    
+
     const roleUpp = user.role?.toUpperCase() || '';
-    
-    // Admin has full access (legacy role check or permission check)
-    if (roleUpp === 'ADMIN' || roleUpp === 'SUPER_ADMIN' || roleUpp === 'ADMINISTRATOR') {
+    const extraRoles = ((user as { roles?: string[] }).roles ?? []).map((r) =>
+      (r || '').toUpperCase(),
+    );
+
+    // Admin has full access (primary role, or secondary roles from tags)
+    const isElevated =
+      roleUpp === 'ADMIN' ||
+      roleUpp === 'SUPER_ADMIN' ||
+      roleUpp === 'ADMINISTRATOR' ||
+      extraRoles.some(
+        (r) => r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'ADMINISTRATOR',
+      );
+
+    if (isElevated) {
       return true;
     }
 
@@ -57,6 +75,7 @@ export class SidebarComponent {
           'pos': 'Point of sale',
           'staff': 'Quản lý nhân viên',
           'coupons': 'Quản lý coupon',
+          'bundles': 'Quản lý sản phẩm',
           'sale-campaigns': 'Quản lý chiến dịch sale',
           'wallets': 'Quản lý ví điện tử',
           'advanced-reports': 'Quản lý report',

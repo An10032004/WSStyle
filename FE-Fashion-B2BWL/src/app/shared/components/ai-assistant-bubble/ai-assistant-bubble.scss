@@ -81,6 +81,25 @@
       }
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .open-full {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      opacity: 0.92;
+      white-space: nowrap;
+      &:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
+    }
+
     .close-btn {
       background: rgba(255,255,255,0.1);
       border: none;
@@ -206,6 +225,13 @@
                 font-size: 0.78rem;
                 color: #6366f1;
                 font-weight: 700;
+                margin-top: 2px;
+              }
+
+              .card-muted {
+                font-size: 0.72rem;
+                color: #64748b;
+                font-weight: 600;
                 margin-top: 2px;
               }
             }

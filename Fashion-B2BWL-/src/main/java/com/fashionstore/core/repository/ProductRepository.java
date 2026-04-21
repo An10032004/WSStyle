@@ -25,4 +25,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer>, JpaS
      * Tìm sản phẩm theo mã sản phẩm (product_code)
      */
     Optional<Product> findByProductCode(String productCode);
+
+    boolean existsByProductCodeIgnoreCase(String productCode);
+
+    boolean existsByProductCodeIgnoreCaseAndIdNot(String productCode, Integer id);
 }

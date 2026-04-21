@@ -1,29 +1,36 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { TuiButton, TuiIcon, TuiDropdown, TuiDataList } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar } from '@taiga-ui/core';
 import { AuthService } from '../../../services/auth.service';
 import { ApiService, Category, Product } from '../../../services/api.service';
 import { CartService } from '../../../services/cart.service';
-import { Observable, map } from 'rxjs';
+import { CartDrawerComponent } from '../cart-drawer/cart-drawer';
+import { Observable, map, distinctUntilChanged, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-storefront-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList],
+  imports: [CommonModule, RouterModule, FormsModule, TuiButton, TuiIcon, TuiDropdown, TuiDataList, TuiScrollbar, CartDrawerComponent],
   templateUrl: './storefront-header.html',
   styleUrls: ['./storefront-header.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StorefrontHeaderComponent {
+export class StorefrontHeaderComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly cart = inject(CartService);
 
   searchQuery = '';
+
+  toggleCartDrawer(): void {
+    this.cart.toggleCartDrawer();
+  }
 
   cartCount$ = this.cart.cart$.pipe(map(items => items.reduce((sum, i) => sum + i.quantity, 0)));
   cartItems$ = this.cart.cart$;
@@ -33,27 +40,49 @@ export class StorefrontHeaderComponent {
   dropdownOpen = false;
   cartDropdownOpen = false;
   isMegaMenuOpen = false;
+  namOpen = false;
+  nuOpen = false;
+  phuKienOpen = false;
+  brandOpen = false;
 
   categoryTree: Category[] = [];
   navigationItems: { label: string; link: string }[] = [
-    { label: 'Nam', link: '/shop' },
-    { label: 'Nữ', link: '/shop' },
-    { label: 'Phụ kiện', link: '/shop' },
-    { label: 'Thương hiệu', link: '/shop' },
     { label: 'Xếp hạng', link: '/shop' },
     { label: 'Đánh giá', link: '/customer-reviews' },
-    { label: 'Thông tin', link: '/shop' },
-    { label: 'Hỗ trợ', link: '/support' }
+    { label: 'Trợ lý AI', link: '/assistant' },
+    { label: 'Hỗ trợ', link: '/support' },
   ];
 
   allProducts: Product[] = [];
   suggestions: Product[] = [];
   showSuggestions = false;
+  brands: string[] = [];
+  saleProducts: Product[] = [];
+
+  get namCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase() === 'nam');
+  }
+
+  get nuCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase() === 'nữ');
+  }
+
+  get phuKienCategory() {
+    return this.categoryTree.find(c => c.name.toLowerCase().includes('phụ kiện'));
+  }
 
   ngOnInit() {
-    this.api.getProducts().subscribe(prods => {
-      this.allProducts = prods;
-    });
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id),
+        distinctUntilChanged(),
+        switchMap((uid) => this.api.getProducts(uid)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((prods) => {
+        this.allProducts = prods;
+        this.cdr.markForCheck();
+      });
 
     this.api.getCategories().subscribe(cats => {
       if (!cats || cats.length === 0) return;
@@ -74,6 +103,19 @@ export class StorefrontHeaderComponent {
       this.categoryTree = roots;
       this.cdr.markForCheck();
       this.cdr.detectChanges();
+    });
+
+    this.api.getProductBrands().subscribe(brands => {
+      this.brands = brands;
+      this.cdr.markForCheck();
+    });
+
+    this.api.searchProducts({}).subscribe(res => {
+      this.saleProducts = res.content.filter(p => (p.calculatedPrice || p.basePrice) < p.basePrice).slice(0, 6);
+      if (this.saleProducts.length === 0) {
+        this.saleProducts = res.content.slice(0, 6); // Fallback to newest if no discounts found
+      }
+      this.cdr.markForCheck();
     });
   }
 
@@ -126,5 +168,22 @@ export class StorefrontHeaderComponent {
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
+  }
+
+  hasAdminAccess(): boolean {
+    const u = this.auth.currentUserValue;
+    if (!u) return false;
+    const role = (u.role || '').toString().toUpperCase();
+    if (role === 'ADMIN' || role === 'ADMINISTRATOR' || role === 'SUPER_ADMIN') return true;
+    try {
+      let perms: string[] = [];
+      if (typeof u.permissions === 'string') perms = JSON.parse(u.permissions);
+      else if (Array.isArray(u.permissions)) perms = u.permissions;
+      if (perms.includes('ALL')) return true;
+      if (perms.includes('Quản lý report')) return true; // dashboard access mapping
+    } catch (e) {
+      // ignore
+    }
+    return false;
   }
 }

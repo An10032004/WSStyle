@@ -2,6 +2,8 @@ package com.fashionstore.core.controller;
 
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.response.ApiResponse;
+import com.fashionstore.core.dto.response.DebtOrderReportRowResponse;
+import com.fashionstore.core.dto.response.DebtSummaryResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,18 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersByUserId(userId)));
     }
 
+    @GetMapping("/user/{userId}/debt-summary")
+    public ResponseEntity<ApiResponse<DebtSummaryResponse>> getDebtSummary(@PathVariable("userId") Integer userId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getDebtSummary(userId)));
+    }
+
+    @GetMapping("/debt-report")
+    public ResponseEntity<ApiResponse<List<DebtOrderReportRowResponse>>> getDebtReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getDebtReport(startDate, endDate)));
+    }
+
     @GetMapping("/paged")
     public ResponseEntity<ApiResponse<Page<Order>>> getOrdersByUserPaged(
             @RequestParam("userId") Integer userId,
@@ -58,5 +72,19 @@ public class OrderController {
     @PatchMapping("/{id}/payment-status")
     public ApiResponse<Order> updatePaymentStatus(@PathVariable Integer id, @RequestParam String paymentStatus) {
         return ApiResponse.success(orderService.updatePaymentStatus(id, paymentStatus));
+    }
+
+    /** Admin: đơn hủy + đã thu tiền QR/CK — đánh dấu đã hoàn tiền cho khách. */
+    @PatchMapping("/{id}/refund-processed")
+    public ApiResponse<Order> markRefundProcessed(@PathVariable Integer id) {
+        return ApiResponse.success(orderService.markRefundProcessed(id));
+    }
+
+    /** Khách: xác nhận đã nhận tiền hoàn trả (userId phải trùng chủ đơn). */
+    @PatchMapping("/{id}/confirm-refund-received")
+    public ApiResponse<Order> confirmRefundReceived(
+            @PathVariable Integer id,
+            @RequestParam Integer userId) {
+        return ApiResponse.success(orderService.confirmRefundReceivedByCustomer(id, userId));
     }
 }

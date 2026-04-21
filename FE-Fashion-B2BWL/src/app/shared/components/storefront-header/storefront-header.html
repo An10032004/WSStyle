@@ -22,8 +22,8 @@
         <span class="logo-d">WSSTYL</span><span class="logo-n">E</span>
       </a>
       <div class="header-tabs">
-        <a href="javascript:void(0)" class="tab active">Shopping</a>
-        <a href="javascript:void(0)" class="tab">Style</a>
+        <a href="javascript:void(0)" class="tab active">Mua sắm</a>
+        <a href="javascript:void(0)" class="tab">Phong cách</a>
       </div>
     </div>
 
@@ -74,15 +74,16 @@
     </div>
 
     <div class="header-right">
-      <button class="icon-circle" title="Notifications">
+      <button class="icon-circle" type="button" title="Thông báo">
         <tui-icon icon="@tui.bell"></tui-icon>
       </button>
       
       <div class="cart-wrapper">
-        <button 
-          class="icon-circle" 
-          title="Cart" 
-          routerLink="/cart"
+        <button
+          type="button"
+          class="icon-circle"
+          title="Giỏ hàng"
+          (click)="toggleCartDrawer()"
         >
           <tui-icon icon="@tui.shopping-bag"></tui-icon>
           <span class="cart-badge">{{ (cartCount$ | async) || 0 }}</span>
@@ -106,9 +107,9 @@
         </button>
         <ng-template #userMenu>
           <tui-data-list>
-            <button tuiOption routerLink="/profile">Profile</button>
-            <button *ngIf="user.role === 'ADMIN' || user.role === 'STAFF'" tuiOption routerLink="/dashboard">Admin Dashboard</button>
-            <button tuiOption (click)="logout()">Logout</button>
+            <button tuiOption routerLink="/profile">Hồ sơ</button>
+            <button *ngIf="hasAdminAccess()" tuiOption routerLink="/dashboard">Quản trị</button>
+            <button tuiOption (click)="logout()">Đăng xuất</button>
           </tui-data-list>
         </ng-template>
       </div>
@@ -156,12 +157,183 @@
         </div>
       </li>
 
+      <!-- NAM -->
+      <li class="nav-item mega-trigger">
+        <a routerLink="/shop" class="nav-link-btn">Nam</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-grid">
+              <div class="mega-column" *ngFor="let parent of namCategory?.children">
+                <div class="mega-header">
+                  <span class="mega-title" [routerLink]="['/shop/category', parent.id]">{{ parent.name }}</span>
+                </div>
+                <div class="mega-items">
+                  <a *ngFor="let child of parent.children" [routerLink]="['/shop/category', child.id]" class="mega-item">
+                    {{ child.name }}
+                  </a>
+                </div>
+              </div>
+              <!-- Empty state fallback if no subcategories -->
+              <div class="mega-column" *ngIf="!namCategory?.children?.length">
+                <div class="mega-header">
+                  <span class="mega-title">Sản phẩm nam</span>
+                </div>
+                <div class="mega-items">
+                  <a [routerLink]="['/shop/category', namCategory?.id]" class="mega-item">Xem tất cả</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- NỮ -->
+      <li class="nav-item mega-trigger">
+        <a routerLink="/shop" class="nav-link-btn">Nữ</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-grid">
+              <div class="mega-column" *ngFor="let parent of nuCategory?.children">
+                <div class="mega-header">
+                  <span class="mega-title" [routerLink]="['/shop/category', parent.id]">{{ parent.name }}</span>
+                </div>
+                <div class="mega-items">
+                  <a *ngFor="let child of parent.children" [routerLink]="['/shop/category', child.id]" class="mega-item">
+                    {{ child.name }}
+                  </a>
+                </div>
+              </div>
+              <div class="mega-column" *ngIf="!nuCategory?.children?.length">
+                <div class="mega-header">
+                  <span class="mega-title">Sản phẩm nữ</span>
+                </div>
+                <div class="mega-items">
+                  <a [routerLink]="['/shop/category', nuCategory?.id]" class="mega-item">Xem tất cả</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- PHỤ KIỆN -->
+      <li class="nav-item mega-trigger">
+        <a routerLink="/shop" class="nav-link-btn">Phụ kiện</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-grid">
+              <div class="mega-column" *ngFor="let parent of phuKienCategory?.children">
+                <div class="mega-header">
+                  <span class="mega-title" [routerLink]="['/shop/category', parent.id]">{{ parent.name }}</span>
+                </div>
+                <div class="mega-items">
+                  <a *ngFor="let child of parent.children" [routerLink]="['/shop/category', child.id]" class="mega-item">
+                    {{ child.name }}
+                  </a>
+                </div>
+              </div>
+              <div class="mega-column" *ngIf="!phuKienCategory?.children?.length">
+                <div class="mega-header">
+                  <span class="mega-title">Tất cả phụ kiện</span>
+                </div>
+                <div class="mega-items">
+                  <a [routerLink]="['/shop/category', phuKienCategory?.id]" class="mega-item">Xem tất cả</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li class="nav-item mega-trigger">
+        <a routerLink="/shop" class="nav-link-btn">Thương hiệu</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-header brand-header">
+               <tui-icon icon="@tui.layout-grid" class="mega-icon"></tui-icon>
+               <span class="mega-title">Tất cả thương hiệu</span>
+            </div>
+            <div class="brand-mega-items">
+               <a *ngFor="let b of brands" [routerLink]="['/shop']" [queryParams]="{ brand: b }" class="mega-item">
+                  {{ b }}
+               </a>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li class="nav-item mega-trigger">
+        <a href="javascript:void(0)" class="nav-link-btn">Thông tin</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-grid info-grid">
+               <!-- COLUMN 1: VỀ CHÚNG TÔI -->
+               <div class="mega-column">
+                  <div class="mega-header">
+                     <span class="mega-title">Về WSSTYLE</span>
+                  </div>
+                  <div class="info-content">
+                     <p>WSSTYLE là nền tảng thời trang B2B hàng đầu, kết nối các nhà sản xuất với các đại lý bán lẻ trên toàn quốc.</p>
+                     <p>Chúng tôi cung cấp những mẫu mã mới nhất, chất lượng cao với giá thành cạnh tranh nhất.</p>
+                  </div>
+               </div>
+               
+               <!-- COLUMN 2: HỖ TRỢ -->
+               <div class="mega-column">
+                  <div class="mega-header">
+                     <span class="mega-title">Hỗ trợ khách hàng</span>
+                  </div>
+                  <div class="mega-items">
+                     <a routerLink="/support" class="mega-item">Trung tâm trợ giúp</a>
+                     <a href="javascript:void(0)" class="mega-item">Chính sách bảo mật</a>
+                     <a href="javascript:void(0)" class="mega-item">Điều khoản dịch vụ</a>
+                     <a href="javascript:void(0)" class="mega-item">Chính sách đổi trả</a>
+                  </div>
+               </div>
+
+               <!-- COLUMN 3: LIÊN HỆ -->
+               <div class="mega-column">
+                  <div class="mega-header">
+                     <span class="mega-title">Liên hệ</span>
+                  </div>
+                  <div class="mega-items">
+                     <span class="info-text">Hotline: 0906.880.960</span>
+                     <span class="info-text">Email: support@wsstyle.com</span>
+                     <span class="info-text">Địa chỉ: Quận 1, Tp. Hồ Chí Minh</span>
+                  </div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </li>
+
       <li *ngFor="let item of navigationItems">
         <a [routerLink]="item.link">{{ item.label }}</a>
       </li>
-      <li><a href="javascript:void(0)" class="hot">Giá sốc</a></li>
-      <li><a routerLink="/become-a-partner" class="partner-link">Trở thành đối tác</a></li>
-      <li><a routerLink="/quick-order" class="quick-order-link">Đặt hàng nhanh</a></li>
+
+      <li class="nav-item mega-trigger">
+        <a routerLink="/shop" class="nav-link-btn hot">Giá sốc</a>
+        <div class="mega-menu">
+          <div class="mega-menu-container">
+            <div class="mega-header">
+               <tui-icon icon="@tui.zap" class="mega-icon hot-icon"></tui-icon>
+               <span class="mega-title">Sản phẩm giá sốc</span>
+            </div>
+            <div class="sale-grid">
+               <div class="mega-column" *ngFor="let p of saleProducts | slice:0:5">
+                  <a [routerLink]="['/product', p.id]" class="mega-item sale-item">
+                     <span class="p-name">{{ p.name }}</span>
+                     <span class="p-price">{{ p.calculatedPrice | number }} ₫</span>
+                  </a>
+               </div>
+            </div>
+          </div>
+        </div>
+      </li>
+      <li><a routerLink="/become-a-partner" class="partner-link">Đại lý mua sỉ</a></li>
+      <li *ngIf="user$ | async"><a routerLink="/quick-order" class="quick-order-link">Đặt hàng nhanh</a></li>
     </ul>
   </div>
 </nav>
+
+<app-cart-drawer />

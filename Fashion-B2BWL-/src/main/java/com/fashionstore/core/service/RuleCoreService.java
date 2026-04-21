@@ -62,6 +62,14 @@ public class RuleCoreService {
     }
 
     public boolean isProductMatch(String applyProductType, String applyProductValue, Integer productId, Integer categoryId) {
+        return isProductMatch(applyProductType, applyProductValue, productId, categoryId, null);
+    }
+
+    /**
+     * @param variantId when non-null, SPECIFIC rules with {@code variantIds} in JSON match only those variants;
+     *                    when null, variant-scoped rules (non-empty variantIds) do not match (e.g. product listing).
+     */
+    public boolean isProductMatch(String applyProductType, String applyProductValue, Integer productId, Integer categoryId, Integer variantId) {
         if (applyProductType == null || applyProductType.equals("ALL")) return true;
         
         try {
@@ -73,9 +81,12 @@ public class RuleCoreService {
                 return categoryIds != null && categoryIds.contains(categoryId);
             }
             if (applyProductType.equals("SPECIFIC")) {
-                @SuppressWarnings("unchecked")
-                List<Integer> productIds = (List<Integer>) val.get("productIds");
-                return productIds != null && productIds.contains(productId);
+                List<Integer> variantIds = readIntList(val, "variantIds");
+                if (!variantIds.isEmpty()) {
+                    return variantId != null && variantIds.contains(variantId);
+                }
+                List<Integer> productIds = readIntList(val, "productIds");
+                return productId != null && productIds.contains(productId);
             }
         } catch (Exception e) {
             log.error("Error parsing product targeting value: {}", applyProductValue);
@@ -83,6 +94,40 @@ public class RuleCoreService {
         }
         
         return false;
+    }
+
+    private static List<Integer> readIntList(Map<String, Object> val, String key) {
+        Object raw = val.get(key);
+        if (!(raw instanceof List)) {
+            return Collections.emptyList();
+        }
+        List<?> list = (List<?>) raw;
+        List<Integer> out = new ArrayList<>();
+        for (Object o : list) {
+            if (o instanceof Number) {
+                out.add(((Number) o).intValue());
+            }
+        }
+        return out;
+    }
+
+    /** SPECIFIC overlap: variantIds when present; otherwise productIds; mixed uses productIds intersection. */
+    private boolean specificProductTargetingOverlaps(Map<String, Object> v1, Map<String, Object> v2) {
+        List<Integer> vars1 = readIntList(v1, "variantIds");
+        List<Integer> vars2 = readIntList(v2, "variantIds");
+        List<Integer> p1 = readIntList(v1, "productIds");
+        List<Integer> p2 = readIntList(v2, "productIds");
+
+        boolean hv1 = !vars1.isEmpty();
+        boolean hv2 = !vars2.isEmpty();
+
+        if (hv1 && hv2) {
+            return !Collections.disjoint(new HashSet<>(vars1), new HashSet<>(vars2));
+        }
+        if (hv1 ^ hv2) {
+            return !p1.isEmpty() && !p2.isEmpty() && !Collections.disjoint(new HashSet<>(p1), new HashSet<>(p2));
+        }
+        return !p1.isEmpty() && !p2.isEmpty() && !Collections.disjoint(new HashSet<>(p1), new HashSet<>(p2));
     }
 
     /**
@@ -114,24 +159,42 @@ public class RuleCoreService {
         return conflicts;
     }
 
+    /** CATEGORY và GROUP đều lọc theo {@code categoryIds} trong JSON (đồng bộ OrderLimit / Pricing). */
+    private static boolean isProductCategoryLike(String applyProductType) {
+        return "CATEGORY".equals(applyProductType) || "GROUP".equals(applyProductType);
+    }
+
     private boolean checkProductOverlap(RuleTarget r1, RuleTarget r2) {
         if (r1.applyProductType.equals("ALL") || r2.applyProductType.equals("ALL")) return true;
-        
+
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> v1 = objectMapper.readValue(r1.applyProductValue, Map.class);
             @SuppressWarnings("unchecked")
             Map<String, Object> v2 = objectMapper.readValue(r2.applyProductValue, Map.class);
-            
+
             if (r1.applyProductType.equals(r2.applyProductType)) {
-                String key = (r1.applyProductType.equals("CATEGORY") || r1.applyProductType.equals("GROUP")) ? "categoryIds" : "productIds";
+                if ("SPECIFIC".equals(r1.applyProductType)) {
+                    return specificProductTargetingOverlaps(v1, v2);
+                }
+                String key = isProductCategoryLike(r1.applyProductType) ? "categoryIds" : "productIds";
                 @SuppressWarnings("unchecked")
                 List<Integer> ids1 = (List<Integer>) v1.get(key);
                 @SuppressWarnings("unchecked")
                 List<Integer> ids2 = (List<Integer>) v2.get(key);
                 return ids1 != null && ids2 != null && !Collections.disjoint(ids1, ids2);
             }
-            // If one is CATEGORY and one is SPECIFIC, it's complex. Assume possible overlap for safety.
+            // Hai loại khác nhau nhưng cùng lọc theo danh mục (CATEGORY vs GROUP): so sánh tập categoryIds.
+            if (isProductCategoryLike(r1.applyProductType) && isProductCategoryLike(r2.applyProductType)) {
+                @SuppressWarnings("unchecked")
+                List<Integer> ids1 = (List<Integer>) v1.get("categoryIds");
+                @SuppressWarnings("unchecked")
+                List<Integer> ids2 = (List<Integer>) v2.get("categoryIds");
+                return ids1 != null && ids2 != null && !Collections.disjoint(ids1, ids2);
+            }
+            // CATEGORY/GROUP vs SPECIFIC: có thể giao nhau — giữ an toàn.
+            if (isProductCategoryLike(r1.applyProductType) && "SPECIFIC".equals(r2.applyProductType)) return true;
+            if ("SPECIFIC".equals(r1.applyProductType) && isProductCategoryLike(r2.applyProductType)) return true;
             return true;
         } catch (Exception e) {
             return true; // Overlap on error
@@ -164,6 +227,28 @@ public class RuleCoreService {
         return r1.applyCustomerType.equals(r2.applyCustomerType);
     }
 
+    /**
+     * Hai quy tắc giới hạn đơn hàng có phạm vi KH + SP chồng lên nhau (giống logic detectConflicts / bảng giá).
+     * Dùng để chỉ giữ quy tắc có priority nhỏ hơn khi cùng kiểu cạnh tranh (ví dụ hai MAX cùng cấp).
+     */
+    public boolean orderLimitTargetingOverlaps(OrderLimit a, OrderLimit b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        RuleTarget ta = ruleTargetFromOrderLimit(a);
+        RuleTarget tb = ruleTargetFromOrderLimit(b);
+        return checkProductOverlap(ta, tb) && checkCustomerOverlap(ta, tb);
+    }
+
+    private static RuleTarget ruleTargetFromOrderLimit(OrderLimit r) {
+        RuleTarget t = new RuleTarget();
+        t.applyCustomerType = r.getApplyCustomerType() != null ? r.getApplyCustomerType() : "ALL";
+        t.applyCustomerValue = r.getApplyCustomerValue();
+        t.applyProductType = r.getApplyProductType() != null ? r.getApplyProductType() : "ALL";
+        t.applyProductValue = r.getApplyProductValue();
+        return t;
+    }
+
     public List<PricingRule> getAllActivePricingRules() {
         return pricingRuleRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).toList();
     }
@@ -185,9 +270,13 @@ public class RuleCoreService {
     }
 
     public Optional<PricingRule> findBestPricingRule(Integer productId, Integer categoryId, User user, List<PricingRule> rules) {
+        return findBestPricingRule(productId, categoryId, null, user, rules);
+    }
+
+    public Optional<PricingRule> findBestPricingRule(Integer productId, Integer categoryId, Integer variantId, User user, List<PricingRule> rules) {
         return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
-                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId, variantId))
                 .min(Comparator.comparing(PricingRule::getPriority));
     }
 
@@ -196,9 +285,13 @@ public class RuleCoreService {
     }
 
     public Optional<HidePriceRule> findBestHidePriceRule(Integer productId, Integer categoryId, User user, List<HidePriceRule> rules) {
+        return findBestHidePriceRule(productId, categoryId, null, user, rules);
+    }
+
+    public Optional<HidePriceRule> findBestHidePriceRule(Integer productId, Integer categoryId, Integer variantId, User user, List<HidePriceRule> rules) {
         return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
-                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId, variantId))
                 .min(Comparator.comparing(HidePriceRule::getPriority));
     }
 
@@ -217,9 +310,13 @@ public class RuleCoreService {
     }
 
     public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, User user, List<SaleCampaign> rules) {
+        return findBestSaleCampaign(productId, categoryId, null, user, rules);
+    }
+
+    public Optional<SaleCampaign> findBestSaleCampaign(Integer productId, Integer categoryId, Integer variantId, User user, List<SaleCampaign> rules) {
         return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
-                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId, variantId))
                 .min(Comparator.comparing(SaleCampaign::getPriority));
     }
 
@@ -228,9 +325,13 @@ public class RuleCoreService {
     }
 
     public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, User user, List<TaxDisplayRule> rules) {
+        return findBestTaxRule(productId, categoryId, null, user, rules);
+    }
+
+    public Optional<TaxDisplayRule> findBestTaxRule(Integer productId, Integer categoryId, Integer variantId, User user, List<TaxDisplayRule> rules) {
         return rules.stream()
                 .filter(r -> isCustomerMatch(r.getApplyCustomerType(), r.getApplyCustomerValue(), user))
-                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId))
+                .filter(r -> isProductMatch(r.getApplyProductType(), r.getApplyProductValue(), productId, categoryId, variantId))
                 .min(Comparator.comparing(TaxDisplayRule::getPriority));
     }
 

@@ -1,22 +1,24 @@
-<div class="staff-container">
-  <div class="header-section">
-    <div class="title-group">
-      <h2 class="tui-text_h3">{{ 'MENU.STAFF' | transloco }} / {{ 'MENU.CUSTOMERS' | transloco }}</h2>
-      <p class="tui-text_body-s-2 text-muted">Quản lý tài khoản quản trị viên, nhân viên và khách hàng đại lý</p>
+<div class="page-container staff-page">
+  <div class="page-header">
+    <div>
+      <h2 class="tui-text_h3 page-header__title">{{ 'MENU.STAFF' | transloco }} / {{ 'MENU.CUSTOMERS' | transloco }}</h2>
+      <p class="page-header__subtitle">Quản lý tài khoản quản trị viên, nhân viên và khách hàng đại lý</p>
     </div>
-    <button
-      tuiButton
-      type="button"
-      appearance="primary"
-      size="m"
-      iconStart="@tui.plus"
-      (click)="onAdd()"
-    >
-      {{ 'COMMON.ADD' | transloco }}
-    </button>
+    <div class="page-actions">
+      <button
+        tuiButton
+        type="button"
+        appearance="primary"
+        size="m"
+        iconStart="@tui.plus"
+        (click)="onAdd()"
+      >
+        {{ 'COMMON.ADD' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div class="table-card">
+  <div class="grid-wrapper">
     <ag-grid-angular
       class="ag-theme-alpine"
       style="width: 100%;"
@@ -55,7 +57,6 @@
           {{ 'MEMBER.EMAIL' | transloco }}
           <tui-textfield>
             <input tuiTextfield type="email" [(ngModel)]="formData.email" />
-            <tui-icon icon="@tui.mail" />
           </tui-textfield>
         </label>
 
@@ -63,7 +64,6 @@
           {{ 'MEMBER.PASSWORD' | transloco }}
           <tui-textfield>
             <input tuiTextfield type="password" [(ngModel)]="formData.password" />
-            <tui-icon icon="@tui.lock" />
           </tui-textfield>
         </label>
 
@@ -71,7 +71,6 @@
           {{ 'MEMBER.NAME' | transloco }}
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.fullName" />
-            <tui-icon icon="@tui.user" />
           </tui-textfield>
         </label>
 
@@ -79,16 +78,49 @@
           {{ 'MEMBER.PHONE' | transloco }}
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.phone" />
-            <tui-icon icon="@tui.phone" />
           </tui-textfield>
         </label>
 
+        <div class="role-field">
+          <div class="role-field__label">{{ 'MEMBER.ROLE' | transloco }}</div>
+          <div class="radio-group-modern">
+            <label class="modern-radio">
+              <input
+                tuiRadio
+                type="radio"
+                name="primaryRole"
+                value="STAFF"
+                [(ngModel)]="formData.role"
+                (ngModelChange)="onPrimaryRoleChange($event)"
+              />
+              <div class="radio-content">
+                <span class="radio-title">{{ 'ENUMS.STAFF' | transloco }}</span>
+                <span class="radio-desc">Nhân viên nội bộ</span>
+              </div>
+            </label>
+            <label class="modern-radio">
+              <input
+                tuiRadio
+                type="radio"
+                name="primaryRole"
+                value="ADMIN"
+                [(ngModel)]="formData.role"
+                (ngModelChange)="onPrimaryRoleChange($event)"
+              />
+              <div class="radio-content">
+                <span class="radio-title">{{ 'ENUMS.ADMIN' | transloco }}</span>
+                <span class="radio-desc">Toàn quyền quản trị</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <label tuiLabel>
-          {{ 'MEMBER.ROLE' | transloco }}
-          <tui-select [(ngModel)]="formData.role">
+          {{ 'MEMBER.ASSIGNED_ROLE' | transloco }}
+          <tui-select [(ngModel)]="formData.assignedRole">
             <tui-data-list-wrapper
               *tuiDataList
-              [items]="roleOptions"
+              [items]="assignedRoleOptions"
               [itemContent]="roleContent"
             />
             <ng-template #roleContent let-item>
@@ -97,19 +129,7 @@
           </tui-select>
         </label>
 
-        <label tuiLabel *ngIf="formData.role === 'CUSTOMER'">
-          {{ 'MEMBER.GROUP' | transloco }}
-          <tui-select [(ngModel)]="formData.customerGroup" [valueContent]="groupContent">
-            <tui-data-list-wrapper
-              *tuiDataList
-              [items]="customerGroups"
-              [itemContent]="groupContent"
-            />
-            <ng-template #groupContent let-item>
-              {{ item.name }}
-            </ng-template>
-          </tui-select>
-        </label>
+        <!-- customer group removed from staff form -->
       </div>
 
       <div class="form-actions">
@@ -141,6 +161,17 @@
 </ng-template>
 
 <!-- VIEW DETAIL -->
+<ng-template #adminDeleteDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <div>
+      <h3 style="margin:0 0 8px 0;">Không thể xóa Admin</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Tài khoản Admin là vai trò hệ thống và không được phép xóa. Nếu cần, hãy thay đổi vai trò hoặc vô hiệu hóa tài khoản.</p>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</ng-template>
 <ng-template #viewDialog let-observer>
   <div class="view-detail" *ngIf="selectedUser">
     <div class="detail-row">
@@ -153,16 +184,17 @@
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
-      <span class="value">{{ 'ENUMS.' + selectedUser.role | transloco }}</span>
+      <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}:</span>
+      <span class="value">{{ selectedUser.assignedRole ? (('ENUMS.' + selectedUser.assignedRole) | transloco) : '-' }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>
       <span class="value">{{ selectedUser.phone }}</span>
     </div>
-    <div class="detail-row" *ngIf="selectedUser.customerGroup">
-      <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
-      <span class="value">{{ selectedUser.customerGroup.name }}</span>
-    </div>
+    <!-- customer group detail removed from staff view -->
     <div class="tui-form__buttons">
       <button tuiButton appearance="flat" size="m" (click)="observer.complete()">
         {{ 'GLOBAL.CLOSE' | transloco }}

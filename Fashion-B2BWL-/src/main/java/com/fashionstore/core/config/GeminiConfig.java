@@ -8,18 +8,16 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class GeminiConfig {
 
-    @Value("${google.ai.api-key}")
-    private String apiKey;
-
-    @Value("${google.ai.url}")
-    private String apiUrl;
-
+    /**
+     * Auth theo hướng dẫn Google: header {@code x-goog-api-key} (hỗ trợ key có dấu chấm, ví dụ {@code AQ.xxx}).
+     * URL đầy đủ tới {@code :generateContent} nằm ở {@code google.ai.url} — dùng trong {@link com.fashionstore.core.service.AiSyncService}.
+     */
     @Bean
-    public WebClient geminiClient() {
-        return WebClient.builder()
-                .baseUrl(apiUrl)
-                // Gemini yêu cầu truyền API Key qua query parameter key
-                .defaultUriVariables(java.util.Map.of("key", apiKey))
-                .build();
+    public WebClient geminiClient(@Value("${google.ai.api-key:}") String apiKey) {
+        WebClient.Builder builder = WebClient.builder();
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder = builder.defaultHeader("x-goog-api-key", apiKey.trim());
+        }
+        return builder.build();
     }
 }

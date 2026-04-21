@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import java.math.BigDecimal;
 
 @Entity
@@ -29,6 +31,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private ProductVariant productVariant;
 
@@ -40,4 +43,8 @@ public class OrderItem {
 
     @Column(name = "applied_rule_id")
     private Integer appliedRuleId;
+
+    /** Ghi chú ưu đãi/giá tại thời điểm đặt (QB, B2B, combo…) — hỗ trợ reorder & hỗ trợ khách. */
+    @Column(name = "pricing_note", columnDefinition = "TEXT")
+    private String pricingNote;
 }

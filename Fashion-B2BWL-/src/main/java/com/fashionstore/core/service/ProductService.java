@@ -53,8 +53,17 @@ public class ProductService {
      * Lấy sản phẩm có phân trang và lọc (Server-side Pagination & Filtering)
      */
     @Transactional(readOnly = true)
-    public Page<Product> getProductsPaged(String search, List<Integer> categoryIds, BigDecimal minPrice, BigDecimal maxPrice, List<String> brands, Pageable pageable) {
-        return productRepository.findAll(ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands), pageable);
+    public Page<Product> getProductsPaged(
+            String search,
+            List<Integer> categoryIds,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            List<String> brands,
+            List<Integer> productIds,
+            Pageable pageable) {
+        return productRepository.findAll(
+                ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands, productIds),
+                pageable);
     }
 
     /**
@@ -81,16 +90,25 @@ public class ProductService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Danh mục", "id", request.getCategoryId()));
 
+        String productCode = normalizeProductCode(request.getProductCode());
+        if (productRepository.existsByProductCodeIgnoreCase(productCode)) {
+            throw new IllegalArgumentException(
+                    "Mã sản phẩm \"" + productCode + "\" đã tồn tại (không phân biệt hoa thường). "
+                            + "Kiểm tra DB hoặc dùng mã khác.");
+        }
+
         Product product = Product.builder()
                 .category(category)
-                .productCode(request.getProductCode())
-                .name(request.getName())
+                .productCode(productCode)
+                .name(request.getName().strip())
                 .basePrice(request.getBasePrice())
-                .material(request.getMaterial())
-                .origin(request.getOrigin())
-                .brand(request.getBrand())
-                .imageUrl(request.getImageUrl())
-                .imageUrls(request.getImageUrls())
+                .material(trimToEmpty(request.getMaterial()))
+                .origin(trimToEmpty(request.getOrigin()))
+                .brand(request.getBrand().strip())
+                .imageUrl(trimToEmpty(request.getImageUrl()))
+                .imageUrls(trimToEmpty(request.getImageUrls()))
+                .isSale(Boolean.TRUE.equals(request.getIsSale()))
+                .variantDimensionLabels(trimToNull(request.getVariantDimensionLabels()))
                 .shopId(1)
                 .build();
 
@@ -106,17 +124,52 @@ public class ProductService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Danh mục", "id", request.getCategoryId()));
 
+        String productCode = normalizeProductCode(request.getProductCode());
+        if (productRepository.existsByProductCodeIgnoreCaseAndIdNot(productCode, id)) {
+            throw new IllegalArgumentException(
+                    "Mã sản phẩm \"" + productCode + "\" đã được sản phẩm khác sử dụng.");
+        }
+
         product.setCategory(category);
-        product.setProductCode(request.getProductCode());
-        product.setName(request.getName());
+        product.setProductCode(productCode);
+        product.setName(request.getName().strip());
         product.setBasePrice(request.getBasePrice());
-        product.setMaterial(request.getMaterial());
-        product.setOrigin(request.getOrigin());
-        product.setBrand(request.getBrand());
-        product.setImageUrl(request.getImageUrl());
-        product.setImageUrls(request.getImageUrls());
+        product.setMaterial(trimToEmpty(request.getMaterial()));
+        product.setOrigin(trimToEmpty(request.getOrigin()));
+        product.setBrand(request.getBrand().strip());
+        product.setImageUrl(trimToEmpty(request.getImageUrl()));
+        product.setImageUrls(trimToEmpty(request.getImageUrls()));
+        if (request.getIsSale() != null) {
+            product.setIsSale(request.getIsSale());
+        }
+        if (request.getVariantDimensionLabels() != null) {
+            product.setVariantDimensionLabels(trimToNull(request.getVariantDimensionLabels()));
+        }
 
         return productRepository.save(product);
+    }
+
+    private static String normalizeProductCode(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.strip();
+    }
+
+    private static String trimToEmpty(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.strip();
+    }
+
+    /** Chuỗi rỗng sau trim → null (để cột nullable gọn). */
+    private static String trimToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.strip();
+        return t.isEmpty() ? null : t;
     }
 
     /**

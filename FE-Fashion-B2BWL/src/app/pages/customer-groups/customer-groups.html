@@ -1,14 +1,15 @@
 <div class="page-container">
-  <div class="header-section" style="padding: 16px">
-    <h2 class="title">{{ 'MEMBER.GROUPS_TITLE' | transloco }}</h2>
-    <button tuiButton type="button" size="m" (click)="onAdd()">
-      <tui-icon icon="@tui.plus"></tui-icon>
-      {{ 'COMMON.ADD' | transloco }}
-    </button>
+  <div class="page-header">
+    <h2 class="tui-text_h3 page-header__title">{{ 'MEMBER.GROUPS_TITLE' | transloco }}</h2>
+    <div class="page-actions">
+      <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="onAdd()">
+        {{ 'COMMON.ADD' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
+  <div *ngIf="showForm" class="form-panel">
+    <h4>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h4>
     
     <div class="form-grid">
       <label tuiLabel class="form-field full-width">
@@ -20,9 +21,9 @@
 
     </div>
 
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
+    <div class="form-actions">
+      <button tuiButton type="button" appearance="outline" size="m" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
+      <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
     </div>
   </div>
 
@@ -74,9 +75,3 @@
   </div>
 </ng-template>
 
-<style>
-  .view-detail { padding: 4px; }
-  .detail-row { display: flex; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
-  .detail-row .label { font-weight: 600; width: 200px; color: #666; }
-  .detail-row .value { color: #333; }
-</style>

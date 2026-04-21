@@ -1,27 +1,26 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiIcon, TuiButton, TuiTextfield } from '@taiga-ui/core';
+import { TuiButton, TuiTextfield } from '@taiga-ui/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService, Wallet, WalletTransaction, User } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, FormsModule],
+  imports: [CommonModule, TranslocoModule, TuiButton, TuiTextfield, FormsModule],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="page-header">
-        <h1 class="tui-text_h3">{{ 'SIDEBAR.WALLETS' | transloco }}</h1>
-        <div class="search-box">
-          <tui-textfield tuiTextfieldSize="m" class="tui-space_bottom-4">
+      <div class="page-header page-header--toolbar">
+        <h1 class="tui-text_h3 page-header__title">{{ 'SIDEBAR.WALLETS' | transloco }}</h1>
+        <div class="search-box admin-search-field">
+          <tui-textfield iconStart="@tui.search">
             <input
               tuiTextfield
               [ngModel]="search()"
               (ngModelChange)="search.set($event)"
               placeholder="Tìm theo tên, email hoặc ID khách hàng..."
             />
-            <tui-icon *tuiTextfieldElement icon="@tui.search"></tui-icon>
           </tui-textfield>
         </div>
       </div>
@@ -87,32 +86,7 @@ import { firstValueFrom } from 'rxjs';
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 32px; background: #f8fafc; min-height: 100vh; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .search-box { width: 350px; }
-    .wallet-stats { display: flex; gap: 24px; margin-bottom: 32px; }
-    .stat-card { padding: 24px; background: #3f51b5; color: #fff; border-radius: 16px; flex: 1; }
-    .stat-card .label { display: block; font-size: 14px; opacity: 0.8; margin-bottom: 8px; }
-    .stat-card .value { font-size: 32px; font-weight: bold; }
-    .main-content { display: flex; gap: 24px; align-items: flex-start; }
-    .content-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; flex: 1; }
-    table { width: 100%; border-collapse: collapse; }
-    tr.selected { background: #f0f4ff; }
-    .user-cell { display: flex; flex-direction: column; }
-    .user-cell .email { font-size: 11px; color: #666; }
-    .transactions-panel { width: 400px; background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
-    .tx-list { display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; }
-    .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 8px; }
-    .type { font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #eee; text-transform: uppercase; }
-    .type.plus { background: #e8f5e9; color: #2e7d32; }
-    .tx-amount { font-weight: bold; }
-    .tx-amount.plus { color: #2e7d32; }
-    .tx-info { display: flex; flex-direction: column; gap: 4px; }
-    .desc { font-size: 13px; color: #666; }
-    .empty { padding: 40px; text-align: center; color: #999; }
-  `],
+  styleUrl: './wallets.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WalletsComponent {

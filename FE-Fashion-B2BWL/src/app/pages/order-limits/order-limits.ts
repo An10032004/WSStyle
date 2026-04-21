@@ -72,7 +72,7 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
   levelOptions = ['PER_VARIANT', 'PER_PRODUCT', 'PER_ORDER'];
-  typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_AMOUNT'];
+  typeOptions = ['MIN_ORDER_QUANTITY', 'MAX_ORDER_QUANTITY', 'MIN_ORDER_AMOUNT', 'MAX_ORDER_AMOUNT'];
 
   stringifyCategory = (item: any) => item?.name || '';
   stringifyProduct = (item: any) => item?.name || '';
@@ -124,9 +124,22 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
         pinned: 'left',
         tooltipValueGetter: (params: any) => params.value
       },
+      { field: 'priority', headerValueGetter: () => this.transloco.translate('RULE.PRIORITY'), width: 100 },
       { field: 'limitLevel', headerValueGetter: () => this.transloco.translate('RULE.LEVEL'), width: 130, valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value) },
-      { field: 'limitType', headerValueGetter: () => this.transloco.translate('RULE.TYPE'), width: 150, valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value) },
-      { field: 'limitValue', headerValueGetter: () => this.transloco.translate('RULE.VALUE'), width: 100 },
+      { field: 'limitType', headerValueGetter: () => this.transloco.translate('RULE.TYPE'), width: 170, valueFormatter: (params: any) => this.transloco.translate('ENUMS.' + params.value) },
+      { field: 'limitValue', headerValueGetter: () => this.transloco.translate('RULE.VALUE'), width: 110 },
+      {
+        field: 'applyCustomerType',
+        headerValueGetter: () => this.transloco.translate('RULE.CUSTOMER_SCOPE'),
+        width: 140,
+        valueFormatter: (params: any) => this.formatApplyCustomerType(params.value),
+      },
+      {
+        field: 'applyProductType',
+        headerValueGetter: () => this.transloco.translate('RULE.PRODUCT_SCOPE'),
+        width: 160,
+        valueFormatter: (params: any) => this.formatApplyProductType(params.value),
+      },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
         width: 260,
@@ -168,17 +181,48 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
     } catch { return rule.applyCustomerValue || ''; }
   }
 
+  /** Nhãn phạm vi khách (SPECIFIC = khách cụ thể, không dùng chung nhãn sản phẩm). */
+  formatApplyCustomerType(value: string | null | undefined): string {
+    const v = value || 'ALL';
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + v);
+  }
+
+  /** Nhãn phạm vi sản phẩm (tránh ENUMS.GROUP = nhóm KH khi hiển thị cột SP). */
+  formatApplyProductType(value: string | null | undefined): string {
+    const v = value || 'ALL';
+    switch (v) {
+      case 'GROUP':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_GROUP');
+      case 'CATEGORY':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_CATEGORY');
+      case 'SPECIFIC':
+        return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_SPECIFIC');
+      case 'ALL':
+        return this.transloco.translate('ENUMS.ALL');
+      default:
+        return this.transloco.translate('ENUMS.' + v);
+    }
+  }
+
   getProductTargetNames(rule: OrderLimit): string {
     if (!rule.applyProductValue || rule.applyProductType === 'ALL') return '';
     try {
       const val = JSON.parse(rule.applyProductValue);
-      if (rule.applyProductType === 'CATEGORY') {
+      if (rule.applyProductType === 'CATEGORY' || rule.applyProductType === 'GROUP') {
         const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
         const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       } else if (rule.applyProductType === 'SPECIFIC') {
+        const vids: number[] = Array.isArray(val.variantIds) ? val.variantIds : [];
         const ids = val.productIds || (val.productId ? [val.productId] : []);
         const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        if (vids.length) {
+          const suffix = names.length ? names.join(', ') : `productIds: ${ids.join(', ')}`;
+          return `${vids.length} biến thể (${suffix})`;
+        }
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       }
     } catch { return rule.applyProductValue || ''; }
@@ -218,13 +262,20 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     const action = this.editingId ? this.api.updateOrderLimit(this.editingId, this.formData) : this.api.createOrderLimit(this.formData);
-    action.subscribe(() => { 
-      const msg = this.editingId 
-        ? this.transloco.translate('GLOBAL.UPDATE_SUCCESS') 
-        : this.transloco.translate('GLOBAL.CREATE_SUCCESS');
-      this.alerts.open(msg, { appearance: 'success' }).subscribe();
-      this.showForm = false; 
-      this.loadData(); 
+    action.subscribe({
+      next: () => {
+        const msg = this.editingId
+          ? this.transloco.translate('GLOBAL.UPDATE_SUCCESS')
+          : this.transloco.translate('GLOBAL.CREATE_SUCCESS');
+        this.alerts.open(msg, { appearance: 'success' }).subscribe();
+        this.showForm = false;
+        this.loadData();
+      },
+      error: (err: { error?: { message?: string } }) => {
+        const msg = err?.error?.message ?? 'Không thể lưu. Vui lòng kiểm tra dữ liệu.';
+        this.alerts.open(msg, { appearance: 'error' }).subscribe();
+        this.cdr.detectChanges();
+      },
     });
   }
 

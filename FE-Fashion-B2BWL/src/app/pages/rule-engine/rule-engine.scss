@@ -1,0 +1,19 @@
+@use '../../shared/styles/admin-page' as *;
+
+.page-header {
+  margin-bottom: 0.75rem;
+}
+
+.tabs-container {
+  background: var(--tui-background-elevation-1);
+  padding: 0 0.5rem;
+  border: 1px solid var(--tui-border-normal);
+  border-radius: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

@@ -1,0 +1,35 @@
+.rte {
+  border: 1px solid var(--tui-border-normal);
+  border-radius: var(--tui-radius-m);
+  background: var(--tui-background-elevation-1);
+  overflow: hidden;
+}
+
+.rte--disabled {
+  opacity: 0.65;
+}
+
+.rte__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--tui-border-normal);
+  background: var(--tui-background-neutral-1);
+}
+
+.rte__editor {
+  min-height: 120px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+}
+
+.rte__editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--tui-text-tertiary);
+  pointer-events: none;
+}

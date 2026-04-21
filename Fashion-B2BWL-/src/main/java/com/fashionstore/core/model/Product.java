@@ -41,7 +41,7 @@ public class Product {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "base_price", nullable = false, precision = 15, scale = 2)
+    @Column(name = "base_price", nullable = true, precision = 15, scale = 2)
     private BigDecimal basePrice;
 
     @Column(name = "image_url")
@@ -58,6 +58,18 @@ public class Product {
 
     @Column(name = "origin")
     private String origin;
+
+    /** Cột bắt buộc trên DB (MySQL strict): phải map và gán mặc định khi tạo sản phẩm. */
+    @Column(name = "is_sale", nullable = false)
+    @Builder.Default
+    private Boolean isSale = false;
+
+    /**
+     * JSON mảng tối đa 3 chuỗi: nhãn hiển thị cho 3 chiều (map với color / size / weight trên variant).
+     * Ví dụ: {@code ["Màu vải","Cỡ áo","Cân nặng"]}. Null = storefront dùng nhãn mặc định i18n.
+     */
+    @Column(name = "variant_dimension_labels", columnDefinition = "TEXT")
+    private String variantDimensionLabels;
 
     // --- Quan hệ 1-N với ProductVariant ---
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -20,17 +20,9 @@ public class ProductVariantRequest {
 
 
 
-    @NotNull(message = "Số lượng tồn kho không được để trống")
-    @Min(value = 0, message = "Số lượng tồn kho phải >= 0")
     private Integer stockQuantity;
-
-    /**
-     * Giá điều chỉnh so với giá gốc (có thể âm hoặc dương)
-     */
-    private BigDecimal priceAdjustment;
-
+    
     private BigDecimal price;
-    private BigDecimal discountPrice;
 
     private String imageUrl;
     private String imageUrls;

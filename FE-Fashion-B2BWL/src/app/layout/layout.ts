@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { LanguageSwitcherComponent } from './header/language-switcher.component';
+import { SidebarComponent } from './sidebar/sidebar';
 
 @Component({
   selector: 'app-layout',
@@ -24,7 +25,8 @@ import { LanguageSwitcherComponent } from './header/language-switcher.component'
     TuiAvatar,
     TuiDataList,
     TuiDropdown,
-    LanguageSwitcherComponent
+    LanguageSwitcherComponent,
+    SidebarComponent
   ],
   templateUrl: './layout.html',
   styleUrl: './layout.scss',
@@ -92,6 +94,7 @@ export class LayoutComponent {
           'pos': 'Point of sale',
           'staff': 'Quản lý nhân viên',
           'coupons': 'Quản lý coupon',
+          'bundles': 'Quản lý sản phẩm',
           'sale-campaigns': 'Quản lý chiến dịch sale',
           'wallets': 'Quản lý ví điện tử',
           'advanced-reports': 'Quản lý report',
@@ -109,10 +112,7 @@ export class LayoutComponent {
       }
     }
 
-    // 3. Role-based Legacy Mapping
-    if (role === 'STAFF') {
-      return this.allowedModules.has(module);
-    }
+    // NOTE: legacy STAFF fallback removed — rely on role permissions for access
     
     return false;
   }

@@ -2,7 +2,6 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@
 import { CommonModule } from '@angular/common';
 import { ApiService, Product, AIProductSync } from '../../services/api.service';
 import { TuiButton, TuiAlertService, TuiLoader } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
 import { TranslocoModule } from '@jsverse/transloco';
 import { AgGridAngular } from 'ag-grid-angular';
 import { 
@@ -13,6 +12,7 @@ import {
   GridReadyEvent 
 } from 'ag-grid-community';
 import { forkJoin } from 'rxjs';
+import { adminAiSyncPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -22,16 +22,15 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   imports: [
     CommonModule,
     TuiButton,
-    TuiBadge,
     TuiLoader,
     TranslocoModule,
     AgGridAngular
   ],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="header-section" style="padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 class="title">🦾 Trợ lý AI & Đồng bộ Dữ liệu</h2>
-        <div style="display: flex; gap: 12px;">
+      <div class="page-header page-header--toolbar">
+        <h2 class="tui-text_h3 page-header__title">🦾 Trợ lý AI & Đồng bộ Dữ liệu</h2>
+        <div class="page-actions">
            <button tuiButton size="m" appearance="primary" (click)="generateAllDescriptions()">
              ⚡ Viết mô tả hàng loạt
            </button>
@@ -56,15 +55,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 0; }
-    .grid-wrapper { padding: 0 16px; }
-    .ag-theme-alpine {
-      --ag-header-background-color: #f8fafc;
-      --ag-border-color: #e2e8f0;
-    }
-  `],
-  styleUrls: ['../pricing-rules/pricing-rules.scss'],
+  styleUrl: './ai-sync.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AiSyncComponent implements OnInit {
@@ -96,9 +87,8 @@ export class AiSyncComponent implements OnInit {
       width: 150,
       cellRenderer: (params: any) => {
         const hasContent = !!params.data.content;
-        const appearance = hasContent ? 'success' : 'neutral';
         const text = hasContent ? 'Đã viết mô tả' : 'Đang chờ';
-        return `<span class="tui-badge tui-badge_${appearance}">${text}</span>`;
+        return `<span class="${adminAiSyncPillClass(hasContent)}">${escapeHtml(text)}</span>`;
       }
     },
     { field: 'lastSyncedAt', headerName: 'Cập nhật cuối', width: 180, valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '-' },

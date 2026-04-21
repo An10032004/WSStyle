@@ -14,15 +14,15 @@ import {
   TuiTextfield, 
   TuiLabel, 
   TuiIcon,
-  TuiDataList,
   TuiAlertService,
   TuiDialogService
 } from '@taiga-ui/core';
 import { 
-  TuiDataListWrapper, 
-  TuiBadge
+  TuiBadge,
+  TuiRadio,
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiMultiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, PricingRule } from '../../services/api.service';
 import { LanguageService } from '../../services/language.service';
@@ -31,6 +31,9 @@ import { ActionRendererComponent } from '../../shared/components/action-renderer
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { QuantityBreakEditorComponent } from './quantity-break-editor';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { ProductVariantPickerComponent } from '../../shared/components/product-variant-picker/product-variant-picker.component';
+import { SelectedVariantsPreviewComponent } from '../../shared/components/selected-variants-preview/selected-variants-preview.component';
+import { adminLifecycleStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -42,19 +45,19 @@ ModuleRegistry.registerModules([AllCommunityModule]);
     FormsModule,
     AgGridAngular,
     TuiButton,
-    TuiSelectModule,
-    TuiDataList,
-    TuiDataListWrapper,
     TuiTextfieldControllerModule,
     TuiLabel,
     TuiIcon,
     TuiBadge,
     TuiTextfield,
-    TuiMultiSelectModule,
+    TuiRadio,
+    TuiCheckbox,
     TranslocoModule,
     ActionRendererComponent,
     QuantityBreakEditorComponent,
-    RuleConflictWarningComponent
+    RuleConflictWarningComponent,
+    ProductVariantPickerComponent,
+    SelectedVariantsPreviewComponent,
   ],
   templateUrl: './pricing-rules.html',
   styleUrls: ['./pricing-rules.scss'],
@@ -105,6 +108,11 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
   selectedCategories: any[] = [];
   products: any[] = [];
   selectedProducts: any[] = [];
+  /** Khi SPECIFIC + JSON có variantIds — đồng bộ với backend / giỏ hàng. */
+  selectedVariantIds: number[] = [];
+  variantPickerOpen = false;
+  pickerInitialVariantIds: number[] = [];
+  pickerInitialProductIdsOnly: number[] = [];
   selectedCustomerGroups: any[] = [];
 
   statusOptions = ['ACTIVE', 'INACTIVE'];
@@ -225,9 +233,9 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
         headerValueGetter: () => this.transloco.translate('RULE.STATUS'), 
         width: 130,
         cellRenderer: (params: any) => {
-          const color = params.value === 'ACTIVE' ? 'success' : 'neutral';
-          const text = params.value === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động';
-          return `<span style="padding: 4px 12px; border-radius: 16px; background: ${params.value === 'ACTIVE' ? '#ecfdf5' : '#f3f4f6'}; color: ${params.value === 'ACTIVE' ? '#10b981' : '#6b7280'}; font-size: 12px; font-weight: 600;">${text}</span>`;
+          const v = params.value;
+          const text = v === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động';
+          return `<span class="${adminLifecycleStatusPillClass(v)}">${escapeHtml(text)}</span>`;
         }
       },
       { 
@@ -292,8 +300,13 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
         const names = this.categories.filter(c => ids.includes(c.id)).map(c => c.name);
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       } else if (rule.applyProductType === 'SPECIFIC') {
+        const vids: number[] = Array.isArray(val.variantIds) ? val.variantIds : [];
         const ids = val.productIds || (val.productId ? [val.productId] : []);
         const names = this.products.filter(p => ids.includes(p.id)).map(p => p.name);
+        if (vids.length) {
+          const suffix = names.length ? names.join(', ') : `productIds: ${ids.join(', ')}`;
+          return `${vids.length} biến thể (${suffix})`;
+        }
         return names.length ? names.join(', ') : `(IDs: ${ids.join(', ')})`;
       }
     } catch { return rule.applyProductValue; }
@@ -324,6 +337,7 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     this.selectedCustomerGroups = [];
     this.selectedCategories = [];
     this.selectedProducts = [];
+    this.selectedVariantIds = [];
     this.conflicts = [];
 
     this.showForm = true;
@@ -334,6 +348,7 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
   onEdit(rule: PricingRule): void {
     this.editingId = rule.id;
     this.formData = { ...rule };
+    this.selectedVariantIds = [];
     
     // Extract B2B helpers
     if (rule.ruleType === 'B2B_PRICE') {
@@ -362,6 +377,7 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
         const val = JSON.parse(rule.applyProductValue);
         const ids = val.productIds || (val.productId ? [val.productId] : []);
         this.selectedProducts = this.products.filter(p => ids.includes(p.id));
+        this.selectedVariantIds = Array.isArray(val.variantIds) ? [...val.variantIds] : [];
       } catch (e) {}
     }
     
@@ -385,7 +401,13 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     if (type === 'GROUP' || type === 'CATEGORY') {
       productVal = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
     } else if (type === 'SPECIFIC') {
-      productVal = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+      const pids = [...new Set(this.selectedProducts.map(p => p.id))].sort((a, b) => a - b);
+      const vids = [...new Set(this.selectedVariantIds)].sort((a, b) => a - b);
+      if (vids.length > 0) {
+        productVal = JSON.stringify({ productIds: pids, variantIds: vids });
+      } else {
+        productVal = JSON.stringify({ productIds: pids });
+      }
     }
 
     const target = {
@@ -427,7 +449,13 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
       this.formData.applyProductType = 'CATEGORY'; // Maintain consistency for backend
       this.formData.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
     } else if (this.formData.applyProductType === 'SPECIFIC') {
-      this.formData.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
+      const pids = [...new Set(this.selectedProducts.map(p => p.id))].sort((a, b) => a - b);
+      const vids = [...new Set(this.selectedVariantIds)].sort((a, b) => a - b);
+      if (vids.length > 0) {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids, variantIds: vids });
+      } else {
+        this.formData.applyProductValue = JSON.stringify({ productIds: pids });
+      }
     }
 
     // 2. Handle B2B Price config to JSON
@@ -467,5 +495,68 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
 
   cancel(): void {
     this.showForm = false;
+  }
+
+  productApplyTypeLabel(opt: string | null | undefined): string {
+    const v = opt || 'ALL';
+    if (v === 'GROUP') {
+      return this.transloco.translate('ORDER_LIMIT.PRODUCT_TARGET_GROUP');
+    }
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_PRODUCT');
+    }
+    return this.transloco.translate('ENUMS.' + v);
+  }
+
+  customerApplyTypeLabel(opt: string | null | undefined): string {
+    const v = opt || 'ALL';
+    if (v === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + v);
+  }
+
+  isCustomerGroupSelected(g: any): boolean {
+    return this.selectedCustomerGroups.some(x => x.id === g.id);
+  }
+
+  toggleCustomerGroup(g: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCustomerGroupSelected(g)) {
+        this.selectedCustomerGroups = [...this.selectedCustomerGroups, g];
+      }
+    } else {
+      this.selectedCustomerGroups = this.selectedCustomerGroups.filter(x => x.id !== g.id);
+    }
+    this.checkConflicts();
+  }
+
+  isCategorySelected(c: any): boolean {
+    return this.selectedCategories.some(x => x.id === c.id);
+  }
+
+  toggleCategory(c: any, checked: boolean): void {
+    if (checked) {
+      if (!this.isCategorySelected(c)) {
+        this.selectedCategories = [...this.selectedCategories, c];
+      }
+    } else {
+      this.selectedCategories = this.selectedCategories.filter(x => x.id !== c.id);
+    }
+    this.checkConflicts();
+  }
+
+  openVariantPicker(): void {
+    this.pickerInitialVariantIds = [...this.selectedVariantIds];
+    this.pickerInitialProductIdsOnly = this.selectedProducts.map(p => p.id);
+    this.variantPickerOpen = true;
+    this.cdr.markForCheck();
+  }
+
+  onVariantPickerConfirmed(ev: { variantIds: number[]; productIds: number[] }): void {
+    this.selectedVariantIds = ev.variantIds;
+    this.selectedProducts = this.products.filter(p => ev.productIds.includes(p.id));
+    this.checkConflicts();
+    this.cdr.markForCheck();
   }
 }

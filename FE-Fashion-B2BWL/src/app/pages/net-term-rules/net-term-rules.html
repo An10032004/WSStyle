@@ -32,20 +32,15 @@
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
-        Loại khách hàng áp dụng
-        <tui-select [(ngModel)]="formData.applyCustomerType" (ngModelChange)="syncTargeting()">
-          <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field" *ngIf="formData.applyCustomerType === 'GROUP'">
-        Chọn nhóm khách hàng
-        <tui-multi-select [(ngModel)]="selectedGroupIds" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
-          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-          <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-        </tui-multi-select>
-      </label>
+      <div class="form-field">
+        <div class="choice-field__label">Chọn nhóm khách hàng</div>
+        <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+          <label *ngFor="let g of customerGroups" class="modern-check">
+            <input tuiCheckbox type="checkbox" [ngModel]="isNetTermGroupSelected(g)" (ngModelChange)="toggleNetTermGroup(g, $event)" />
+            <span>{{ g.name }}</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class="form-actions" style="margin-top: 24px; display: flex; gap: 12px;">

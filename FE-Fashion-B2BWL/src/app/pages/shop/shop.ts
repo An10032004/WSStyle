@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef }
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { ApiService, Product, Category } from '../../services/api.service';
+import { Observable, map, combineLatest } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
@@ -87,21 +88,30 @@ export class ShopComponent implements OnInit {
         this.cdr.detectChanges();
     });
 
-    this.route.params.subscribe(params => {
+    combineLatest([this.route.params, this.route.queryParams]).subscribe(([params, queryParams]) => {
         if (params['id']) {
             this.selectedCategoryId = +params['id'];
+        } else {
+            this.selectedCategoryId = null;
         }
-        // applyFilters handles loadProducts and resetting page to 0
-        this.applyFilters();
-    });
 
-    this.route.queryParams.subscribe(params => {
-        this.urlSearchQuery = params['search'] || '';
+        this.urlSearchQuery = queryParams['search'] || '';
+        const brand = queryParams['brand'];
+        if (brand) {
+            this.selectedBrands.clear();
+            this.selectedBrands.add(brand);
+        }
+        
         this.applyFilters();
     });
   }
 
   urlSearchQuery = '';
+
+  /** Tìm kiếm ngữ nghĩa qua API `/api/ai/search` + nạp lại giá qua `/api/products/search`. */
+  aiSearchText = '';
+  aiSearchLoading = false;
+  aiHint: string | null = null;
 
   loadCategories() {
     this.api.getCategories().subscribe(cats => {
@@ -201,6 +211,55 @@ export class ShopComponent implements OnInit {
       this.selectedBrands.clear();
       this.sortBy = 'newest';
       this.page = 0;
+      this.aiHint = null;
       this.applyFilters();
+  }
+
+  runAiSemanticSearch(): void {
+    const q = this.aiSearchText.trim();
+    if (!q || this.aiSearchLoading) return;
+    this.aiSearchLoading = true;
+    this.aiHint = null;
+    this.cdr.markForCheck();
+    const userId = this.auth.currentUserValue?.id;
+    this.api.aiSemanticSearch(q, { userId }).subscribe({
+      next: (res) => {
+        this.aiHint = res.message || null;
+        const ids = (res.products ?? []).map((p) => p.id).filter((id) => id != null);
+        if (ids.length === 0) {
+          this.products = [];
+          this.totalElements = 0;
+          this.totalPages = 0;
+        } else {
+          this.loadProductsByIds(ids);
+        }
+        this.aiSearchLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.aiHint = 'Không thể tìm bằng AI lúc này. Bạn thử lại sau.';
+        this.aiSearchLoading = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private loadProductsByIds(ids: number[]): void {
+    const userId = this.auth.currentUserValue?.id;
+    this.api
+      .searchProducts({
+        productIds: ids,
+        page: 0,
+        size: Math.max(ids.length, 12),
+        sortBy: this.sortBy,
+        userId,
+      })
+      .subscribe((res) => {
+        this.products = res.content;
+        this.totalElements = res.totalElements;
+        this.totalPages = res.totalPages;
+        this.page = 0;
+        this.cdr.markForCheck();
+      });
   }
 }

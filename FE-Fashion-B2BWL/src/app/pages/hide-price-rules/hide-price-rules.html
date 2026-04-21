@@ -25,22 +25,30 @@
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
-        {{ 'RULE.STATUS' | transloco }}
-        <tui-select [(ngModel)]="formData.status">
-          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field">
+        <div class="choice-field__label">{{ 'RULE.STATUS' | transloco }}</div>
+        <div class="radio-group-modern radio-group-modern--vertical">
+          <label *ngFor="let opt of statusOptions" class="modern-radio">
+            <input tuiRadio type="radio" name="hidePriceStatus" [value]="opt" [(ngModel)]="formData.status" />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
-      <div class="form-field" style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
-        <label tuiLabel style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input tuiCheckbox type="checkbox" [(ngModel)]="formData.hidePrice" />
-          {{ 'RULE.HIDE_PRICE' | transloco }}
-        </label>
-        <label tuiLabel style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input tuiCheckbox type="checkbox" [(ngModel)]="formData.hideAddToCart" />
-          {{ 'RULE.HIDE_ADD_TO_CART' | transloco }}
-        </label>
+      <div class="form-field">
+        <div class="choice-field__label">{{ 'RULE.HIDE_PRICE' | transloco }} / {{ 'RULE.HIDE_ADD_TO_CART' | transloco }}</div>
+        <div class="checkbox-list-vertical">
+          <label class="modern-check">
+            <input tuiCheckbox type="checkbox" [(ngModel)]="formData.hidePrice" />
+            <span>{{ 'RULE.HIDE_PRICE' | transloco }}</span>
+          </label>
+          <label class="modern-check">
+            <input tuiCheckbox type="checkbox" [(ngModel)]="formData.hideAddToCart" />
+            <span>{{ 'RULE.HIDE_ADD_TO_CART' | transloco }}</span>
+          </label>
+        </div>
       </div>
 
       <label tuiLabel class="form-field full-width">
@@ -51,44 +59,87 @@
       </label>
 
       <!-- CUSTOMER TARGETING -->
-      <label tuiLabel class="form-field">
-        Đối tượng khách hàng áp dụng
-        <tui-select [(ngModel)]="formData.applyCustomerType">
-          <tui-data-list-wrapper *tuiDataList [items]="customerTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field">
+        <div class="choice-field__label">Đối tượng khách hàng áp dụng</div>
+        <div class="radio-group-modern radio-group-modern--vertical">
+          <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+            <input tuiRadio type="radio" name="hidePriceApplyCustomer" [value]="opt" [(ngModel)]="formData.applyCustomerType" />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + opt | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
-      <label tuiLabel class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
-        Chọn nhóm khách hàng áp dụng
-        <tui-multi-select [(ngModel)]="selectedCustomerGroups" [stringify]="stringifyGroup">
-          <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-          <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-        </tui-multi-select>
-      </label>
+      <div class="form-field full-width" *ngIf="formData.applyCustomerType === 'GROUP'">
+        <div class="choice-field__label">Chọn nhóm khách hàng áp dụng</div>
+        <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+          <label *ngFor="let g of customerGroups" class="modern-check">
+            <input tuiCheckbox type="checkbox" [ngModel]="isHidePriceGroupSelected(g)" (ngModelChange)="toggleHidePriceGroup(g, $event)" />
+            <span>{{ g.name }}</span>
+          </label>
+        </div>
+      </div>
 
       <!-- PRODUCT TARGETING -->
-      <label tuiLabel class="form-field full-width">
-        Loại sản phẩm áp dụng
-        <tui-select [(ngModel)]="formData.applyProductType">
-          <tui-data-list-wrapper *tuiDataList [items]="productTypeOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field full-width">
+        <div class="choice-field__label">Loại sản phẩm áp dụng</div>
+        <div class="radio-group-modern radio-group-modern--vertical">
+          <label *ngFor="let opt of productTypeOptions" class="modern-radio">
+            <input tuiRadio type="radio" name="hidePriceApplyProduct" [value]="opt" [(ngModel)]="formData.applyProductType" />
+            <div class="radio-content">
+              <span class="radio-title">{{ hidePriceProductTypeLabel(opt) }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
-      <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'CATEGORY'">
-        Chọn danh mục áp dụng
-        <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory">
-          <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
-          <ng-template #catContent let-item>{{ item.name }}</ng-template>
-        </tui-multi-select>
-      </label>
+      <div class="form-field full-width" *ngIf="formData.applyProductType === 'CATEGORY'">
+        <div class="choice-field__label">Chọn danh mục áp dụng</div>
+        <div class="checkbox-list-vertical" *ngIf="categories?.length">
+          <label *ngFor="let c of categories" class="modern-check">
+            <input tuiCheckbox type="checkbox" [ngModel]="isHidePriceCategorySelected(c)" (ngModelChange)="toggleHidePriceCategory(c, $event)" />
+            <span>{{ c.name }}</span>
+          </label>
+        </div>
+      </div>
 
-      <label tuiLabel class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
-        Chọn sản phẩm áp dụng cụ thể
-        <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct">
-          <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
-          <ng-template #prodContent let-item>{{ item.name }} ({{ item.productCode }})</ng-template>
-        </tui-multi-select>
-      </label>
+      <div class="form-field full-width" *ngIf="formData.applyProductType === 'SPECIFIC'">
+        <div class="choice-field__label">Chọn sản phẩm / biến thể áp dụng cụ thể</div>
+        <p *ngIf="products?.length; else hidePriceNoProds" style="margin: 0 0 10px; font-size: 0.875rem; color: #64748b;">
+          <ng-container *ngIf="selectedVariantIds.length">
+            Đã chọn <strong>{{ selectedVariantIds.length }}</strong> biến thể
+            <span *ngIf="selectedProducts.length"> trên <strong>{{ selectedProducts.length }}</strong> sản phẩm</span>.
+          </ng-container>
+          <ng-container *ngIf="!selectedVariantIds.length && selectedProducts.length">
+            <strong>{{ selectedProducts.length }}</strong> sản phẩm (theo sản phẩm). Mở hộp chọn để giới hạn theo biến thể.
+          </ng-container>
+          <ng-container *ngIf="!selectedVariantIds.length && !selectedProducts.length">
+            Chưa chọn — nhấn nút bên dưới để chọn biến thể.
+          </ng-container>
+        </p>
+        <button
+          tuiButton
+          type="button"
+          size="s"
+          appearance="secondary"
+          *ngIf="products?.length"
+          (click)="openVariantPicker()"
+        >
+          Chọn sản phẩm / biến thể…
+        </button>
+        <ng-template #hidePriceNoProds>
+          <p style="color: #94a3b8; font-size: 0.875rem;">Chưa có sản phẩm.</p>
+        </ng-template>
+        <app-product-variant-picker
+          [(visible)]="variantPickerOpen"
+          [products]="products"
+          [initialVariantIds]="pickerInitialVariantIds"
+          [initialProductIdsOnly]="pickerInitialProductIdsOnly"
+          (confirmed)="onVariantPickerConfirmed($event)"
+        />
+        <app-selected-variants-preview [variantIds]="selectedVariantIds" [products]="selectedProducts" />
+      </div>
     </div>
 
     <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
@@ -117,7 +168,7 @@
        
        <div class="info-block">
           <p><strong>Loại khách hàng:</strong> <tui-badge appearance="info">{{ selectedRule.applyCustomerType }}</tui-badge></p>
-          <p><strong>Loại sản phẩm:</strong> <tui-badge appearance="info">{{ selectedRule.applyProductType }}</tui-badge></p>
+          <p><strong>Loại sản phẩm:</strong> <tui-badge appearance="info">{{ hidePriceProductTypeLabel(selectedRule.applyProductType || 'ALL') }}</tui-badge></p>
           <p><strong>Văn bản thay thế:</strong></p>
           <p style="background: #f8fafc; padding: 8px 12px; border-radius: 4px; border: 1px solid #e2e8f0; font-style: italic;">
             {{ selectedRule.replacementText || '(Không có)' }}

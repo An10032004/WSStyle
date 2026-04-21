@@ -3,123 +3,108 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel, TuiDataList } from '@taiga-ui/core';
-import { TUI_CONFIRM, TuiDataListWrapper, TuiSelect, TuiMultiSelect } from '@taiga-ui/kit';
-import { TuiComboBoxModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TUI_CONFIRM, TuiDataListWrapper, TuiMultiSelect, TuiRadio } from '@taiga-ui/kit';
+import { TuiComboBoxModule, TuiTextfieldControllerModule, TuiSelectModule } from '@taiga-ui/legacy';
 import { ApiService, Coupon, Category, Product, CustomerGroup } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelect, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiComboBoxModule, TuiTextfieldControllerModule, RuleConflictWarningComponent],
+  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiComboBoxModule, TuiTextfieldControllerModule, RuleConflictWarningComponent, TuiRadio],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="page-header">
-        <h1 class="tui-text_h3">{{ 'SIDEBAR.COUPONS' | transloco }}</h1>
-        <button tuiButton type="button" size="m" (click)="showAddDialog()">Add Coupon</button>
+      <div class="page-header page-header--toolbar">
+        <h1 class="tui-text_h3 page-header__title">{{ 'SIDEBAR.COUPONS' | transloco }}</h1>
+        <div class="page-actions">
+          <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="showAddDialog()">Add Coupon</button>
+        </div>
       </div>
 
       <ng-template #addDialog let-observer>
-        <div class="dialog-content">
-          <h2 class="tui-text_h5" style="margin-bottom: 12px;">Create New Coupon</h2>
+        <div class="dialog-content coupon-dialog">
+          <h2 class="tui-text_h5 coupon-dialog-title">{{ editingId ? 'Edit Coupon' : 'Create New Coupon' }}</h2>
           <app-rule-conflict-warning [conflicts]="conflicts"></app-rule-conflict-warning>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px;">
-            <tui-textfield class="full-width">
-              <input tuiTextfield [(ngModel)]="newCoupon.code" (ngModelChange)="checkConflicts()" placeholder="WELCOME2024" />
-              Coupon Code
-            </tui-textfield>
 
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="newCoupon.priority" (ngModelChange)="checkConflicts()" />
-              Priority (0=Highest)
-            </tui-textfield>
-            
-            <label tuiLabel>
-              Discount Type
-              <tui-select [(ngModel)]="newCoupon.discountType">
-                <tui-data-list-wrapper *tuiDataList [items]="['PERCENTAGE', 'FIXED_AMOUNT']"></tui-data-list-wrapper>
-              </tui-select>
+          <div class="coupon-form-grid">
+            <label tuiLabel class="coupon-field">
+              Mã coupon
+              <tui-textfield>
+                <input tuiTextfield [(ngModel)]="newCoupon.code" autocomplete="off" />
+              </tui-textfield>
             </label>
 
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="newCoupon.discountValue" />
-              Discount Value
-            </tui-textfield>
+            <div class="coupon-field">
+              <div class="choice-field__label">Trạng thái</div>
+              <div class="radio-group-modern">
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponStatus" value="ACTIVE" [(ngModel)]="newCoupon.status" />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ 'ENUMS.ACTIVE' | transloco }}</span>
+                  </div>
+                </label>
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponStatus" value="INACTIVE" [(ngModel)]="newCoupon.status" />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ 'ENUMS.INACTIVE' | transloco }}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="newCoupon.minOrderAmount" />
-              Min Order (đ)
-            </tui-textfield>
+            <div class="coupon-field">
+              <div class="choice-field__label">Loại giảm</div>
+              <div class="radio-group-modern">
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponDiscountType" value="PERCENTAGE" [(ngModel)]="newCoupon.discountType" />
+                  <div class="radio-content">
+                    <span class="radio-title">Phần trăm (%)</span>
+                  </div>
+                </label>
+                <label class="modern-radio">
+                  <input tuiRadio type="radio" name="couponDiscountType" value="FIXED_AMOUNT" [(ngModel)]="newCoupon.discountType" />
+                  <div class="radio-content">
+                    <span class="radio-title">Số tiền cố định</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="newCoupon.maxDiscountAmount" />
-              Max Discount (đ)
-            </tui-textfield>
+            <label tuiLabel class="coupon-field">
+              Giá trị giảm
+              <tui-textfield>
+                <input tuiTextfield type="number" inputmode="decimal" step="any" [(ngModel)]="newCoupon.discountValue" />
+              </tui-textfield>
+              <div class="coupon-field-hint">% nếu PERCENTAGE; số tiền ₫ nếu FIXED_AMOUNT</div>
+            </label>
 
-            <tui-textfield>
-              <input tuiTextfield type="number" [(ngModel)]="newCoupon.usageLimit" />
-              Usage Limit
-            </tui-textfield>
+            <label tuiLabel class="coupon-field coupon-field-span2">
+              Số đơn đã mua tối thiểu
+              <tui-textfield>
+                <input tuiTextfield type="number" inputmode="numeric" min="0" step="1" [(ngModel)]="newCoupon.minimumPriorOrders" />
+              </tui-textfield>
+              <div class="coupon-field-hint">
+                0 = không kiểm tra. Từ 1 trở lên = khách phải có ít nhất chừng đó đơn hợp lệ (không tính đơn hủy / từ chối) mới thấy và áp dụng được mã.
+              </div>
+            </label>
 
-            <label tuiLabel>
-              Start Date
+            <label tuiLabel class="coupon-field">
+              Bắt đầu
               <tui-textfield>
                 <input tuiTextfield type="datetime-local" [(ngModel)]="newCoupon.startDate" />
               </tui-textfield>
             </label>
 
-            <label tuiLabel>
-              End Date
+            <label tuiLabel class="coupon-field">
+              Kết thúc
               <tui-textfield>
                 <input tuiTextfield type="datetime-local" [(ngModel)]="newCoupon.endDate" />
               </tui-textfield>
             </label>
           </div>
 
-          <!-- TARGETING SECTION -->
-          <h3 class="tui-text_h6" style="margin: 24px 0 16px;">Targeting (Who can use this?)</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <label tuiLabel>
-              Apply To Customer Type
-              <tui-select [(ngModel)]="newCoupon.applyCustomerType" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'GUEST', 'LOGGED_IN', 'GROUP']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
-
-            <div *ngIf="newCoupon.applyCustomerType === 'GROUP'">
-              <label tuiLabel>Select Customer Groups</label>
-              <tui-multi-select [(ngModel)]="selectedGroupIds" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="customerGroups()" [itemContent]="groupContent"></tui-data-list-wrapper>
-                <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-              </tui-multi-select>
-            </div>
-            
-            <label tuiLabel>
-              Apply To Product Type
-              <tui-select [(ngModel)]="newCoupon.applyProductType" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
-
-            <div *ngIf="newCoupon.applyProductType === 'CATEGORY'">
-              <label tuiLabel>Select Categories</label>
-              <tui-multi-select [(ngModel)]="selectedCategoryIds" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="categories()" [itemContent]="catContent"></tui-data-list-wrapper>
-                <ng-template #catContent let-item>{{ item.name }}</ng-template>
-              </tui-multi-select>
-            </div>
-
-            <div *ngIf="newCoupon.applyProductType === 'SPECIFIC'">
-              <label tuiLabel>Select Products</label>
-              <tui-multi-select [(ngModel)]="selectedProductIds" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="products()" [itemContent]="prodContent"></tui-data-list-wrapper>
-                <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-              </tui-multi-select>
-            </div>
-          </div>
-          
-          <div style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px;">
+          <div class="coupon-dialog-actions">
             <button tuiButton type="button" size="m" appearance="flat" (click)="observer.complete()">Cancel</button>
             <button tuiButton type="button" size="m" (click)="observer.next(true); observer.complete()">Save Coupon</button>
           </div>
@@ -131,31 +116,35 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
           <thead>
             <tr class="tui-table__tr">
               <th class="tui-table__th">Code</th>
-              <th class="tui-table__th">Priority</th>
+              <th class="tui-table__th">Loại</th>
               <th class="tui-table__th">Discount</th>
-              <th class="tui-table__th">Min Order</th>
-              <th class="tui-table__th">Usage</th>
+              <th class="tui-table__th">Tối thiểu đơn đã mua</th>
               <th class="tui-table__th">Status</th>
+              <th class="tui-table__th">Start Date</th>
+              <th class="tui-table__th">End Date</th>
               <th class="tui-table__th">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let item of coupons()" class="tui-table__tr">
               <td class="tui-table__td"><strong>{{ item.code }}</strong></td>
-              <td class="tui-table__td">{{ item.priority }}</td>
-              <td class="tui-table__td">{{ item.discountValue }}{{ item.discountType === 'PERCENTAGE' ? '%' : 'đ' }}</td>
+              <td class="tui-table__td">{{ item.discountType }}</td>
+              <td class="tui-table__td">{{ item.discountValue | number }}</td>
+              <td class="tui-table__td">{{ item.minimumPriorOrders ?? 0 }}</td>
               <td class="tui-table__td">
-                <div *ngIf="item.minOrderAmount">{{ item.minOrderAmount | number }}đ</div>
-                <div *ngIf="item.maxDiscountAmount" style="font-size: 11px; color: #666;">Max: {{ item.maxDiscountAmount | number }}đ</div>
+                <span [class]="couponStatusPillClass(item.status)">{{ 'ENUMS.' + item.status | transloco }}</span>
               </td>
+              <td class="tui-table__td">{{ item.startDate | date:'short' }}</td>
+              <td class="tui-table__td">{{ item.endDate | date:'short' }}</td>
               <td class="tui-table__td">
-                <div>{{ item.usedCount }} / {{ item.usageLimit }}</div>
-                <div style="font-size: 11px; color: #666;" *ngIf="item.endDate">Until: {{ item.endDate | date:'shortDate' }}</div>
-              </td>
-              <td class="tui-table__td">
-                <span class="tui-badge" [class.tui-badge_primary]="item.status === 'ACTIVE'">{{ item.status }}</span>
-              </td>
-              <td class="tui-table__td">
+                <button 
+                  tuiButton 
+                  type="button" 
+                  size="s" 
+                  appearance="flat" 
+                  (click)="showEditDialog(item)">
+                  Edit
+                </button>
                 <button 
                   tuiButton 
                   type="button" 
@@ -171,19 +160,14 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .content-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-  `],
+  styleUrl: './coupons.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CouponsComponent {
   private readonly api = inject(ApiService);
   private readonly dialogs = inject(TuiDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
-  
+
   readonly coupons = signal<Coupon[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly products = signal<Product[]>([]);
@@ -194,21 +178,16 @@ export class CouponsComponent {
   selectedGroupIds: CustomerGroup[] = [];
 
   @ViewChild('addDialog') addDialogTemplate!: TemplateRef<any>;
-  
-  newCoupon = {
+
+  editingId: number | null = null;
+  newCoupon: Partial<Coupon> = {
     code: '',
     discountType: 'PERCENTAGE',
     discountValue: 0,
-    minOrderAmount: 0,
-    maxDiscountAmount: 0,
+    status: 'ACTIVE',
     startDate: '',
     endDate: '',
-    usageLimit: 100,
-    applyProductType: 'ALL',
-    applyProductValue: '',
-    applyCustomerType: 'ALL',
-    applyCustomerValue: '',
-    priority: 99
+    minimumPriorOrders: 0,
   };
 
   conflicts: string[] = [];
@@ -236,25 +215,40 @@ export class CouponsComponent {
   }
 
   showAddDialog() {
-    this.newCoupon = { 
-      code: '', 
+    this.editingId = null;
+    this.newCoupon = {
+      code: '',
       discountType: 'PERCENTAGE',
       discountValue: 0,
-      minOrderAmount: 0,
-      maxDiscountAmount: 0,
+      status: 'ACTIVE',
       startDate: '',
       endDate: '',
-      usageLimit: 100,
-      applyProductType: 'ALL',
-      applyProductValue: '',
-      applyCustomerType: 'ALL',
-      applyCustomerValue: '',
-      priority: 99
+      minimumPriorOrders: 0,
     };
-    this.selectedCategoryIds = [];
-    this.selectedProductIds = [];
-    this.selectedGroupIds = [];
     this.conflicts = [];
+    this.cdr.markForCheck();
+
+    this.dialogs.open<boolean>(this.addDialogTemplate, { size: 'l' }).subscribe({
+      next: (res) => {
+        if (res) this.saveCoupon();
+      }
+    });
+  }
+
+  showEditDialog(item: Coupon) {
+    this.editingId = item.id;
+    this.newCoupon = {
+      code: item.code,
+      discountType: item.discountType,
+      discountValue: this.coerceDiscountNumber(item.discountValue),
+      status: item.status,
+      startDate: this.toDatetimeLocalValue(item.startDate as unknown),
+      endDate: this.toDatetimeLocalValue(item.endDate as unknown),
+      minimumPriorOrders: item.minimumPriorOrders ?? 0,
+      priority: item.priority,
+    };
+    this.conflicts = [];
+    this.cdr.markForCheck();
 
     this.dialogs.open<boolean>(this.addDialogTemplate, { size: 'l' }).subscribe({
       next: (res) => {
@@ -264,51 +258,88 @@ export class CouponsComponent {
   }
 
   checkConflicts() {
-    const target = {
-      name: `Coupon ${this.newCoupon.code}`,
-      applyProductType: this.newCoupon.applyProductType || 'ALL',
-      applyProductValue: this.newCoupon.applyProductType === 'CATEGORY' 
-        ? JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) })
-        : (this.newCoupon.applyProductType === 'SPECIFIC' 
-          ? JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) }) 
-          : '{}'),
-      applyCustomerType: this.newCoupon.applyCustomerType || 'ALL',
-      applyCustomerValue: this.newCoupon.applyCustomerType === 'GROUP'
-        ? JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) })
-        : '{}',
-      priority: this.newCoupon.priority || 0
-    };
+    // simplified checking removed
+  }
 
-    this.api.checkRuleConflicts('COUPON', target).subscribe(res => {
-      this.conflicts = res;
-      this.cdr.detectChanges();
-    });
+  /**
+   * API (Jackson) có thể trả chuỗi ISO có offset / có giây phần nghìn;
+   * `<input type="datetime-local">` chỉ chấp nhận dạng `YYYY-MM-DDTHH:mm`.
+   */
+  private toDatetimeLocalValue(value: unknown): string {
+    if (value == null || value === '') return '';
+    if (typeof value === 'string') {
+      const s = value.trim();
+      const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+      if (m) return `${m[1]}T${m[2]}`;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        const p = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+    }
+    return '';
+  }
+
+  /** BigDecimal / số có thể là string sau JSON — chuẩn hóa cho `type="number"`. */
+  private coerceOptionalNumber(value: unknown): number | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
+    const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  private coerceDiscountNumber(value: unknown): number {
+    const n = this.coerceOptionalNumber(value);
+    return n ?? 0;
+  }
+
+  /** Chuẩn hóa số + gửi `null` rõ ràng cho ô tùy chọn (JSON bỏ `undefined` → backend không nhận được giá trị mới). */
+  private buildCouponPayload(): Partial<Coupon> {
+    const raw = this.newCoupon;
+    const num = (v: unknown): number | undefined => {
+      if (v === '' || v === null || v === undefined) return undefined;
+      const x = Number(v);
+      return Number.isFinite(x) ? x : undefined;
+    };
+    const intOrUndef = (v: unknown): number | undefined => {
+      const x = num(v);
+      if (x === undefined) return undefined;
+      return Math.trunc(x);
+    };
+    const discount = num(raw.discountValue);
+    const minPrior = intOrUndef(raw.minimumPriorOrders);
+    const dateOrNull = (v: unknown): string | null => {
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      return s ? s : null;
+    };
+    const body: Record<string, unknown> = {
+      code: (raw.code || '').trim(),
+      discountType: raw.discountType,
+      discountValue: discount ?? 0,
+      status: raw.status,
+      startDate: dateOrNull(raw.startDate),
+      endDate: dateOrNull(raw.endDate),
+      minimumPriorOrders: minPrior !== undefined ? Math.max(0, minPrior) : 0,
+      priority: raw.priority ?? null,
+    };
+    return body as Partial<Coupon>;
   }
 
   async saveCoupon() {
-    this.checkConflicts(); // Final check
-    
-    // Stringify targeting values
-    let productVal = '{}';
-    if (this.newCoupon.applyProductType === 'CATEGORY') {
-      productVal = JSON.stringify({ categoryIds: this.selectedCategoryIds.map(c => c.id) });
-    } else if (this.newCoupon.applyProductType === 'SPECIFIC') {
-      productVal = JSON.stringify({ productIds: this.selectedProductIds.map(p => p.id) });
+    const body = this.buildCouponPayload();
+    if (this.editingId != null) {
+      await firstValueFrom(this.api.updateCoupon(this.editingId, body));
+    } else {
+      await firstValueFrom(this.api.createCoupon(body));
     }
+    await this.refresh();
+    this.cdr.markForCheck();
+  }
 
-    let customerVal = '{}';
-    if (this.newCoupon.applyCustomerType === 'GROUP') {
-      customerVal = JSON.stringify({ groupIds: this.selectedGroupIds.map(g => g.id) });
-    }
-
-    await firstValueFrom(this.api.createCoupon({
-      ...this.newCoupon,
-      applyProductValue: productVal,
-      applyCustomerValue: customerVal,
-      usedCount: 0,
-      status: 'ACTIVE'
-    }));
-    this.refresh();
+  couponStatusPillClass(status: string | undefined): string {
+    return adminLifecycleStatusPillClass(status);
   }
 
   async deleteCoupon(id: number | undefined) {

@@ -1,14 +1,15 @@
 <div class="page-container">
-  <div class="header-section" style="padding: 16px">
-    <h2 class="title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
-    <button tuiButton type="button" size="m" (click)="onAdd()">
-      <tui-icon icon="@tui.plus"></tui-icon>
-      {{ 'COMMON.ADD' | transloco }}
-    </button>
+  <div class="page-header">
+    <h2 class="tui-text_h3 page-header__title">{{ 'MEMBER.USERS_TITLE' | transloco }}</h2>
+    <div class="page-actions">
+      <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="onAdd()">
+        {{ 'COMMON.ADD' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div *ngIf="showForm" class="form-panel" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 16px 16px;">
-    <h3>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h3>
+  <div *ngIf="showForm" class="form-panel">
+    <h4>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h4>
     
     <div class="form-grid">
       <label tuiLabel class="form-field">
@@ -16,6 +17,7 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.email" />
         </tui-textfield>
+        <div *ngIf="formErrors['email']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['email'] }}</div>
       </label>
 
       <label tuiLabel class="form-field">
@@ -30,6 +32,7 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.fullName" />
         </tui-textfield>
+        <div *ngIf="formErrors['fullName']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['fullName'] }}</div>
       </label>
 
       <label tuiLabel class="form-field">
@@ -37,10 +40,30 @@
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.phone" />
         </tui-textfield>
+        <div *ngIf="formErrors['phone']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['phone'] }}</div>
       </label>
 
-      <label tuiLabel class="form-field full-width">
-        <span style="color: #1976d2; font-weight: bold;">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
+      <div class="form-field full-width choice-field">
+        <div class="choice-field__label">{{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)</div>
+        <div class="radio-group-modern">
+          <label *ngFor="let r of roleOptions" class="modern-radio">
+            <input
+              tuiRadio
+              type="radio"
+              name="userFormRole"
+              [value]="r"
+              [(ngModel)]="formData.role"
+              (ngModelChange)="onCustomerRoleChange()"
+            />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + r | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <label tuiLabel class="form-field full-width" *ngIf="isWholesaleCustomerRole(); else customerGroupRetailHint">
+        <span class="group-label-highlight">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
         <tui-select [(ngModel)]="formData.customerGroupId" [valueContent]="selectedGroupNameTemplate">
           <tui-data-list-wrapper 
             *tuiDataList 
@@ -58,20 +81,30 @@
           </ng-template>
         </tui-select>
       </label>
+      <ng-template #customerGroupRetailHint>
+        <div class="form-field full-width customer-group-retail-block">
+          <div class="choice-field__label">{{ 'MEMBER.GROUP' | transloco }}</div>
+          <p class="customer-group-retail-hint">{{ 'MEMBER.GROUP_WHOLESALE_ONLY' | transloco }}</p>
+        </div>
+      </ng-template>
 
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)
-        <tui-select [(ngModel)]="formData.role">
-          <tui-data-list-wrapper *tuiDataList [items]="roleOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
-
-      <label tuiLabel class="form-field">
-        {{ 'MEMBER.STATUS' | transloco }}
-        <tui-select [(ngModel)]="formData.registrationStatus">
-          <tui-data-list-wrapper *tuiDataList [items]="statusOptions"></tui-data-list-wrapper>
-        </tui-select>
-      </label>
+      <div class="form-field full-width choice-field">
+        <div class="choice-field__label">{{ 'MEMBER.STATUS' | transloco }}</div>
+        <div class="radio-group-modern">
+          <label *ngFor="let s of statusOptions" class="modern-radio">
+            <input
+              tuiRadio
+              type="radio"
+              name="userFormRegStatus"
+              [value]="s"
+              [(ngModel)]="formData.registrationStatus"
+            />
+            <div class="radio-content">
+              <span class="radio-title">{{ 'ENUMS.' + s | transloco }}</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
       <label tuiLabel class="form-field">
         {{ 'MEMBER.COMPANY' | transloco }}
@@ -88,9 +121,9 @@
       </label>
     </div>
 
-    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-      <button tuiButton type="button" appearance="outline" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
-      <button tuiButton type="button" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
+    <div class="form-actions">
+      <button tuiButton type="button" appearance="outline" size="m" (click)="cancel()">{{ 'COMMON.CANCEL' | transloco }}</button>
+      <button tuiButton type="button" appearance="primary" size="m" iconStart="@tui.save" (click)="onSubmit()">{{ 'COMMON.SAVE' | transloco }}</button>
     </div>
   </div>
 
@@ -112,7 +145,6 @@
 
 <ng-template #deleteDialog let-observer>
   <div style="display: flex; gap: 16px; align-items: flex-start; padding: 4px;">
-    <tui-icon icon="@tui.triangle-alert" style="font-size: 24px; color: #d97706;"></tui-icon>
     <div>
       <h3 style="margin: 0 0 8px;">Xác nhận xóa</h3>
       <p style="margin: 0; color: #666;">Bạn có chắc chắn muốn xóa người dùng <strong>{{ deleteTargetName }}</strong> này không?</p>
@@ -121,6 +153,43 @@
   <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
     <button tuiButton size="m" appearance="outline" (click)="observer.next(false); observer.complete()">Hủy</button>
     <button tuiButton size="m" appearance="accent" (click)="observer.next(true); observer.complete()">Xác nhận xóa</button>
+  </div>
+</ng-template>
+
+<ng-template #deleteErrorDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <div>
+      <h3 style="margin:0 0 8px 0;">Thao tác thất bại</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Không thể hoàn tất thao tác. Chi tiết lỗi:</p>
+      <pre style="background:#f7f7f7; padding:8px; border-radius:4px; white-space:pre-wrap; color:#222">{{ deleteErrorMessage }}</pre>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #adminDeleteDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <div>
+      <h3 style="margin:0 0 8px 0;">Không thể xóa Admin</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Tài khoản Admin là vai trò hệ thống và không được phép xóa. Nếu cần, hãy thay đổi vai trò hoặc vô hiệu hóa tài khoản.</p>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #duplicateEmailDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <div>
+      <h3 style="margin:0 0 8px 0;">Email đã tồn tại</h3>
+      <p style="margin:0 0 12px 0; color:#444;">{{ duplicateEmailMessage }}</p>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
+      </div>
+    </div>
   </div>
 </ng-template>
 
@@ -144,7 +213,7 @@
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
-      <span class="value">{{ 'ENUMS.' + selectedUser.role | transloco }}</span>
+      <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
@@ -154,13 +223,13 @@
       <span class="label">{{ 'MEMBER.STATUS' | transloco }}:</span>
       <span class="value">{{ selectedUser.registrationStatus }}</span>
     </div>
-    <div class="detail-row" *ngIf="selectedUser.companyName">
+    <div class="detail-row">
       <span class="label">{{ 'MEMBER.COMPANY' | transloco }}:</span>
-      <span class="value">{{ selectedUser.companyName }}</span>
+      <span class="value">{{ selectedUser.companyName || '—' }}</span>
     </div>
-    <div class="detail-row" *ngIf="selectedUser.taxCode">
+    <div class="detail-row">
       <span class="label">{{ 'MEMBER.TAX_CODE' | transloco }}:</span>
-      <span class="value">{{ selectedUser.taxCode }}</span>
+      <span class="value">{{ selectedUser.taxCode || '—' }}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: flex-end; margin-top: 24px;">

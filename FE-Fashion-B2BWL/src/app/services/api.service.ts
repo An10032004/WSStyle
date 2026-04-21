@@ -15,6 +15,8 @@ export interface OrderItemRequest {
   quantity: number;
   unitPrice: number;
   appliedRuleId?: number;
+  /** Ghi chú ưu đãi tại thời điểm đặt (QB/B2B/combo…). */
+  pricingNote?: string;
 }
 
 export interface OrderRequest {
@@ -25,7 +27,13 @@ export interface OrderRequest {
   phone: string;
   shippingAddress: string;
   note?: string;
+  /** RULE | STANDARD | EXPRESS */
+  shippingSelection?: string;
+  shippingProvinceCode?: string;
   shippingFee?: number;
+  taxAmount?: number;
+  couponCode?: string;
+  discountAmount?: number;
   items: OrderItemRequest[];
 }
 
@@ -69,8 +77,15 @@ export interface Product {
   campaignBanner?: string;
   campaignName?: string;
   quantityBreaksJson?: string;
+  /** Khớp cột DB `is_sale` (tạo/cập nhật sản phẩm). */
+  isSale?: boolean;
+  /** JSON mảng tối đa 3 nhãn (color / size / weight) cho PDP và admin. */
+  variantDimensionLabels?: string | null;
+  /** Số biến thể (backend đếm, không cần tải hết SKU khi vào trang). */
+  variantCount?: number;
   isNetTermEligible?: boolean;
   netTermDays?: number;
+  images?: any[];
   description?: string;
 }
 
@@ -117,6 +132,20 @@ export interface TranslationRequest {
 export interface AIResponse {
   message: string;
   products: Product[];
+  /** Phiên lịch sử (BE); gửi lại ở tin tiếp theo. */
+  sessionId?: number | null;
+}
+
+export interface AssistantSessionItem {
+  id: number;
+  title: string;
+  updatedAt: string;
+}
+
+export interface AssistantTurn {
+  role: string;
+  content: string;
+  productIds: number[];
 }
 
 export interface PricingRule {
@@ -173,6 +202,31 @@ export interface ShippingRule {
   discountValue?: number;
 }
 
+/** Phản hồi POST /api/shipping-rules/quote — theo tổng đơn + loại khách, không lọc SP. */
+export interface ShippingQuote {
+  fee: number;
+  tierFeeBeforeDiscount?: number;
+  ruleName?: string;
+  baseOn?: string;
+  matched: boolean;
+  ruleFee?: number;
+  zoneMatched?: boolean;
+  zoneId?: number | null;
+  zoneName?: string | null;
+  zoneStandardFee?: number;
+  zoneExpressFee?: number;
+}
+
+export interface ShippingZone {
+  id: number;
+  name: string;
+  priority: number;
+  status: string;
+  provinceCodes: string;
+  standardFee: number;
+  expressFee: number;
+}
+
 export interface NetTermRule {
   id: number;
   name: string;
@@ -182,6 +236,31 @@ export interface NetTermRule {
   applyCustomerValue?: string;
   conditionType?: string;
   netTermDays: number;
+}
+
+export interface NetTermQuote {
+  eligible: boolean;
+  netTermDays?: number;
+  ruleName?: string;
+}
+
+export interface DebtOrderReportRow {
+  orderId: number;
+  customerName?: string;
+  customerGroupName?: string;
+  createdAt?: string;
+  dueDate?: string;
+  daysLeft: number;
+  debtStatus: 'CON_HAN' | 'SAP_DEN_HAN' | 'QUA_HAN';
+  paymentStatus?: string;
+  /** Tổng tiền đơn NET_TERMS (backend BigDecimal → number). */
+  totalAmount?: number;
+}
+
+export interface DebtSummary {
+  blocked: boolean;
+  overdueCount: number;
+  items: DebtOrderReportRow[];
 }
 
 export interface TaxDisplayRule {
@@ -231,11 +310,19 @@ export interface User {
   fullName?: string;
   phone?: string;
   role: string;
+  // Computed roles: primary (`role`) + secondary roles parsed from `tags` (if any)
+  roles?: string[];
+  // Human-friendly joined roles for display in templates (e.g. "ADMIN / WHOLESALE")
+  displayRoles?: string;
+  // Optional separate assigned permission role (stored in user.tags.assignedRole)
+  assignedRole?: string;
   customerGroup?: CustomerGroup;
   tags?: string;
   registrationStatus?: string;
   companyName?: string;
   taxCode?: string;
+  /** JSON địa chỉ (tỉnh/quận/phường + chi tiết) — lưu hồ sơ. */
+  shippingAddressJson?: string | null;
   permissions?: string; // JSON string array from backend
 }
 
@@ -263,10 +350,16 @@ export interface Order {
   paidAmount: number;
   debtAmount: number;
   dueDate: string;
+  /** Admin đánh dấu đã chuyển khoản hoàn tiền (đơn hủy + QR/CK). */
+  refundProcessedAt?: string | null;
+  /** Khách xác nhận đã nhận lại tiền hoàn. */
+  refundConfirmedByCustomerAt?: string | null;
   fullName?: string;
   phone?: string;
   shippingAddress?: string;
   note?: string;
+  couponCode?: string;
+  discountAmount?: number;
   createdAt: string;
   items?: OrderItem[];
 }
@@ -279,6 +372,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   appliedRuleId?: number;
+  /** Ưu đãi/ghi chú giá đã áp khi mua (đối chiếu khi reorder). */
+  pricingNote?: string;
 }
 
 export interface PaymentTransaction {
@@ -303,11 +398,40 @@ export interface AIProductSync {
   shopId: number;
 }
 
+export interface SalesReportPaidOrderLine {
+  orderId: number;
+  customerLabel: string;
+  amount: number;
+}
+
 export interface SalesReport {
   totalRevenue: number;
   totalOrders: number;
   bestSellers: { name: string; quantity: number; revenue: number }[];
-  revenueByDate: { date: string; amount: number }[];
+  /** Mỗi ngày có đơn PAID: doanh thu + số đơn + tổng SL dòng hàng. */
+  revenueByDate: {
+    date: string;
+    amount: number;
+    paidOrderCount?: number;
+    itemsSoldQuantity?: number;
+    /** Mỗi đơn PAID một dòng: #id · tên · tiền. */
+    paidOrdersSummary?: string;
+    /** Danh sách đơn (mở Quản lý đơn theo orderId). */
+    paidOrders?: SalesReportPaidOrderLine[];
+  }[];
+}
+
+export interface VariantReportRow {
+  variantId: number;
+  sku?: string;
+  productName?: string;
+  soldQuantity?: number;
+  revenue?: number;
+  currentStock?: number;
+}
+
+export interface VariantReport {
+  items: VariantReportRow[];
 }
 
 export interface Expense {
@@ -337,11 +461,8 @@ export interface Coupon {
   code: string;
   discountType: string;
   discountValue: number;
-  minOrderAmount?: number;
-  maxDiscountAmount?: number;
   startDate?: string;
   endDate?: string;
-  usageLimit?: number;
   usedCount: number;
   status: string;
   applyProductType?: string;
@@ -349,6 +470,8 @@ export interface Coupon {
   applyCustomerType?: string;
   applyCustomerValue?: string;
   priority: number;
+  /** Số đơn đã mua tối thiểu (không tính hủy/từ chối) để thấy/áp dụng mã; 0 = không yêu cầu. */
+  minimumPriorOrders?: number;
 }
 
 export interface SaleCampaign {
@@ -390,12 +513,14 @@ export interface WalletTransaction {
 export interface ProductReview {
   id: number;
   productId: number;
-  userId: number;
+  userName?: string;
+  productName?: string;
+  productImage?: string;
   rating: number;
-  comment?: string;
+  comment: string;
   replyMessage?: string;
-  isPinned: boolean;
-  createdAt: string;
+  isPinned?: boolean;
+  createdAt?: string;
 }
 
 export interface ChatMessage {
@@ -405,6 +530,36 @@ export interface ChatMessage {
   message: string;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface Conversation {
+  otherUserId: number;
+  otherUserName: string;
+  otherUserAvatar?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  hasUnread: boolean;
+}
+
+export interface Bundle {
+  id: number;
+  imageUrl?: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  discountValue: number;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  oldPrice: number;
+  newPrice: number;
+  applyCustomerType: string;
+  items: BundleItem[];
+}
+
+export interface BundleItem {
+  id?: number;
+  bundleId?: number;
+  variantId: number;
+  variant?: ProductVariant;
+  quantity: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -432,6 +587,23 @@ export class ApiService {
   }
   deleteCategory(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/categories/${id}`).pipe(map(r => r.data));
+  }
+
+  // ─── Auth ─────────────────────────────────────────────
+  checkEmail(email: string): Observable<boolean> {
+    return this.http.get<boolean>(`${this.base}/auth/check-email`, { params: { email } });
+  }
+
+  checkPhone(phone: string): Observable<boolean> {
+    return this.http.get<boolean>(`${this.base}/auth/check-phone`, { params: { phone } });
+  }
+
+  changePassword(payload: {
+    email: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Observable<ApiResponse<null>> {
+    return this.http.post<ApiResponse<null>>(`${this.base}/auth/change-password`, payload);
   }
 
   // ─── Products ──────────────────────────────────────────
@@ -465,6 +637,13 @@ export class ApiService {
     const url = userId ? `${this.base}/products/${id}?userId=${userId}` : `${this.base}/products/${id}`;
     return this.http.get<ApiResponse<Product>>(url).pipe(map(r => r.data));
   }
+
+  getProductsByCategory(categoryId: number, userId?: number): Observable<Product[]> {
+    const q = userId != null ? `?userId=${userId}` : '';
+    return this.http
+      .get<ApiResponse<Product[]>>(`${this.base}/products/category/${categoryId}${q}`)
+      .pipe(map(r => r.data || []));
+  }
   createProduct(body: Partial<Product>): Observable<Product> {
     return this.http.post<ApiResponse<Product>>(`${this.base}/products`, body).pipe(map(r => r.data));
   }
@@ -481,6 +660,9 @@ export class ApiService {
   }
   getProductVariantsByProduct(productId: number): Observable<ProductVariant[]> {
     return this.http.get<ApiResponse<ProductVariant[]>>(`${this.base}/product-variants/product/${productId}`).pipe(map(r => r.data));
+  }
+  getProductVariant(id: number): Observable<ProductVariant> {
+    return this.http.get<ApiResponse<ProductVariant>>(`${this.base}/product-variants/${id}`).pipe(map(r => r.data));
   }
   createProductVariant(body: Partial<ProductVariant>): Observable<ProductVariant> {
     return this.http.post<ApiResponse<ProductVariant>>(`${this.base}/product-variants`, body).pipe(map(r => r.data));
@@ -545,9 +727,57 @@ export class ApiService {
     return this.http.post<ApiResponse<any[]>>(`${this.base}/order-limits/validate`, { userId, items }).pipe(map(r => r.data));
   }
 
+  /** Cảnh báo trùng ưu tiên / trùng phạm vi MOQ-MOV (backend OrderLimitService.detectConflicts). */
+  checkOrderLimitConflicts(draft: Partial<OrderLimit>, excludeRuleId: number | null | undefined): Observable<string[]> {
+    return this.http.post<string[]>(`${this.base}/order-limits/conflicts`, {
+      draft,
+      excludeRuleId: excludeRuleId ?? null,
+    });
+  }
+
   // ─── Shipping Rules ────────────────────────────────────
   getShippingRules(): Observable<ShippingRule[]> {
     return this.http.get<ApiResponse<ShippingRule[]>>(`${this.base}/shipping-rules`).pipe(map(r => r.data));
+  }
+
+  quoteShipping(body: {
+    userId?: number | null;
+    orderAmount: number;
+    totalQuantity: number;
+    provinceCode?: string | null;
+    shippingSelection?: 'RULE' | 'STANDARD' | 'EXPRESS' | string | null;
+  }): Observable<ShippingQuote> {
+    return this.http
+      .post<ApiResponse<ShippingQuote>>(`${this.base}/shipping-rules/quote`, {
+        userId: body.userId ?? null,
+        orderAmount: body.orderAmount,
+        totalQuantity: body.totalQuantity,
+        provinceCode: body.provinceCode ?? null,
+        shippingSelection: body.shippingSelection ?? null,
+      })
+      .pipe(map(r => r.data));
+  }
+
+  updateUserShippingAddress(userId: number, shippingAddressJson: string): Observable<User> {
+    return this.http
+      .put<ApiResponse<User>>(`${this.base}/users/${userId}/shipping-address`, { shippingAddressJson })
+      .pipe(map((r) => r.data));
+  }
+
+  getShippingZones(): Observable<ShippingZone[]> {
+    return this.http.get<ApiResponse<ShippingZone[]>>(`${this.base}/shipping-zones`).pipe(map((r) => r.data));
+  }
+
+  createShippingZone(body: Partial<ShippingZone>): Observable<ShippingZone> {
+    return this.http.post<ApiResponse<ShippingZone>>(`${this.base}/shipping-zones`, body).pipe(map((r) => r.data));
+  }
+
+  updateShippingZone(id: number, body: Partial<ShippingZone>): Observable<ShippingZone> {
+    return this.http.put<ApiResponse<ShippingZone>>(`${this.base}/shipping-zones/${id}`, body).pipe(map((r) => r.data));
+  }
+
+  deleteShippingZone(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/shipping-zones/${id}`).pipe(map(() => void 0));
   }
   createShippingRule(body: Partial<ShippingRule>): Observable<ShippingRule> {
     return this.http.post<ApiResponse<ShippingRule>>(`${this.base}/shipping-rules`, body).pipe(map(r => r.data));
@@ -572,6 +802,11 @@ export class ApiService {
   deleteNetTermRule(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/net-term-rules/${id}`).pipe(map(r => r.data));
   }
+  quoteNetTerm(userId?: number | null): Observable<NetTermQuote> {
+    const params: any = {};
+    if (userId != null) params.userId = userId;
+    return this.http.get<ApiResponse<NetTermQuote>>(`${this.base}/net-term-rules/quote`, { params }).pipe(map(r => r.data));
+  }
 
   // ─── Tax Display Rules ──────────────────────────────────
   getTaxDisplayRules(): Observable<TaxDisplayRule[]> {
@@ -585,6 +820,12 @@ export class ApiService {
   }
   deleteTaxDisplayRule(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/tax-display-rules/${id}`).pipe(map(r => r.data));
+  }
+  quoteTax(body: { userId?: number | null; orderAmount: number }): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/tax-display-rules/quote`, {
+      userId: body.userId ?? null,
+      orderAmount: body.orderAmount
+    }).pipe(map(r => r.data));
   }
 
   // ─── Hide Price Rules ───────────────────────────────────
@@ -622,6 +863,9 @@ export class ApiService {
   getUsersByRoles(roles: string[]): Observable<User[]> {
     return this.http.get<ApiResponse<User[]>>(`${this.base}/users/roles`, { params: { roles: roles.join(',') } }).pipe(map(r => r.data));
   }
+  getUserById(id: number): Observable<User> {
+    return this.http.get<ApiResponse<User>>(`${this.base}/users/${id}`).pipe(map(r => r.data));
+  }
   createUser(body: any): Observable<User> {
     return this.http.post<ApiResponse<User>>(`${this.base}/users`, body).pipe(map(r => r.data));
   }
@@ -646,18 +890,28 @@ export class ApiService {
     return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders/user/${userId}`).pipe(map(r => r.data));
   }
 
+  getDebtSummary(userId: number): Observable<DebtSummary> {
+    return this.http.get<ApiResponse<DebtSummary>>(`${this.base}/orders/user/${userId}/debt-summary`).pipe(map(r => r.data));
+  }
+
+  getDebtReport(startDate?: string, endDate?: string): Observable<DebtOrderReportRow[]> {
+    return this.http.get<ApiResponse<DebtOrderReportRow[]>>(`${this.base}/orders/debt-report`, {
+      params: { startDate: startDate || '', endDate: endDate || '' }
+    }).pipe(map(r => r.data));
+  }
+
   getOrdersByUserPaged(userId: number, page: number = 0, size: number = 10): Observable<any> {
     return this.http.get<ApiResponse<any>>(`${this.base}/orders/paged`, {
       params: { userId: userId.toString(), page: page.toString(), size: size.toString() }
     }).pipe(map(r => r.data));
   }
 
-  getReviewsByProduct(productId: number): Observable<any[]> {
-    return this.http.get<ApiResponse<any[]>>(`${this.base}/reviews/product/${productId}`).pipe(map(r => r.data));
+  getReviewsByProduct(productId: number): Observable<ProductReview[]> {
+    return this.http.get<ApiResponse<ProductReview[]>>(`${this.base}/reviews/product/${productId}`).pipe(map(r => r.data));
   }
 
-  submitReview(review: any): Observable<any> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/reviews`, review).pipe(map(r => r.data));
+  submitReview(review: any): Observable<ProductReview> {
+    return this.http.post<ApiResponse<ProductReview>>(`${this.base}/reviews`, review).pipe(map(r => r.data));
   }
 
   updateReview(id: number, review: any): Observable<any> {
@@ -680,6 +934,16 @@ export class ApiService {
     return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/payment-status?paymentStatus=${status}`, {}).pipe(map(r => r.data));
   }
 
+  markRefundProcessed(id: number): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/refund-processed`, {}).pipe(map(r => r.data));
+  }
+
+  confirmRefundReceived(orderId: number, userId: number): Observable<Order> {
+    return this.http
+      .patch<ApiResponse<Order>>(`${this.base}/orders/${orderId}/confirm-refund-received?userId=${userId}`, {})
+      .pipe(map(r => r.data));
+  }
+
   // ─── Payments ───────────────────────────────────────────
   getTransactionsByOrder(orderId: number): Observable<PaymentTransaction[]> {
     return this.http.get<ApiResponse<PaymentTransaction[]>>(`${this.base}/payments/order/${orderId}/transactions`).pipe(map(r => r.data));
@@ -699,7 +963,62 @@ export class ApiService {
 
   // ─── Reports & Analytics ──────────────────────────────
   getSalesReport(startDate?: string, endDate?: string): Observable<SalesReport> {
-    return this.http.get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
+    return this.http
+      .get<ApiResponse<SalesReport>>(`${this.base}/reports/sales`, { params: { startDate: startDate || '', endDate: endDate || '' } })
+      .pipe(map((r) => this.normalizeSalesReport(r.data)));
+  }
+
+  /** Chuẩn hóa snake_case / thiếu field từ API cũ. */
+  private normalizeSalesReport(raw: SalesReport | undefined): SalesReport {
+    if (!raw) {
+      return {
+        totalRevenue: 0,
+        totalOrders: 0,
+        bestSellers: [],
+        revenueByDate: [],
+      };
+    }
+    const rows = raw.revenueByDate;
+    if (!rows?.length) return raw;
+    return {
+      ...raw,
+      revenueByDate: rows.map((row) => {
+        const r = row as Record<string, unknown>;
+        const paid = r['paidOrderCount'] ?? r['paid_order_count'];
+        const items = r['itemsSoldQuantity'] ?? r['items_sold_quantity'];
+        const summary = r['paidOrdersSummary'] ?? r['paid_orders_summary'];
+        const paidOrdersRaw = r['paidOrders'] ?? r['paid_orders'];
+        let paidOrders: SalesReportPaidOrderLine[] | undefined;
+        if (Array.isArray(paidOrdersRaw) && paidOrdersRaw.length) {
+          paidOrders = paidOrdersRaw.map((line) => {
+            const o = line as Record<string, unknown>;
+            const id = o['orderId'] ?? o['order_id'];
+            const label = o['customerLabel'] ?? o['customer_label'] ?? '';
+            const amt = o['amount'];
+            return {
+              orderId: Number(id),
+              customerLabel: String(label),
+              amount: amt != null && amt !== '' ? Number(amt) : 0,
+            };
+          });
+        }
+        return {
+          date: String(row.date ?? ''),
+          amount: Number(row.amount ?? 0),
+          paidOrderCount: paid != null && paid !== '' ? Number(paid) : (row.paidOrderCount ?? 0),
+          itemsSoldQuantity: items != null && items !== '' ? Number(items) : (row.itemsSoldQuantity ?? 0),
+          paidOrdersSummary:
+            summary != null && summary !== ''
+              ? String(summary)
+              : row.paidOrdersSummary,
+          paidOrders: paidOrders ?? row.paidOrders,
+        };
+      }),
+    };
+  }
+
+  getVariantReport(startDate?: string, endDate?: string): Observable<VariantReport> {
+    return this.http.get<ApiResponse<VariantReport>>(`${this.base}/reports/variants`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
   }
 
   getExpenses(): Observable<Expense[]> {
@@ -734,8 +1053,26 @@ export class ApiService {
     return this.http.post<Coupon>(`${this.base}/coupons`, body);
   }
 
+  updateCoupon(id: number, body: Partial<Coupon>): Observable<Coupon> {
+    return this.http.put<Coupon>(`${this.base}/coupons/${id}`, body);
+  }
+
   deleteCoupon(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/coupons/${id}`);
+  }
+
+  validateCoupon(code: string, userId?: number): Observable<Coupon> {
+    let params = new HttpParams();
+    if (userId != null) {
+      params = params.set('userId', String(userId));
+    }
+    const trimmed = code.trim();
+    return this.http.get<Coupon>(`${this.base}/coupons/validate/${encodeURIComponent(trimmed)}`, { params });
+  }
+
+  getCheckoutEligibleCoupons(userId: number): Observable<Coupon[]> {
+    const params = new HttpParams().set('userId', String(userId));
+    return this.http.get<Coupon[]>(`${this.base}/coupons/checkout-eligible`, { params });
   }
 
   // ─── Sale Campaigns ────────────────────────────────────
@@ -766,20 +1103,28 @@ export class ApiService {
 
   // ─── Reviews ───────────────────────────────────────────
   getReviews(): Observable<ProductReview[]> {
-    return this.http.get<ProductReview[]>(`${this.base}/reviews`);
+    return this.http.get<ApiResponse<ProductReview[]>>(`${this.base}/reviews`).pipe(map(r => r.data));
   }
 
   replyToReview(reviewId: number, message: string): Observable<ProductReview> {
-    return this.http.post<ProductReview>(`${this.base}/reviews/${reviewId}/reply`, message);
+    return this.http.post<ApiResponse<ProductReview>>(`${this.base}/reviews/${reviewId}/reply`, message).pipe(map(r => r.data));
   }
 
   // ─── Messaging ─────────────────────────────────────────
   getChat(user1: number, user2: number): Observable<ChatMessage[]> {
-    return this.http.get<ChatMessage[]>(`${this.base}/messages/chat/${user1}/${user2}`);
+    return this.http.get<ApiResponse<ChatMessage[]>>(`${this.base}/messages/chat/${user1}/${user2}`).pipe(map(r => r.data));
   }
 
   sendMessage(message: Partial<ChatMessage>): Observable<ChatMessage> {
-    return this.http.post<ChatMessage>(`${this.base}/messages`, message);
+    return this.http.post<ApiResponse<ChatMessage>>(`${this.base}/messages`, message).pipe(map(r => r.data));
+  }
+
+  getConversations(): Observable<Conversation[]> {
+    return this.http.get<ApiResponse<Conversation[]>>(`${this.base}/messages/conversations`).pipe(map(r => r.data));
+  }
+
+  markMessagesAsRead(senderId: number, receiverId: number): Observable<void> {
+    return this.http.post<ApiResponse<void>>(`${this.base}/messages/read-all/${senderId}/${receiverId}`, {}).pipe(map(r => r.data));
   }
 
   // ─── RBAC / Roles ──────────────────────────────────────
@@ -807,8 +1152,99 @@ export class ApiService {
   }
 
   // ─── AI Assistant ────────────────────────────
-  chatWithAI(message: string): Observable<AIResponse> {
-    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, { message })
-      .pipe(map(res => res.data));
+  listAssistantSessions(userId: number, limit = 30): Observable<AssistantSessionItem[]> {
+    return this.http
+      .get<ApiResponse<AssistantSessionItem[]>>(`${this.base}/ai/sessions`, {
+        params: { userId: String(userId), limit: String(limit) },
+      })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  getAssistantSessionMessages(sessionId: number, userId: number): Observable<AssistantTurn[]> {
+    return this.http
+      .get<ApiResponse<AssistantTurn[]>>(`${this.base}/ai/sessions/${sessionId}/messages`, {
+        params: { userId: String(userId) },
+      })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Optional: userId + storefrontContext (markdown) để map giá rule và bổ sung thuế/ngữ cảnh vào prompt. */
+  chatWithAI(
+    message: string,
+    opts?: {
+      userId?: number | null;
+      storefrontContext?: string | null;
+      sessionId?: number | null;
+    }
+  ): Observable<AIResponse> {
+    const body: Record<string, unknown> = { message };
+    if (opts?.userId != null) body['userId'] = opts.userId;
+    if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
+    if (opts?.storefrontContext != null && opts.storefrontContext !== '')
+      body['storefrontContext'] = opts.storefrontContext;
+    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, body).pipe(
+      map((res) => {
+        if (!res.success || res.data == null) {
+          throw new Error(res.message || 'Yêu cầu AI thất bại');
+        }
+        return res.data;
+      })
+    );
+  }
+
+  /** Cùng pipeline Gemini + DB; prefix nội bộ giúp model ưu tiên product_search. */
+  aiSemanticSearch(
+    query: string,
+    opts?: {
+      userId?: number | null;
+      storefrontContext?: string | null;
+      sessionId?: number | null;
+    }
+  ): Observable<AIResponse> {
+    const body: Record<string, unknown> = { query };
+    if (opts?.userId != null) body['userId'] = opts.userId;
+    if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
+    if (opts?.storefrontContext != null && opts.storefrontContext !== '')
+      body['storefrontContext'] = opts.storefrontContext;
+    return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/search`, body).pipe(
+      map((res) => {
+        if (!res.success || res.data == null) {
+          throw new Error(res.message || 'Tìm AI thất bại');
+        }
+        return res.data;
+      })
+    );
+  }
+
+  // ─── Bundles ──────────────────────────────────────────
+  getBundles(): Observable<Bundle[]> {
+    return this.http.get<ApiResponse<Bundle[]>>(`${this.base}/bundles`).pipe(map(r => r.data));
+  }
+
+  /** Combo ACTIVE có chứa biến thể của sản phẩm (bất kỳ variant nào của SP). */
+  getBundlesContainingProduct(productId: number): Observable<Bundle[]> {
+    return this.http
+      .get<ApiResponse<Bundle[]>>(`${this.base}/bundles/containing-product/${productId}`)
+      .pipe(map(r => r.data || []));
+  }
+
+  /** Combo ACTIVE có item trỏ đúng biến thể đang chọn (trang chi tiết SP). */
+  getBundlesContainingVariant(variantId: number): Observable<Bundle[]> {
+    return this.http
+      .get<ApiResponse<Bundle[]>>(`${this.base}/bundles/containing-variant/${variantId}`)
+      .pipe(map(r => r.data || []));
+  }
+
+  getBundleById(id: number): Observable<Bundle> {
+    return this.http.get<ApiResponse<Bundle>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
+  }
+  createBundle(body: Partial<Bundle>): Observable<Bundle> {
+    return this.http.post<ApiResponse<Bundle>>(`${this.base}/bundles`, body).pipe(map(r => r.data));
+  }
+  updateBundle(id: number, body: Partial<Bundle>): Observable<Bundle> {
+    return this.http.put<ApiResponse<Bundle>>(`${this.base}/bundles/${id}`, body).pipe(map(r => r.data));
+  }
+  deleteBundle(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
   }
 }

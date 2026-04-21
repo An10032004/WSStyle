@@ -20,6 +20,7 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.name" [placeholder]="'Nhập tên danh mục...' " />
           </tui-textfield>
+          <div *ngIf="formErrors['name']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['name'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'CATEGORY.PARENT_ID' | transloco }}
@@ -107,6 +108,9 @@
       <p style="margin: 0 0 24px 0; font-size: 14px; color: var(--tui-text-secondary);">
         {{ 'CATEGORY.CONFIRM_DELETE_MSG' | transloco }} <b style="color: var(--tui-text-primary);">{{ deleteTargetName }}</b>?
       </p>
+      <p style="margin: 0 0 12px 0; font-size: 13px; color: var(--tui-text-warning);">
+        Lưu ý: Xóa danh mục có thể thất bại nếu danh mục đang chứa sản phẩm hoặc danh mục con. Nếu lỗi xảy ra, bạn sẽ nhận được thông báo chi tiết.
+      </p>
       <div style="display: flex; justify-content: flex-end; gap: 12px;">
          <button tuiButton type="button" appearance="outline" size="m" 
                  style="color: #007367; border-color: #007367;" 
@@ -118,6 +122,20 @@
                  (click)="observer.next(true); observer.complete()">
             {{ 'GLOBAL.CONFIRM' | transloco }}
          </button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #deleteErrorDialog let-observer>
+  <div style="display:flex; gap:12px;">
+    <tui-icon icon="@tui.triangle-alert" style="font-size:24px; color:#d97706"></tui-icon>
+    <div>
+      <h3 style="margin:0 0 8px 0;">Xóa thất bại</h3>
+      <p style="margin:0 0 12px 0; color:#444;">Hệ thống trả về lỗi khi cố gắng xóa danh mục. Chi tiết:</p>
+      <pre style="background:#f7f7f7; padding:8px; border-radius:4px; white-space:pre-wrap; color:#222">{{ deleteErrorMessage }}</pre>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button tuiButton appearance="outline" (click)="observer.complete()">Đóng</button>
       </div>
     </div>
   </div>

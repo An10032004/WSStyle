@@ -1,17 +1,52 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ChangeDetectionStrategy,
+  inject,
+  ChangeDetectorRef,
+  ViewChild,
+  TemplateRef,
+  DestroyRef,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { ApiService, Product, ProductVariant, OrderLimit } from '../../services/api.service';
+import { ApiService, Product, ProductVariant, OrderLimit, Bundle } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import { QuantityBreakTableComponent } from '../../shared/components/quantity-break-table/quantity-break-table';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDropdown, TuiDialogService, TuiDialog, TuiAlertService, TuiNotification } from '@taiga-ui/core';
 import { TuiCarousel, TuiPagination, TuiBadge, TuiAccordion, TuiRating } from '@taiga-ui/kit';
 import { TuiTextareaModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { take } from 'rxjs';
+import { distinctUntilChanged, finalize, map, skip } from 'rxjs/operators';
+import { pickSingleBestRule } from '../../utils/rule-priority';
+import {
+  resolveOrderLimitWinners,
+  isMaxOrderQtyType,
+  isMinOrderQtyType,
+} from '../../utils/order-limit-precedence';
+import { ruleMatchesTargeting } from '../../utils/rule-targeting';
+import { isVariantAvailableForSale } from '../../utils/variant-availability';
+import {
+  parseVariantDimensionSlotsFromJson,
+  type VariantDimUi,
+} from '../../utils/variant-dimension-slots.util';
+import { resolveColorHex, isLightColorForSwatch } from '../../utils/color-swatch.util';
+
+type PdpDimKind = 'color' | 'size' | 'weight';
+
+interface PdpDimPickerBlock {
+  dim: PdpDimKind;
+  label: string;
+  ui: VariantDimUi;
+  values: string[];
+  selected?: string;
+}
 
 @Component({
   selector: 'app-product-detail',
@@ -37,12 +72,14 @@ import { take } from 'rxjs';
     FormsModule,
     ReactiveFormsModule,
     TuiNotification,
+    QuantityBreakTableComponent
   ],
   templateUrl: './product-detail.html',
   styleUrl: './product-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductDetailComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -51,8 +88,19 @@ export class ProductDetailComponent implements OnInit {
   private readonly cart = inject(CartService);
   private readonly dialogs = inject(TuiDialogService);
   private readonly alerts = inject(TuiAlertService);
-  
+  private readonly transloco = inject(TranslocoService);
+
   user$ = this.auth.user$;
+  /** Các bundleId đang có trong giỏ (để gắn nhãn «Đã có trong giỏ» trên từng combo). */
+  cartBundleIds$ = this.cart.cart$.pipe(
+    map(items => {
+      const s = new Set<number>();
+      for (const i of items) {
+        if (i.bundleId != null) s.add(i.bundleId);
+      }
+      return s;
+    }),
+  );
 
   product?: Product;
   variants: ProductVariant[] = [];
@@ -71,6 +119,13 @@ export class ProductDetailComponent implements OnInit {
   quantity = 1;
   reviews: any[] = [];
   editingReviewId: number | null = null;
+
+  /** Combo ACTIVE có chứa sản phẩm này. */
+  productBundles: Bundle[] = [];
+  /** Sau khi gọi API containing-product xong (để hiển thị empty state). */
+  productBundlesLoaded = false;
+  /** Cùng danh mục (trừ SP hiện tại). */
+  relatedProducts: Product[] = [];
   
   // Selected variant / state
   reviewRating = 5;
@@ -90,13 +145,23 @@ export class ProductDetailComponent implements OnInit {
   
   availableWeights: string[] = [];
 
+  /** Nhãn + kiểu hiển thị PDP cho 3 chiều (color / size / weight). */
+  variantDimSlots: Array<{ label: string; ui: VariantDimUi }> = [
+    { label: '', ui: 'swatch' },
+    { label: '', ui: 'buttons' },
+    { label: '', ui: 'buttons' },
+  ];
+
   // Pricing Rules
   @ViewChild('reviewDialog') reviewDialog!: TemplateRef<any>;
   
   qbRules: any[] = [];
   b2bRule: any | null = null;
+  winnerType: 'B2B' | 'QB' | 'NONE' = 'NONE';
   quantityBreaks: any[] = [];
   activeOrderLimit: OrderLimit | null = null;
+  /** Giới hạn SL tối đa (PER_PRODUCT / PER_VARIANT), chọn theo priority giống MOQ */
+  activeMaxQtyLimit: OrderLimit | null = null;
 
   get isSelectionIncomplete(): boolean {
     if (!this.product || !this.variants || this.variants.length === 0) return false;
@@ -115,69 +180,25 @@ export class ProductDetailComponent implements OnInit {
   get currentPrice(): number {
     if (!this.product) return 0;
     
-    // 0. Wait for variants to load to prevent initial price jump (167k -> 190k flash)
-    if (!this.isVariantsLoaded) {
-      return this.product.basePrice;
-    }
-    
-    // 1. Determine Base Price (Prioritize Variant-specific price as Absolute Override)
-    if (this.selectedVariant) {
-      if (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0) {
-        return this.selectedVariant.discountPrice;
-      }
-      if (this.selectedVariant.price != null && this.selectedVariant.price > 0) {
-        return this.selectedVariant.price;
-      }
-    }
+    // Use the central logic from CartService to ensure consistency
+    const result = this.cart.calculatePrice(
+      this.product.id,
+      this.product.categoryId,
+      this.selectedVariant?.price || this.product.basePrice || 0,
+      this.quantity,
+      this.product.quantityBreaksJson,
+      this.selectedVariant?.id ?? null,
+    );
 
-    // 2. If Selection is Incomplete for a product with variants, SHOW RAW BASE PRICE ONLY
-    // We suppress all B2B/QB rules to prevent "Price Dipping" (167k vs 190k)
-    if (this.isSelectionIncomplete) {
-      return this.product.basePrice;
-    }
-
-    let base = this.product.basePrice;
-    base += (this.selectedVariant?.priceAdjustment || 0);
-
-    // 3. Apply B2B Pricing Rule (Wholesale)
-    if (this.b2bRule) {
-      const discountValue = this.b2bRule.discountValue ?? this.b2bRule.parsedConfig?.discountValue ?? 0;
-      const discountType = this.b2bRule.discountType ?? this.b2bRule.parsedConfig?.discountType;
-
-      if (discountType === 'PERCENTAGE') {
-        base = base * (1 - discountValue / 100);
-      } else if (discountType === 'FIXED') {
-        base = Math.max(0, base - discountValue);
-      }
-    }
-
-    // 4. Apply Quantity Break Pricing Rule
-    if (this.quantityBreaks && this.quantityBreaks.length > 0) {
-      const matchedBreak = this.quantityBreaks.find(b => {
-        const min = b.min ?? 1;
-        const max = b.max ?? 999999999;
-        return this.quantity >= min && this.quantity <= max;
-      });
-      if (matchedBreak && matchedBreak.discount != null) {
-        base = base * (1 - matchedBreak.discount / 100);
-      }
-    }
-    
-    return base;
+    return result.finalPrice;
   }
 
   get isVariantPriceApplied(): boolean {
-    return !!(this.selectedVariant && (
-      (this.selectedVariant.price != null && this.selectedVariant.price > 0) ||
-      (this.selectedVariant.discountPrice != null && this.selectedVariant.discountPrice > 0)
-    ));
+    return false; // Deprecated conceptually as variant price is the base now
   }
 
   get isB2BApplied(): boolean {
     if (!this.isVariantsLoaded) return false;
-    if (this.isVariantPriceApplied) return false;
-    
-    // Suppress B2B badges if selection is incomplete for a variant product
     if (this.isSelectionIncomplete) return false;
 
     return !!this.b2bRule;
@@ -185,19 +206,89 @@ export class ProductDetailComponent implements OnInit {
 
   get isQBApplied(): boolean {
     if (!this.isVariantsLoaded) return false;
-    if (this.isVariantPriceApplied) return false;
-    
-    // Suppress QB banners if selection is incomplete for a variant product
     if (this.isSelectionIncomplete) return false;
 
     return this.quantityBreaks && this.quantityBreaks.length > 0;
   }
 
   get isMoqViolation(): boolean {
-    if (!this.activeOrderLimit || this.activeOrderLimit.limitType !== 'MIN_ORDER_QUANTITY') return false;
-    // We match PER_PRODUCT and PER_VARIANT for product-level enforcement
-    const isProductLevel = this.activeOrderLimit.limitLevel === 'PER_PRODUCT' || this.activeOrderLimit.limitLevel === 'PER_VARIANT';
-    return isProductLevel && this.quantity < this.activeOrderLimit.limitValue;
+    if (!this.activeOrderLimit) return false;
+    const t = this.activeOrderLimit.limitType;
+    if (t !== 'MIN_ORDER_QUANTITY' && t !== 'MIN_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeOrderLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeOrderLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && this.quantity < (this.activeOrderLimit.limitValue ?? 0);
+  }
+
+  get isMaxQtyViolation(): boolean {
+    if (!this.activeMaxQtyLimit) return false;
+    const t = this.activeMaxQtyLimit.limitType;
+    if (t !== 'MAX_ORDER_QUANTITY' && t !== 'MAX_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT';
+    const maxV = Number(this.activeMaxQtyLimit.limitValue ?? 0);
+    return isProductLevel && maxV > 0 && this.quantity > maxV;
+  }
+
+  /** Chặn thêm giỏ khi vi phạm MOQ hoặc vượt max SL (theo dòng SP) */
+  get orderLimitBuyBlocked(): boolean {
+    return this.isMoqViolation || this.isMaxQtyViolation || this.isSelectedVariantInactive;
+  }
+
+  /** True khi biến thể đang chọn tồn kho bằng 0 hoặc âm */
+  get isSelectedVariantOutOfStock(): boolean {
+    const qty = this.selectedVariant?.stockQuantity;
+    return qty != null && qty <= 0;
+  }
+
+  /** Biến thể đã ngừng bán (admin INACTIVE). */
+  get isSelectedVariantInactive(): boolean {
+    return !!this.selectedVariant && !isVariantAvailableForSale(this.selectedVariant);
+  }
+
+  /** Thông báo info khi có MOQ theo dòng SP và khách đã đạt ngưỡng */
+  get showMoqPolicyNotice(): boolean {
+    if (!this.activeOrderLimit) return false;
+    const t = this.activeOrderLimit.limitType;
+    if (t !== 'MIN_ORDER_QUANTITY' && t !== 'MIN_ORDER_QTY') return false;
+    const isProductLevel =
+      this.activeOrderLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeOrderLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && !this.isMoqViolation;
+  }
+
+  /** Thông báo info khi có max SL theo dòng SP và SL hiện tại không vượt ngưỡng */
+  get showMaxQtyPolicyNotice(): boolean {
+    if (!this.activeMaxQtyLimit) return false;
+    const isProductLevel =
+      this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+      this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT';
+    return isProductLevel && !this.isMaxQtyViolation;
+  }
+
+  /** Trần số lượng trên PDP: tồn kho ∧ max quy tắc (nếu có) */
+  private get effectiveQuantityCap(): number {
+    if (this.isSelectedVariantInactive) {
+      return Math.max(1, this.quantity);
+    }
+    const stock = this.selectedVariant?.stockQuantity ?? 0;
+    const stockCap = stock > 0 ? stock : 999;
+    if (this.activeMaxQtyLimit) {
+      const t = this.activeMaxQtyLimit.limitType;
+      if (
+        (t === 'MAX_ORDER_QUANTITY' || t === 'MAX_ORDER_QTY') &&
+        (this.activeMaxQtyLimit.limitLevel === 'PER_PRODUCT' ||
+          this.activeMaxQtyLimit.limitLevel === 'PER_VARIANT')
+      ) {
+        const ruleMax = Number(this.activeMaxQtyLimit.limitValue ?? 0);
+        if (ruleMax > 0) {
+          return Math.min(stockCap, ruleMax);
+        }
+      }
+    }
+    return stockCap;
   }
 
   constructor() {}
@@ -210,50 +301,67 @@ export class ProductDetailComponent implements OnInit {
     this.route.params.subscribe(() => {
         this.loadProduct();
     });
+
+    this.auth.user$
+      .pipe(
+        map((u) => u?.id ?? null),
+        distinctUntilChanged(),
+        skip(1),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        if (this.route.snapshot.paramMap.get('id')) {
+          this.loadProduct();
+        }
+      });
   }
 
-  loadOrderLimits(productId: number, categoryId: number) {
-    this.api.getOrderLimits().subscribe(rules => {
-      const activeRules = rules.filter(r => r.status === 'ACTIVE');
+  loadOrderLimits(productId: number, categoryId: number | null | undefined) {
+      const activeRules = this.cart.orderLimits;
       const user = this.auth.currentUserValue;
 
-      const matchedRules = activeRules.filter(r => {
-        // 1. Customer Check
-        let customerMatch = false;
-        if (r.applyCustomerType === 'ALL') customerMatch = true;
-        else if (r.applyCustomerType === 'GROUP' && r.applyCustomerValue && user?.customerGroup) {
-          try {
-            const val = JSON.parse(r.applyCustomerValue);
-            customerMatch = val.groupId === user.customerGroup.id;
-          } catch (e) {}
-        }
-        if (!customerMatch) return false;
+      const matchedRules = activeRules.filter((r) =>
+        ruleMatchesTargeting(r, {
+          productId,
+          categoryId,
+          user,
+          variantId: this.selectedVariant?.id ?? null,
+        }),
+      );
 
-        // 2. Product Check
-        if (r.applyProductType === 'ALL') return true;
-        if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.productIds?.includes(productId);
-          } catch (e) {}
-        }
-        if (r.applyProductType === 'CATEGORY' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.categoryIds?.includes(categoryId);
-          } catch (e) {}
-        }
-        return false;
-      });
+      const lineQtyMatched = matchedRules.filter(
+        (r) =>
+          (isMinOrderQtyType(r.limitType) || isMaxOrderQtyType(r.limitType)) &&
+          (r.limitLevel === 'PER_PRODUCT' || r.limitLevel === 'PER_VARIANT')
+      );
+      const lineQtyWinners = resolveOrderLimitWinners(lineQtyMatched);
+      this.activeOrderLimit =
+        lineQtyWinners.find((r) => isMinOrderQtyType(r.limitType)) ?? null;
+      this.activeMaxQtyLimit =
+        lineQtyWinners.find((r) => isMaxOrderQtyType(r.limitType)) ?? null;
 
-      if (matchedRules.length > 0) {
-        // Pick highest priority MOQ rule
-        this.activeOrderLimit = matchedRules.sort((a, b) => b.priority - a.priority)[0];
-      } else {
-        this.activeOrderLimit = null;
+      const cap = this.effectiveQuantityCap;
+      let q = this.quantity;
+      if (q > cap) {
+        q = cap;
       }
+      const moq = this.activeOrderLimit?.limitValue;
+      if (
+        this.activeOrderLimit &&
+        (this.activeOrderLimit.limitType === 'MIN_ORDER_QUANTITY' ||
+          this.activeOrderLimit.limitType === 'MIN_ORDER_QTY') &&
+        moq != null &&
+        Number(moq) > 0 &&
+        q < Number(moq)
+      ) {
+        q = Number(moq);
+      }
+      if (q > cap) {
+        q = cap;
+      }
+      this.quantity = Math.max(1, q);
+
       this.cdr.detectChanges();
-    });
   }
 
   loadReviews(productId: number) {
@@ -351,6 +459,83 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
+  /** Đọc `product.variantDimensionLabels` (JSON: chuỗi legacy hoặc { name, ui } × 3). */
+  private refreshVariantDimensionSlots(): void {
+    const parsed = parseVariantDimensionSlotsFromJson(this.product?.variantDimensionLabels ?? null);
+    const keys = [
+      'PRODUCT_DETAIL.VAR_DIM_COLOR',
+      'PRODUCT_DETAIL.VAR_DIM_SIZE',
+      'PRODUCT_DETAIL.VAR_DIM_WEIGHT',
+    ] as const;
+    for (let i = 0; i < 3; i++) {
+      this.variantDimSlots[i] = {
+        label: this.resolveAdminDimensionLabel(parsed[i].name, keys[i]),
+        ui: parsed[i].ui,
+      };
+    }
+  }
+
+  /**
+   * Nếu admin nhập nhầm khóa i18n thô (vd. PRODUCT_DETAIL.VAR_DIM_COLOR), cố gắng dịch;
+   * nếu không dịch được thì dùng nhãn mặc định theo chiều.
+   */
+  private resolveAdminDimensionLabel(raw: string, i18nFallbackKey: string): string {
+    const s = (raw || '').trim();
+    if (!s) {
+      return this.transloco.translate(i18nFallbackKey);
+    }
+    if (/^[A-Z][A-Z0-9_.]*$/.test(s) && s.includes('.')) {
+      const tr = this.transloco.translate(s);
+      if (tr && tr !== s) return tr;
+      return this.transloco.translate(i18nFallbackKey);
+    }
+    return s;
+  }
+
+  get pdpDimPickers(): PdpDimPickerBlock[] {
+    const out: PdpDimPickerBlock[] = [];
+    const pushIf = (
+      dim: PdpDimKind,
+      idx: 0 | 1 | 2,
+      values: string[],
+      selected?: string,
+    ) => {
+      if (!values.length) return;
+      const slot = this.variantDimSlots[idx];
+      out.push({
+        dim,
+        label: slot.label,
+        ui: slot.ui,
+        values: [...values],
+        selected,
+      });
+    };
+    pushIf('color', 0, this.availableColors, this.selectedColor);
+    pushIf('size', 1, this.availableSizes, this.selectedSize);
+    pushIf('weight', 2, this.availableWeights, this.selectedWeight);
+    return out;
+  }
+
+  trackPdpDim(_i: number, p: PdpDimPickerBlock): string {
+    return p.dim;
+  }
+
+  onPdpDimPick(dim: PdpDimKind, value: string): void {
+    if (dim === 'color') this.selectColor(value);
+    else if (dim === 'size') this.selectSize(value);
+    else this.selectWeight(value);
+  }
+
+  pdpDimHasOpenSale(dim: PdpDimKind, value: string): boolean {
+    if (dim === 'color') return this.colorHasOpenSale(value);
+    if (dim === 'size') return this.sizeHasOpenSale(value);
+    return this.weightHasOpenSale(value);
+  }
+
+  isLightSwatchValue(value: string): boolean {
+    return isLightColorForSwatch(value);
+  }
+
   private loadProduct() {
     const idParam = this.route.snapshot.paramMap.get('id');
     const userId = this.auth.currentUserValue?.id;
@@ -358,6 +543,29 @@ export class ProductDetailComponent implements OnInit {
       const id = parseInt(idParam);
       this.api.getProductById(id, userId).subscribe((p) => {
         this.product = p;
+        this.refreshVariantDimensionSlots();
+        this.productBundles = [];
+        this.productBundlesLoaded = false;
+        this.relatedProducts = [];
+
+        if (p.categoryId != null) {
+          this.api
+            .getProductsByCategory(p.categoryId, userId)
+            .pipe(take(1))
+            .subscribe({
+              next: list => {
+                this.relatedProducts = (list || [])
+                  .filter(x => x.id !== p.id)
+                  .slice(0, 8);
+                this.cdr.markForCheck();
+              },
+              error: () => {
+                this.relatedProducts = [];
+                this.cdr.markForCheck();
+              },
+            });
+        }
+
         this.loadReviews(p.id);
         if (p.quantityBreaksJson) {
           try {
@@ -369,79 +577,103 @@ export class ProductDetailComponent implements OnInit {
         this.brandName = p.brand || 'NO BRAND';
         this.cdr.detectChanges();
         this.loadVariants(id);
-        this.loadPricingRules(id);
-        if (p.categoryId) {
-          this.loadOrderLimits(p.id, p.categoryId);
-        }
+        
+        // Use CartService rules if already loaded, or they will update automatically via subscription
+        this.cart.pricingRules$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+           this.loadPricingRules(id, p.categoryId);
+        });
+        this.cart.orderLimits$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+           this.loadOrderLimits(id, p.categoryId);
+        });
       });
     }
   }
 
-  loadPricingRules(productId: number) {
-    this.api.getPricingRules().subscribe(rules => {
-      const activeRules = rules.filter(r => r.status === 'ACTIVE');
-      
-      // 1. Quantity Break Rules
-      this.qbRules = activeRules.filter(r => {
-        if (r.ruleType !== 'QUANTITY_BREAK') return false;
-        if (r.applyProductType === 'ALL') return true;
-        if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            return val.productIds?.includes(productId);
-          } catch (e) { return false; }
-        }
-        return false;
-      });
-
-      this.qbRules.forEach(r => {
-        if (r.actionConfig) {
-          try {
-            r.parsedConfig = JSON.parse(r.actionConfig);
-          } catch (e) {}
-        }
-      });
-
-      // 2. B2B Pricing Rules
+  loadPricingRules(productId: number, categoryId: number | null | undefined) {
+      const activeRules = this.cart.pricingRules;
       const user = this.auth.currentUserValue;
-      const b2bRules = activeRules.filter(r => {
-        if (r.ruleType !== 'B2B_PRICE') return false;
-        
-        // Product Check
-        let productMatch = false;
-        if (r.applyProductType === 'ALL') productMatch = true;
-        else if (r.applyProductType === 'SPECIFIC' && r.applyProductValue) {
-          try {
-            const val = JSON.parse(r.applyProductValue);
-            productMatch = val.productIds?.includes(productId);
-          } catch (e) {}
+
+      // 1. Gather all applicable rules
+      const allMatches = activeRules.filter((r) =>
+        ruleMatchesTargeting(r, {
+          productId,
+          categoryId,
+          user,
+          variantId: this.selectedVariant?.id ?? null,
+        }),
+      );
+      
+      // 2. Sort by priority (1 is highest)
+      allMatches.sort((a, b) => (a.priority || 999) - (b.priority || 999));
+
+      const winner = allMatches[0];
+
+      // 3. Handle QB Discovery (always do this to have data available)
+      this.quantityBreaks = this.cart.getQuantityBreaks(
+        {
+          productId,
+          categoryId,
+          quantityBreaksJson: this.product?.quantityBreaksJson,
+          variantId: this.selectedVariant?.id ?? null,
+        },
+        user,
+      );
+
+      // 4. Set Winner UI State
+      if (winner?.ruleType === 'QUANTITY_BREAK') {
+        this.winnerType = 'QB';
+        this.b2bRule = null;
+      } else if (winner?.ruleType === 'B2B_PRICE') {
+        this.winnerType = 'B2B';
+        this.b2bRule = winner;
+        if (this.b2bRule.actionConfig) {
+          try { this.b2bRule.parsedConfig = JSON.parse(this.b2bRule.actionConfig); } catch(e) {}
         }
-
-        if (!productMatch) return false;
-
-        // Customer Check
-        if (r.applyCustomerType === 'ALL') return true;
-        if (r.applyCustomerType === 'GROUP' && r.applyCustomerValue && user?.customerGroup) {
-          try {
-            const val = JSON.parse(r.applyCustomerValue);
-            return val.groupId === user.customerGroup.id;
-          } catch (e) {}
-        }
-        return false;
-      });
-
-      // Pick highest priority B2B rule
-      if (b2bRules.length > 0) {
-        this.b2bRule = b2bRules.sort((a, b) => b.priority - a.priority)[0];
-        try {
-          this.b2bRule.parsedConfig = JSON.parse(this.b2bRule.actionConfig);
-        } catch (e) {}
       } else {
+        this.winnerType = 'NONE';
         this.b2bRule = null;
       }
-      
+
       this.cdr.detectChanges();
-    });
+  }
+
+  /** Tránh race khi đổi biến thể nhanh — chỉ áp dữ liệu combo của request mới nhất. */
+  private bundlesFetchSeq = 0;
+
+  /** Load combo theo đúng biến thể (item bundle gắn variant_id). */
+  private refreshProductBundles(variantId: number | undefined): void {
+    if (variantId == null) {
+      this.productBundles = [];
+      this.productBundlesLoaded = true;
+      this.cdr.markForCheck();
+      return;
+    }
+    this.productBundlesLoaded = false;
+    this.cdr.markForCheck();
+    const seq = ++this.bundlesFetchSeq;
+    this.api
+      .getBundlesContainingVariant(variantId)
+      .pipe(
+        take(1),
+        finalize(() => {
+          if (seq === this.bundlesFetchSeq) {
+            this.productBundlesLoaded = true;
+            this.cdr.markForCheck();
+          }
+        }),
+      )
+      .subscribe({
+        next: bs => {
+          if (seq !== this.bundlesFetchSeq) return;
+          this.productBundles = bs || [];
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          if (seq !== this.bundlesFetchSeq) return;
+          this.productBundles = [];
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   loadVariants(productId: number) {
@@ -455,7 +687,15 @@ export class ProductDetailComponent implements OnInit {
       });
       this.availableColors = Array.from(colors);
 
-      // No auto-selection: let the user pick
+      // Auto-select: ưu tiên biến thể còn mở bán
+      if (this.variants.length > 0) {
+        const firstOpen =
+          this.variants.find((v) => isVariantAvailableForSale(v)) ??
+          this.variants[0];
+        this.selectVariant(firstOpen);
+      } else {
+        this.refreshProductBundles(undefined);
+      }
       
       // Collect all possible images (Product images + All Variant images)
       const allVariantImages: string[] = [];
@@ -496,21 +736,33 @@ export class ProductDetailComponent implements OnInit {
       .filter(s => !!s);
     
     this.availableSizes = Array.from(new Set(sizes as string[]));
-    
-    // No auto-selection of size: find variant if current selection is complete
+    if (this.availableSizes.length > 0 && (!this.selectedSize || !this.availableSizes.includes(this.selectedSize))) {
+      this.selectedSize = this.availableSizes[0];
+    } else if (this.availableSizes.length === 0) {
+      this.selectedSize = undefined;
+    }
+
+    this.updateWeights();
     this.findMatchingVariant();
   }
 
-  selectSize(size: string) {
-    this.selectedSize = size;
+  updateWeights() {
     const weights = this.variants
-      .filter(v => v.color === this.selectedColor && v.size === size)
+      .filter(v => (!v.color || v.color === this.selectedColor) && (!v.size || v.size === this.selectedSize))
       .map(v => v.weight)
       .filter(w => !!w);
     
     this.availableWeights = Array.from(new Set(weights as string[]));
+    if (this.availableWeights.length > 0 && (!this.selectedWeight || !this.availableWeights.includes(this.selectedWeight))) {
+      this.selectedWeight = this.availableWeights[0];
+    } else if (this.availableWeights.length === 0) {
+      this.selectedWeight = undefined;
+    }
+  }
 
-    // No auto-selection of weight: find variant if current selection is complete
+  selectSize(size: string) {
+    this.selectedSize = size;
+    this.updateWeights();
     this.findMatchingVariant();
   }
 
@@ -528,12 +780,14 @@ export class ProductDetailComponent implements OnInit {
       return;
     }
 
-    const matched = this.variants.find(v => {
+    const candidates = this.variants.filter((v) => {
       const colorMatch = !v.color || v.color === this.selectedColor;
       const sizeMatch = !v.size || v.size === this.selectedSize;
       const weightMatch = !v.weight || v.weight === this.selectedWeight;
       return colorMatch && sizeMatch && weightMatch;
     });
+    const matched =
+      candidates.find((v) => isVariantAvailableForSale(v)) ?? candidates[0];
 
     if (matched) {
       this.applyVariant(matched);
@@ -544,17 +798,35 @@ export class ProductDetailComponent implements OnInit {
 
   selectVariant(v: ProductVariant) {
     this.selectedColor = v.color;
+    
+    const sizes = this.variants
+      .filter(va => !va.color || va.color === v.color)
+      .map(va => va.size)
+      .filter(s => !!s);
+    this.availableSizes = Array.from(new Set(sizes as string[]));
     this.selectedSize = v.size;
+
+    const weights = this.variants
+      .filter(va => (!va.color || va.color === v.color) && (!va.size || va.size === v.size))
+      .map(va => va.weight)
+      .filter(w => !!w);
+    this.availableWeights = Array.from(new Set(weights as string[]));
     this.selectedWeight = v.weight;
+
     this.applyVariant(v);
   }
 
   private applyVariant(v: ProductVariant | undefined) {
     this.selectedVariant = v;
-    
+    this.refreshProductBundles(v?.id);
+
     if (!v) {
       this.displayImages = [...this.allImages];
       this.cdr.detectChanges();
+      if (this.product) {
+        this.loadPricingRules(this.product.id, this.product.categoryId);
+        this.loadOrderLimits(this.product.id, this.product.categoryId);
+      }
       return;
     }
 
@@ -574,32 +846,43 @@ export class ProductDetailComponent implements OnInit {
     } else {
       this.displayImages = [...this.allImages];
     }
-    
+
     this.cdr.detectChanges();
+
+    if (this.product) {
+      this.loadPricingRules(this.product.id, this.product.categoryId);
+      this.loadOrderLimits(this.product.id, this.product.categoryId);
+    }
+  }
+
+  /** Còn ít nhất một biến thể đang mở bán (theo màu / size / cân). */
+  colorHasOpenSale(color: string): boolean {
+    return this.variants.some(
+      (v) => (!v.color || v.color === color) && isVariantAvailableForSale(v),
+    );
+  }
+
+  sizeHasOpenSale(size: string): boolean {
+    return this.variants.some(
+      (v) =>
+        (!v.color || v.color === this.selectedColor) &&
+        (!v.size || v.size === size) &&
+        isVariantAvailableForSale(v),
+    );
+  }
+
+  weightHasOpenSale(weight: string): boolean {
+    return this.variants.some(
+      (v) =>
+        (!v.color || v.color === this.selectedColor) &&
+        (!v.size || v.size === this.selectedSize) &&
+        (!v.weight || v.weight === weight) &&
+        isVariantAvailableForSale(v),
+    );
   }
 
   getColorHex(color: string): string {
-    const map: { [key: string]: string } = {
-      'Đỏ': '#dc2626',
-      'Đen': '#171717',
-      'Trắng': '#ffffff',
-      'Xanh': '#2563eb',
-      'Vàng': '#facc15',
-      'Hồng': '#db2777',
-      'Xám': '#4b5563',
-      'Nâu': '#78350f',
-      'Kem': '#fef3c7',
-      'Rêu': '#166534',
-      'Be': '#f5f5dc',
-      'Tím': '#7c3aed',
-      'Cam': '#ea580c',
-      'Xanh lá': '#16a34a',
-      'Xanh dương': '#1d4ed8',
-      'Xanh navy': '#1e3a8a',
-      'Xanh rêu': '#3f6212',
-      'Than': '#334155'
-    };
-    return map[color] || color; // Fallback to raw string if no map found
+    return resolveColorHex(color);
   }
 
   changeImage(img: string) {
@@ -639,6 +922,58 @@ export class ProductDetailComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  handleTableBuy(qty: number) {
+    if (!this.product) return;
+    
+    // Check if variant is selected (if product has variants)
+    if (this.isSelectionIncomplete) {
+       this.alerts.open('Vui lòng chọn đầy đủ Màu sắc và Kích thước trước khi thêm vào giỏ hàng.', {
+          label: 'Chưa chọn phân loại',
+          appearance: 'warning'
+       }).subscribe();
+       return;
+    }
+
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể thêm vào giỏ.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
+    if (this.selectedVariant) {
+        this.cart.addToCart(this.product, this.selectedVariant, qty);
+        // Toast success
+        this.alerts.open(`Đã thêm ${qty} sản phẩm vào giỏ hàng`, {
+           appearance: 'success',
+           label: 'Thành công'
+        }).subscribe();
+    }
+  }
+
+  buyNow() {
+    if (!this.product) return;
+    if (this.isSelectionIncomplete) {
+       this.alerts.open('Vui lòng chọn đầy đủ phiên bản.', { appearance: 'warning' }).subscribe();
+       return;
+    }
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể mua.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
+    if (this.selectedVariant) {
+        this.cart.addToCart(this.product, this.selectedVariant, this.quantity);
+        this.router.navigate(['/cart']);
+    }
+  }
+
   lightboxPrev() {
     this.lightboxIndex = (this.lightboxIndex - 1 + this.displayImages.length) % this.displayImages.length;
     this.cdr.detectChanges();
@@ -650,17 +985,15 @@ export class ProductDetailComponent implements OnInit {
   }
 
   adjQuantity(amt: number) {
-    const max = this.selectedVariant?.stockQuantity || 0;
-    const limit = max > 0 ? max : 999;
+    const limit = this.effectiveQuantityCap;
     this.quantity = Math.max(1, Math.min(limit, this.quantity + amt));
     this.cdr.detectChanges();
   }
 
   handleQuantityInput(event: any) {
-    const val = parseInt(event.target.value);
-    const max = this.selectedVariant?.stockQuantity || 0;
-    const limit = max > 0 ? max : 999;
-    
+    const val = parseInt(event.target.value, 10);
+    const limit = this.effectiveQuantityCap;
+
     if (isNaN(val) || val < 1) {
       this.quantity = 1;
     } else if (val > limit) {
@@ -673,7 +1006,27 @@ export class ProductDetailComponent implements OnInit {
 
   addToCart() {
     if (!this.product) return;
-    this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice);
+    if (this.isSelectedVariantInactive) {
+      this.alerts
+        .open('Biến thể này đã ngừng bán — không thể thêm vào giỏ.', {
+          label: 'Ngừng bán',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
+    if (this.variants.length > 0 && !this.selectedVariant) {
+      this.alerts
+        .open('Vui lòng chọn đủ màu / size (hoặc biến thể) trước khi thêm vào giỏ hàng.', {
+          label: 'Chưa chọn biến thể',
+          appearance: 'warning',
+        })
+        .subscribe();
+      return;
+    }
+    this.cart.addToCart(this.product, this.selectedVariant, this.quantity, this.currentPrice, undefined, undefined, undefined, undefined, {
+      openDrawer: true,
+    });
   }
 
   logout(): void {

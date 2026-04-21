@@ -4,7 +4,7 @@
   <div class="shop-container container">
     <!-- BREADCRUMBS -->
     <nav class="breadcrumb-nav">
-      <a routerLink="/storefront">Home</a> / <span>Shop</span>
+      <a routerLink="/storefront">Trang chủ</a> / <span>Cửa hàng</span>
     </nav>
 
     <div class="shop-layout">
@@ -119,6 +119,27 @@
 
       <!-- MAIN CONTENT -->
       <main class="main-content">
+        <div class="ai-search-bar">
+          <input
+            type="text"
+            class="ai-search-input"
+            [(ngModel)]="aiSearchText"
+            placeholder="Tìm bằng ngôn ngữ tự nhiên (vd: áo lụa dưới 1 triệu)…"
+            (keydown.enter)="runAiSemanticSearch()"
+          />
+          <button
+            tuiButton
+            size="s"
+            appearance="secondary"
+            type="button"
+            [disabled]="aiSearchLoading || !aiSearchText.trim()"
+            (click)="runAiSemanticSearch()"
+          >
+            {{ aiSearchLoading ? 'Đang tìm…' : 'Tìm AI' }}
+          </button>
+        </div>
+        <p *ngIf="aiHint" class="ai-hint">{{ aiHint }}</p>
+
         <header class="content-header">
           <div class="count-box">
              Hiển thị <strong>{{ totalElements }}</strong> sản phẩm

@@ -21,6 +21,7 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.name" [placeholder]="'PRODUCT.NAME' | transloco" />
           </tui-textfield>
+          <div *ngIf="formErrors['name']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['name'] }}</div>
         </label>
         
         <label tuiLabel class="form-field">
@@ -28,14 +29,9 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.productCode" placeholder="VD: SP001" />
           </tui-textfield>
+          <div *ngIf="formErrors['productCode']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['productCode'] }}</div>
         </label>
-        <label tuiLabel class="form-field">
-          {{ 'PRODUCT.PRICE' | transloco }} *
-          <tui-textfield>
-            <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="formData.basePrice" placeholder="0" maxlength="13" />
-            <span tuiTextfieldPostfix>{{ 'GLOBAL.CURRENCY_SUFFIX' | transloco }}</span>
-          </tui-textfield>
-        </label>
+
         <label tuiLabel class="form-field">
           {{ 'PRODUCT.CATEGORY' | transloco }} *
           <tui-select
@@ -52,12 +48,14 @@
           <ng-template #categoryContent let-id>
             {{ getCategoryName(id) }}
           </ng-template>
+          <div *ngIf="formErrors['categoryId']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['categoryId'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           {{ 'PRODUCT.BRAND' | transloco }} *
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.brand" [placeholder]="'PRODUCT.BRAND' | transloco" />
           </tui-textfield>
+          <div *ngIf="formErrors['brand']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['brand'] }}</div>
         </label>
         <label tuiLabel class="form-field">
           Material
@@ -74,18 +72,25 @@
 
         <label tuiLabel class="form-field full-width">
           {{ 'VARIANT.IMAGE_URL' | transloco }} (Ảnh chính)
-          <tui-textfield>
-            <input tuiTextfield [(ngModel)]="formData.imageUrl" placeholder="https://example.com/image.jpg" />
-            <tui-icon *tuiTextfieldElement icon="@tui.image" />
-          </tui-textfield>
+          <app-image-url-field
+            [(ngModel)]="formData.imageUrl"
+            [ngModelOptions]="{ standalone: true }"
+            uploadFolder="products/main"
+            [placeholder]="'https://example.com/image.jpg'"
+          ></app-image-url-field>
         </label>
 
         <div class="form-field full-width gallery-section">
           <label tuiLabel>{{ 'PRODUCT.GALLERY' | transloco }}</label>
           <div *ngFor="let url of formData.imageUrls; let i = index; trackBy: trackByIndex" class="gallery-item">
-            <tui-textfield class="gallery-input">
-              <input tuiTextfield [(ngModel)]="formData.imageUrls[i]" [placeholder]="'URL ảnh ' + (i + 1)" />
-            </tui-textfield>
+            <app-image-url-field
+              class="gallery-input"
+              [(ngModel)]="formData.imageUrls[i]"
+              [ngModelOptions]="{ standalone: true }"
+              uploadFolder="products/gallery"
+              [compact]="true"
+              [placeholder]="'URL ảnh ' + (i + 1)"
+            ></app-image-url-field>
             <button tuiButton type="button" appearance="flat" size="s" (click)="removeImageUrl(i)">
               <tui-icon icon="@tui.trash"></tui-icon>
             </button>
@@ -111,7 +116,7 @@
          <p><strong>ID:&nbsp;</strong> {{ selectedProduct.id }}</p>
          <p><strong>{{ 'PRODUCT.CODE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-text-action)">{{ selectedProduct.productCode }}</span></p>
          <p><strong>{{ 'PRODUCT.NAME' | transloco }}:&nbsp;</strong> {{ selectedProduct.name }}</p>
-         <p><strong>{{ 'PRODUCT.PRICE' | transloco }}:&nbsp;</strong> <span style="color: var(--tui-status-positive); font-weight: 600">{{ selectedProduct.basePrice | number }} VND</span></p>
+
          <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
          <p><strong>{{ 'PRODUCT.BRAND' | transloco }}:&nbsp;</strong> {{ selectedProduct.brand }}</p>
          <p><strong>Material:&nbsp;</strong> {{ selectedProduct.material }}</p>

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
@@ -11,12 +11,12 @@ import {
 } from '@taiga-ui/core';
 import { 
   TuiRadio,
-  TuiDataListWrapper,
-  TuiBadge
+  TuiCheckbox
 } from '@taiga-ui/kit';
-import { TuiSelectModule, TuiTextfieldControllerModule, TuiMultiSelectModule } from '@taiga-ui/legacy';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services/api.service';
+import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
 @Component({
   selector: 'app-tax-display-editor',
@@ -27,15 +27,11 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
     TuiButton, 
     TuiIcon, 
     TuiLabel, 
-    TuiRadio, 
-    TuiSelectModule, 
-    TuiDataList, 
-    TuiDataListWrapper, 
+    TuiRadio,
+    TuiCheckbox,
     TuiTextfieldControllerModule, 
-    TuiBadge,
     TuiTextfield,
     TuiAppearance,
-    TuiMultiSelectModule,
     TranslocoModule
   ],
   template: `
@@ -60,156 +56,56 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
                 </tui-textfield>
               </label>
 
-              <label tuiLabel>Phần trăm giảm giá (%)
+              <label tuiLabel>Mức thuế (%)
                 <tui-textfield>
                   <input tuiTextfield type="number" [(ngModel)]="data.discountRate" min="0" max="100" />
                 </tui-textfield>
               </label>
 
-              <div class="status-toggle">
-                <span class="label">{{ 'RULE.STATUS' | transloco }}</span>
-                <tui-badge [appearance]="data.status === 'ACTIVE' ? 'success' : 'neutral'" size="m">
-                   {{ 'ENUMS.' + (data.status || 'ACTIVE') | transloco }}
-                </tui-badge>
+              <div class="form-field-tax-status">
+                <div class="choice-field__label">{{ 'RULE.STATUS' | transloco }}</div>
+                <div class="radio-group-modern radio-group-modern--vertical">
+                  <label *ngFor="let s of statusOptionsList" class="modern-radio">
+                    <input tuiRadio type="radio" name="taxDisplayRuleStatus" [value]="s" [(ngModel)]="data.status" />
+                    <div class="radio-content">
+                      <span class="radio-title">{{ 'ENUMS.' + s | transloco }}</span>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
+
+
 
           <!-- TARGETING: CUSTOMERS -->
           <div class="section-card">
             <h4 class="section-title">Đối tượng khách hàng áp dụng</h4>
             <div class="field-grid">
-               <label tuiLabel>Loại khách hàng áp dụng
-                  <tui-select [(ngModel)]="data.applyCustomerType" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'GUEST', 'LOGGED_IN', 'GROUP']"></tui-data-list-wrapper>
-                  </tui-select>
-               </label>
-
-               <label tuiLabel *ngIf="data.applyCustomerType === 'GROUP'">Chọn nhóm khách hàng
-                  <tui-multi-select [(ngModel)]="selectedGroups" [stringify]="stringifyGroup" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="customerGroups" [itemContent]="groupContent"></tui-data-list-wrapper>
-                    <ng-template #groupContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
-            </div>
-          </div>
-
-          <!-- TARGETING: PRODUCTS -->
-          <div class="section-card">
-            <h4 class="section-title">Loại sản phẩm áp dụng</h4>
-            <div class="field-grid">
-               <label tuiLabel>Loại áp dụng
-                  <tui-select [(ngModel)]="data.applyProductType" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY', 'SPECIFIC']"></tui-data-list-wrapper>
-                  </tui-select>
-               </label>
-
-               <label tuiLabel *ngIf="data.applyProductType === 'CATEGORY'">Chọn danh mục
-                  <tui-multi-select [(ngModel)]="selectedCategories" [stringify]="stringifyCategory" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="categories" [itemContent]="catContent"></tui-data-list-wrapper>
-                    <ng-template #catContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
-
-               <label tuiLabel *ngIf="data.applyProductType === 'SPECIFIC'">Chọn sản phẩm cụ thể
-                  <tui-multi-select [(ngModel)]="selectedProducts" [stringify]="stringifyProduct" (ngModelChange)="syncTargeting()">
-                    <tui-data-list-wrapper *tuiDataList [items]="products" [itemContent]="prodContent"></tui-data-list-wrapper>
-                    <ng-template #prodContent let-item>{{ item.name }}</ng-template>
-                  </tui-multi-select>
-               </label>
-            </div>
-          </div>
-
-          <!-- DESIGN CONFIG -->
-          <div class="section-card">
-            <h4 class="section-title">Cấu hình hiển thị (Thiết kế)</h4>
-            <div class="field-grid-2">
-               <label tuiLabel>{{ 'TAX_DISPLAY.TAX_TYPE' | transloco }}
-                 <tui-select [(ngModel)]="data.taxDisplayType" [tuiTextfieldCleaner]="false">
-                    <tui-data-list-wrapper *tuiDataList [items]="['VAT', 'GST']"></tui-data-list-wrapper>
-                 </tui-select>
-               </label>
-
-               <label tuiLabel>{{ 'TAX_DISPLAY.DISPLAY_TYPE' | transloco }}
-                 <tui-select [(ngModel)]="data.displayType" [tuiTextfieldCleaner]="false">
-                    <tui-data-list-wrapper *tuiDataList [items]="['BOTH_PRICES', 'EXCLUDE_TAX_ONLY', 'INCLUDE_TAX_ONLY']"></tui-data-list-wrapper>
-                 </tui-select>
-               </label>
-            </div>
-            
-            <div class="style-container">
-               <div class="style-row">
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_COLOR' | transloco }}</label>
-                     <div class="color-picker-row">
-                       <input type="color" [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                       <tui-textfield size="s">
-                         <input tuiTextfield [(ngModel)]="design.exclColor" (ngModelChange)="updateDesign()" />
-                       </tui-textfield>
+               <div class="form-field-tax-target">
+                 <div class="choice-field__label">Loại khách hàng áp dụng</div>
+                 <div class="radio-group-modern radio-group-modern--vertical">
+                   <label *ngFor="let opt of customerApplyTypes" class="modern-radio">
+                     <input tuiRadio type="radio" name="taxDisplayApplyCustomer" [value]="opt" [(ngModel)]="data.applyCustomerType" (ngModelChange)="onTaxCustomerApplyTypeChange()" />
+                     <div class="radio-content">
+                       <span class="radio-title">{{ taxCustomerApplyLabel(opt) }}</span>
                      </div>
-                  </div>
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.EXCL_SIZE' | transloco }}</label>
-                     <tui-textfield size="s">
-                        <input tuiTextfield type="number" [(ngModel)]="design.exclSize" (ngModelChange)="updateDesign()" />
-                     </tui-textfield>
-                  </div>
+                   </label>
+                 </div>
                </div>
 
-               <div class="style-row">
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_COLOR' | transloco }}</label>
-                     <div class="color-picker-row">
-                       <input type="color" [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                       <tui-textfield size="s">
-                         <input tuiTextfield [(ngModel)]="design.incColor" (ngModelChange)="updateDesign()" />
-                       </tui-textfield>
-                     </div>
-                  </div>
-                  <div class="style-item">
-                     <label tuiLabel>{{ 'TAX_DISPLAY.INC_SIZE' | transloco }}</label>
-                     <tui-textfield size="s">
-                        <input tuiTextfield type="number" [(ngModel)]="design.incSize" (ngModelChange)="updateDesign()" />
-                     </tui-textfield>
-                  </div>
+               <div class="form-field-tax-target" *ngIf="data.applyCustomerType === 'GROUP'">
+                 <div class="choice-field__label">Chọn nhóm khách hàng</div>
+                 <div class="checkbox-list-vertical" *ngIf="customerGroups?.length">
+                   <label *ngFor="let g of customerGroups" class="modern-check">
+                     <input tuiCheckbox type="checkbox" [ngModel]="isTaxGroupSelected(g)" (ngModelChange)="toggleTaxGroup(g, $event)" />
+                     <span>{{ g.name }}</span>
+                   </label>
+                 </div>
                </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- PREVIEW PANEL -->
-      <div class="preview-panel">
-        <h4 class="preview-title">{{ 'TAX_DISPLAY.PREVIEW' | transloco }}</h4>
-        <div class="preview-card">
-           <div class="device-mockup">
-              <div class="product-preview">
-                 <div class="product-image">
-                    <tui-icon icon="@tui.gift"></tui-icon>
-                 </div>
-                 <div class="product-info">
-                    <span class="product-name">Sản phẩm mẫu</span>
-                    <span class="base-price">100.000 đ</span>
-                    
-                    <div class="tax-labels" [ngSwitch]="data.displayType">
-                       <ng-container *ngSwitchCase="'BOTH_PRICES'">
-                          <div class="tax-line">
-                             <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
-                             <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
-                          </div>
-                       </ng-container>
-                       <ng-container *ngSwitchCase="'EXCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.exclColor" [style.font-size.px]="design.exclSize">100.000 đ exc. {{ data.taxDisplayType }}</span>
-                       </ng-container>
-                       <ng-container *ngSwitchCase="'INCLUDE_TAX_ONLY'">
-                          <span [style.color]="design.incColor" [style.font-size.px]="design.incSize">110.000 đ inc. {{ data.taxDisplayType }}</span>
-                       </ng-container>
-                    </div>
-                    
-                    <button tuiButton appearance="secondary" size="s" class="add-to-cart">Thêm vào giỏ hàng</button>
-                 </div>
-              </div>
-           </div>
         </div>
       </div>
     </div>
@@ -228,9 +124,17 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
 
     .field-grid { display: grid; gap: 20px; }
     .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .field-grid-3 { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 20px; align-items: end; }
-    
-    .status-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; height: 44px; }
+    .field-grid-3 { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 20px; align-items: start; }
+    .form-field-tax-status { min-width: 0; }
+    .form-field-tax-target { min-width: 0; }
+    .choice-field__label { font-weight: 700; font-size: 0.875rem; color: #334155; margin: 0 0 0.4rem; }
+    .radio-group-modern--vertical { display: flex; flex-direction: column; gap: 0.65rem; align-items: stretch; }
+    .modern-radio { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; cursor: pointer; background: #fff; }
+    .modern-radio:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .radio-content { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .radio-title { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+    .checkbox-list-vertical { display: flex; flex-direction: column; gap: 0.45rem; max-height: 280px; overflow-y: auto; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #fff; }
+    .modern-check { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.45rem 0.5rem; border-radius: 0.5rem; cursor: pointer; }
     
     .style-container { margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 20px; display: flex; flex-direction: column; gap: 20px; }
     .style-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
@@ -252,7 +156,8 @@ import { TaxDisplayRule, Category, Product, CustomerGroup } from '../../services
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaxDisplayEditorComponent {
+export class TaxDisplayEditorComponent implements OnChanges {
+  private readonly cdr = inject(ChangeDetectorRef);
   @Input() categories: Category[] = [];
   @Input() products: Product[] = [];
   @Input() customerGroups: CustomerGroup[] = [];
@@ -288,7 +193,47 @@ export class TaxDisplayEditorComponent {
   stringifyCategory = (item: any) => item?.name || '';
   stringifyProduct = (item: any) => item?.name || '';
 
-  ngOnChanges() {
+  readonly statusOptionsList = ['ACTIVE', 'INACTIVE'] as const;
+  readonly customerApplyTypes: ('ALL' | 'GROUP' | 'SPECIFIC')[] = ['ALL', 'GROUP', 'SPECIFIC'];
+
+  private readonly transloco = inject(TranslocoService);
+
+  taxCustomerApplyLabel(opt: string): string {
+    if (opt === 'SPECIFIC') {
+      return this.transloco.translate('ENUMS.SPECIFIC_CUSTOMER');
+    }
+    return this.transloco.translate('ENUMS.' + opt);
+  }
+
+  taxRuleStatusPillClass(status: string | null | undefined): string {
+    return adminLifecycleStatusPillClass(status || 'ACTIVE');
+  }
+
+  onTaxCustomerApplyTypeChange(): void {
+    if (this.data.applyCustomerType !== 'GROUP') {
+      this.selectedGroups = [];
+    }
+    this.syncTargeting();
+    this.cdr.markForCheck();
+  }
+
+  isTaxGroupSelected(g: CustomerGroup): boolean {
+    return this.selectedGroups.some(s => s.id === g.id);
+  }
+
+  toggleTaxGroup(g: CustomerGroup, checked: boolean): void {
+    if (checked) {
+      if (!this.isTaxGroupSelected(g)) {
+        this.selectedGroups = [...this.selectedGroups, g];
+      }
+    } else {
+      this.selectedGroups = this.selectedGroups.filter(s => s.id !== g.id);
+    }
+    this.syncTargeting();
+    this.cdr.markForCheck();
+  }
+
+  ngOnChanges(_changes: SimpleChanges) {
     if (this.data.designConfig) {
       try {
         const savedDesign = JSON.parse(this.data.designConfig);
@@ -307,15 +252,6 @@ export class TaxDisplayEditorComponent {
     } else {
       this.data.applyCustomerValue = '{}';
     }
-
-    // Sync Products
-    if (this.data.applyProductType === 'CATEGORY') {
-      this.data.applyProductValue = JSON.stringify({ categoryIds: this.selectedCategories.map(c => c.id) });
-    } else if (this.data.applyProductType === 'SPECIFIC') {
-      this.data.applyProductValue = JSON.stringify({ productIds: this.selectedProducts.map(p => p.id) });
-    } else {
-      this.data.applyProductValue = '{}';
-    }
   }
 
   parseTargeting() {
@@ -327,23 +263,6 @@ export class TaxDisplayEditorComponent {
         this.selectedGroups = this.customerGroups.filter(g => ids.includes(g.id));
       } catch { this.selectedGroups = []; }
     } else { this.selectedGroups = []; }
-
-    // Parse Products
-    if (this.data.applyProductType === 'CATEGORY' && this.data.applyProductValue) {
-      try {
-        const val = JSON.parse(this.data.applyProductValue);
-        const ids = val.categoryIds || (val.categoryId ? [val.categoryId] : []);
-        this.selectedCategories = this.categories.filter(c => ids.includes(c.id));
-      } catch { this.selectedCategories = []; }
-    } else { this.selectedCategories = []; }
-
-    if (this.data.applyProductType === 'SPECIFIC' && this.data.applyProductValue) {
-      try {
-        const val = JSON.parse(this.data.applyProductValue);
-        const ids = val.productIds || (val.productId ? [val.productId] : []);
-        this.selectedProducts = this.products.filter(p => ids.includes(p.id));
-      } catch { this.selectedProducts = []; }
-    } else { this.selectedProducts = []; }
   }
 
   updateDesign() {

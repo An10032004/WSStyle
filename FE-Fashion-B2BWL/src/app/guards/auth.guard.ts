@@ -80,17 +80,7 @@ export const authGuard: CanActivateFn = (route, state) => {
           }
         }
 
-        // 4. Legacy STAFF Fallback (Matches LayoutComponent)
-        if (uRole === 'STAFF') {
-           const allowedModules = new Set<string>([
-             'categories', 'products', 'variants', 'orders', 
-             'customer-groups', 'rule-engine', 'ai-sync', 
-             'home-settings', 'messages', 'reviews', 'pos'
-           ]);
-           if (moduleKey && allowedModules.has(moduleKey)) {
-             return true;
-           }
-        }
+        // NOTE: legacy STAFF fallback removed to rely on role permissions instead
       }
 
       // If no specific roles/modules required, allow access

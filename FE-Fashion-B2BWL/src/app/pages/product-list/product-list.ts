@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, TemplateRef, OnDestroy } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -19,15 +20,17 @@ import { MaskitoDirective } from '@maskito/angular';
 import { maskitoNumberOptionsGenerator } from '@maskito/kit';
 import { ApiService, Product, Category, TranslationRequest } from '../../services/api.service';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
+import { ImageUrlFieldComponent } from '../../shared/components/image-url-field/image-url-field.component';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
+import { readApiErrorMessage } from '../../utils/auth-http.util';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective],
+  imports: [CommonModule, FormsModule, TranslocoModule, AgGridAngular, TuiButton, TuiIcon, TuiTextfield, TuiLabel, TuiSelectModule, TuiTextfieldControllerModule, ActionRendererComponent, MaskitoDirective, ImageUrlFieldComponent],
   templateUrl: './product-list.html',
   styleUrl: './product-list.scss',
 })
@@ -55,6 +58,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     imageUrl: '',
     imageUrls: [] as string[],
   };
+
+  formErrors: Record<string, string> = {};
 
   currentLanguage: string = 'vi';
   langSub!: Subscription;
@@ -170,33 +175,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
           return `${img}<span>${params.value || ''}</span>`;
         }
       },
-      {
-        headerName: this.transloco.translate('PRODUCT.PRICE'),
-        field: 'basePrice',
-        width: 150,
-        sortable: true,
-        valueFormatter: (p: any) => {
-          if (p.value == null) return '';
-          const isEn = this.currentLanguage === 'en';
-          const exchangeRate = 25450; // Standard rate for demonstration
-          
-          if (isEn) {
-            const usdValue = p.value / exchangeRate;
-            return new Intl.NumberFormat('en-US', { 
-                style: 'currency', 
-                currency: 'USD',
-                maximumFractionDigits: 2 
-            }).format(usdValue);
-          } else {
-            return new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND',
-                maximumFractionDigits: 0 
-            }).format(p.value);
-          }
-        },
-        cellStyle: { fontWeight: '500', color: 'var(--tui-status-positive)' },
-      },
+
       { 
         headerName: this.transloco.translate('PRODUCT.CATEGORY'), 
         field: 'categoryId', 
@@ -267,6 +246,26 @@ export class ProductListComponent implements OnInit, OnDestroy {
       if (translated) return translated;
     }
     return this.categories.find(c => c.id === id)?.name || '';
+  }
+
+  clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private handleApiError(err: any): void {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 400 && err.error && err.error.data) {
+        this.formErrors = err.error.data;
+        this.alerts.open('Dữ liệu không hợp lệ. Vui lòng kiểm tra các trường.', { appearance: 'warning' }).subscribe();
+        return;
+      }
+      if (err.status === 409 && err.error && err.error.message) {
+        this.alerts.open(err.error.message, { appearance: 'warning' }).subscribe();
+        return;
+      }
+    }
+    const msg = readApiErrorMessage(err, err?.message || 'Lỗi hệ thống');
+    this.alerts.open(msg, { appearance: 'error' }).subscribe();
   }
 
   readonly renderCategory = (context: any): string => {
@@ -389,15 +388,19 @@ export class ProductListComponent implements OnInit, OnDestroy {
       })
       .subscribe((response) => {
         if (response) {
-          this.api.deleteProduct(p.id).subscribe(() => {
-            this.alerts.open('Đã xóa sản phẩm', { appearance: 'success' }).subscribe();
-            this.loadData();
+          this.api.deleteProduct(p.id).subscribe({
+            next: () => {
+              this.alerts.open('Đã xóa sản phẩm', { appearance: 'success' }).subscribe();
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err),
           });
         }
       });
   }
 
   onSave(): void {
+    this.clearFormErrors();
     const numericPrice = this.getNumericValue(this.formData.basePrice);
     
     if (this.currentLanguage !== 'vi' && this.editingId) {
@@ -411,20 +414,25 @@ export class ProductListComponent implements OnInit, OnDestroy {
         imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
       };
       
-      this.api.updateProduct(this.editingId, globalUpdate).subscribe(() => {
-        // 2. Save Translation for Name & Specifications
-        const req: TranslationRequest = {
-           resourceId: this.editingId!,
-           resourceType: 'PRODUCT',
-           languageCode: this.currentLanguage,
-           translatedName: this.formData.name,
-        };
-        
-        this.api.saveTranslation(req).subscribe(() => {
-           this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
-           this.showForm = false;
-           this.loadData();
-        });
+      this.api.updateProduct(this.editingId, globalUpdate).subscribe({
+        next: () => {
+          // 2. Save Translation for Name & Specifications
+          const req: TranslationRequest = {
+             resourceId: this.editingId!,
+             resourceType: 'PRODUCT',
+             languageCode: this.currentLanguage,
+             translatedName: this.formData.name,
+          };
+          this.api.saveTranslation(req).subscribe({
+            next: () => {
+              this.alerts.open(`Cập nhật thông tin và bản dịch [${this.currentLanguage}] thành công`, { appearance: 'success' }).subscribe();
+              this.showForm = false;
+              this.loadData();
+            },
+            error: (err) => this.handleApiError(err)
+          });
+        },
+        error: (err) => this.handleApiError(err)
       });
     } else {
     // Primary Language (vi) or New Product
@@ -436,17 +444,17 @@ export class ProductListComponent implements OnInit, OnDestroy {
     };
       
       if (this.editingId) {
-        this.api.updateProduct(this.editingId, body).subscribe(() => {
+        this.api.updateProduct(this.editingId, body).subscribe({ next: () => {
           this.alerts.open('Cập nhật thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       } else {
-        this.api.createProduct(body).subscribe(() => {
+        this.api.createProduct(body).subscribe({ next: () => {
           this.alerts.open('Tạo sản phẩm thành công', { appearance: 'success' }).subscribe();
           this.showForm = false;
           this.loadData();
-        });
+        }, error: (err) => this.handleApiError(err) });
       }
     }
   }

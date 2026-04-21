@@ -33,7 +33,8 @@ public class Order {
     private String orderType; // RETAIL, WHOLESALE
 
     @Column(nullable = false, length = 50)
-    private String status; // PENDING, PROCESSING, SHIPPED, COMPLETED, CANCELLED
+    /** PENDING → PROCESSING (xác nhận đơn, trừ tồn) → …; REJECTED/CANCELLED hoàn tồn nếu đã trừ. */
+    private String status; // PENDING, PROCESSING, SHIPPED, COMPLETED, CANCELLED, APPROVED, REJECTED
 
     @Column(name = "payment_method", nullable = false, length = 50)
     private String paymentMethod; // COD, VNPAY, NET_TERMS
@@ -68,11 +69,36 @@ public class Order {
     @Column(name = "shipping_address", columnDefinition = "TEXT")
     private String shippingAddress;
 
+    /** RULE | STANDARD | EXPRESS — cách tính phí ship khách chọn */
+    @Column(name = "shipping_selection", length = 20)
+    private String shippingSelection;
+
+    /** Mã tỉnh/thành (provinces.open-api.vn) dùng khớp vùng ship */
+    @Column(name = "shipping_province_code", length = 32)
+    private String shippingProvinceCode;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    private BigDecimal discountAmount;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "stock_reduced")
+    private Boolean stockReduced = false;
+
+    /** Admin đánh dấu đã chuyển khoản hoàn tiền (đơn hủy + đã thu QR/CK). */
+    @Column(name = "refund_processed_at")
+    private LocalDateTime refundProcessedAt;
+
+    /** Khách xác nhận đã nhận lại tiền — đóng vòng hoàn tiền, đồng bộ báo cáo. */
+    @Column(name = "refund_confirmed_by_customer_at")
+    private LocalDateTime refundConfirmedByCustomerAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference

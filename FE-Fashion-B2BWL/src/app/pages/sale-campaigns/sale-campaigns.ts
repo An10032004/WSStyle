@@ -3,20 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule } from '@jsverse/transloco';
 import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel, TuiDataList } from '@taiga-ui/core';
-import { TUI_CONFIRM, TuiDataListWrapper, TuiSelect, TuiMultiSelect } from '@taiga-ui/kit';
+import { TUI_CONFIRM, TuiDataListWrapper, TuiSelect, TuiMultiSelect, TuiRadio } from '@taiga-ui/kit';
 import { TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { ApiService, SaleCampaign, Category, Product, CustomerGroup } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
+import { RichTextEditorComponent } from '../../shared/components/rich-text-editor/rich-text-editor.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelect, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiTextfieldControllerModule, RuleConflictWarningComponent],
+  imports: [CommonModule, FormsModule, TranslocoModule, TuiIcon, TuiButton, TuiTextfield, TuiLabel, TuiSelect, TuiDataList, TuiDataListWrapper, TuiMultiSelect, TuiTextfieldControllerModule, RuleConflictWarningComponent, TuiRadio, RichTextEditorComponent],
   template: `
     <div class="page-container" *transloco="let t">
-      <div class="page-header">
-        <h1 class="tui-text_h3">{{ 'SIDEBAR.CAMPAIGNS' | transloco }}</h1>
-        <button tuiButton type="button" size="m" (click)="showAddDialog()">New Campaign</button>
+      <div class="page-header page-header--toolbar">
+        <h1 class="tui-text_h3 page-header__title">{{ 'SIDEBAR.CAMPAIGNS' | transloco }}</h1>
+        <div class="page-actions">
+          <button tuiButton type="button" size="m" appearance="primary" iconStart="@tui.plus" (click)="showAddDialog()">New Campaign</button>
+        </div>
       </div>
 
       <ng-template #addDialog let-observer>
@@ -45,10 +48,10 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               Banner URL
             </tui-textfield>
 
-            <tui-textfield class="full-width">
-              <textarea tuiTextfield [(ngModel)]="newCampaign.description" placeholder="Description..."></textarea>
-              Description
-            </tui-textfield>
+            <div class="full-width campaign-rte-wrap">
+              <div class="campaign-rte-label">Description</div>
+              <app-rich-text-editor [(ngModel)]="newCampaign.description"></app-rich-text-editor>
+            </div>
 
             <label tuiLabel>
               Start Date
@@ -65,16 +68,28 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
             </label>
           </div>
 
-          <h3 class="tui-text_h6" style="margin: 24px 0 16px;">Targeting (Who & What?)</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <label tuiLabel>
-              Apply To Customer Type
-              <tui-select [(ngModel)]="newCampaign.applyCustomerType" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'GUEST', 'LOGGED_IN', 'GROUP']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
+          <h3 class="tui-text_h6 campaign-dialog__subtitle">Targeting (Who & What?)</h3>
+          <div class="campaign-targeting">
+            <div class="form-field full-width">
+              <div class="choice-field__label">Apply To Customer Type</div>
+              <div class="radio-group-modern">
+                <label *ngFor="let opt of customerTypeOptions" class="modern-radio">
+                  <input
+                    tuiRadio
+                    type="radio"
+                    name="campApplyCustomerType"
+                    [value]="opt"
+                    [(ngModel)]="newCampaign.applyCustomerType"
+                    (ngModelChange)="checkConflicts()"
+                  />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ opt }}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-            <div *ngIf="newCampaign.applyCustomerType === 'GROUP'">
+            <div class="form-field full-width" *ngIf="newCampaign.applyCustomerType === 'GROUP'">
               <label tuiLabel>Select Customer Groups</label>
               <tui-multi-select [(ngModel)]="selectedGroupIds" (ngModelChange)="checkConflicts()">
                 <tui-data-list-wrapper *tuiDataList [items]="customerGroups()" [itemContent]="groupContent"></tui-data-list-wrapper>
@@ -82,14 +97,26 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
               </tui-multi-select>
             </div>
 
-            <label tuiLabel>
-              Apply To Product Type
-              <tui-select [(ngModel)]="newCampaign.applyProductType" (ngModelChange)="checkConflicts()">
-                <tui-data-list-wrapper *tuiDataList [items]="['ALL', 'CATEGORY']"></tui-data-list-wrapper>
-              </tui-select>
-            </label>
+            <div class="form-field full-width">
+              <div class="choice-field__label">Apply To Product Type</div>
+              <div class="radio-group-modern">
+                <label *ngFor="let opt of productApplyOptions" class="modern-radio">
+                  <input
+                    tuiRadio
+                    type="radio"
+                    name="campApplyProductType"
+                    [value]="opt"
+                    [(ngModel)]="newCampaign.applyProductType"
+                    (ngModelChange)="checkConflicts()"
+                  />
+                  <div class="radio-content">
+                    <span class="radio-title">{{ opt }}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
 
-            <div *ngIf="newCampaign.applyProductType === 'CATEGORY'">
+            <div class="form-field full-width" *ngIf="newCampaign.applyProductType === 'CATEGORY'">
               <label tuiLabel>Select Categories</label>
               <tui-multi-select [(ngModel)]="selectedCategoryIds" (ngModelChange)="checkConflicts()">
                 <tui-data-list-wrapper *tuiDataList [items]="categories()" [itemContent]="catContent"></tui-data-list-wrapper>
@@ -116,7 +143,7 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
                 <button tuiButton type="button" size="xs" appearance="flat" (click)="deleteCampaign(campaign.id)">Delete</button>
               </div>
             </div>
-            <p>{{ campaign.description }}</p>
+            <div class="campaign-card__desc" [innerHTML]="campaign.description"></div>
             <div class="footer">
                <span class="discount">-{{ campaign.discountPercentage }}%</span>
                <span class="status" [class.active]="campaign.isActive">
@@ -128,25 +155,16 @@ import { RuleConflictWarningComponent } from '../../shared/components/rule-confl
       </div>
     </div>
   `,
-  styles: [`
-    .page-container { padding: 32px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
-    .campaign-card { background: #fff; border-radius: 16px; border: 1px solid #eee; overflow: hidden; }
-    .banner { width: 100%; height: 160px; object-fit: cover; }
-    .card-content { padding: 20px; }
-    .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
-    .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-    .discount { font-weight: bold; color: #f44336; font-size: 20px; }
-    .status { padding: 4px 12px; border-radius: 20px; font-size: 12px; background: #eee; }
-    .status.active { background: #e8f5e9; color: #2e7d32; }
-  `],
+  styleUrl: './sale-campaigns.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleCampaignsComponent {
   private readonly api = inject(ApiService);
   private readonly dialogs = inject(TuiDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  readonly customerTypeOptions = ['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'] as const;
+  readonly productApplyOptions = ['ALL', 'CATEGORY'] as const;
   
   readonly campaigns = signal<SaleCampaign[]>([]);
   readonly categories = signal<Category[]>([]);

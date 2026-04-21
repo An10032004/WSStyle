@@ -1,0 +1,92 @@
+<div class="pvp-backdrop" *ngIf="visible" (click)="close()">
+  <div class="pvp-modal" (click)="$event.stopPropagation()">
+    <div class="pvp-header">
+      <h2 class="pvp-title">Chọn sản phẩm</h2>
+      <button type="button" class="pvp-close" (click)="close()" aria-label="Đóng">
+        <tui-icon icon="@tui.x"></tui-icon>
+      </button>
+    </div>
+
+    <div class="pvp-search">
+      <tui-textfield tuiTextfieldSize="m">
+        <input
+          tuiTextfield
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Tìm theo tên..."
+        />
+      </tui-textfield>
+    </div>
+
+    <div class="pvp-body">
+      <div *ngIf="!filteredProducts().length" class="pvp-empty">Không có sản phẩm phù hợp.</div>
+
+      <ng-container *ngFor="let p of filteredProducts()">
+        <div class="pvp-product-block">
+          <div class="pvp-product-row" (click)="toggleExpand(p)">
+            <label class="pvp-check" (click)="$event.stopPropagation()">
+              <input
+                tuiCheckbox
+                type="checkbox"
+                [ngModel]="isProductAllSelected(p)"
+                [disabled]="!variantsFor(p).length && !isLoadingVariants(p.id)"
+                (ngModelChange)="toggleProductAll(p, $event)"
+              />
+            </label>
+            <img *ngIf="thumb(p); else pvpPh" class="pvp-thumb" [src]="thumb(p)" alt="" />
+            <ng-template #pvpPh>
+              <div class="pvp-thumb pvp-thumb--empty" aria-hidden="true"></div>
+            </ng-template>
+            <div class="pvp-product-meta">
+              <div class="pvp-product-name">{{ p.name }}</div>
+              <div class="pvp-product-hint" *ngIf="isProductPartial(p)">
+                Đã chọn {{ variantsSelectedForProduct(p) }} / {{ variantsFor(p).length }} biến thể
+              </div>
+            </div>
+            <button type="button" class="pvp-chevron" [class.pvp-chevron--open]="isExpanded(p.id)">
+              <tui-icon icon="@tui.chevron-down"></tui-icon>
+            </button>
+          </div>
+
+          <div class="pvp-variants" *ngIf="isExpanded(p.id)">
+            <div *ngIf="isLoadingVariants(p.id)" class="pvp-loading">Đang tải biến thể…</div>
+            <div *ngFor="let v of variantsFor(p)" class="pvp-variant-row">
+              <label class="pvp-check pvp-check--indent">
+                <input
+                  tuiCheckbox
+                  type="checkbox"
+                  [ngModel]="isVariantSelected(v)"
+                  (ngModelChange)="toggleVariant(v, $event)"
+                />
+              </label>
+              <span class="pvp-variant-label">{{ variantLabel(v) }}</span>
+              <span class="pvp-variant-price">{{ formatMoney(displayPrice(v, p)) }} ₫</span>
+            </div>
+            <div *ngIf="!isLoadingVariants(p.id) && !variantsFor(p).length" class="pvp-empty-inline">
+              Không có biến thể.
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="pvp-selected-preview" *ngIf="selectionCount()">
+      <div class="pvp-selected-preview__title">Xem trước đang chọn</div>
+      <ul class="pvp-selected-preview__list">
+        <li *ngFor="let row of getSelectedPreviewRows()" class="pvp-selected-preview__row">
+          <span class="pvp-selected-preview__product">{{ row.productName }}</span>
+          <span class="pvp-selected-preview__sep">·</span>
+          <span class="pvp-selected-preview__variant">{{ row.variantLabel }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="pvp-footer">
+      <span class="pvp-count">{{ selectionCount() }} biến thể đã chọn</span>
+      <div class="pvp-actions">
+        <button tuiButton type="button" appearance="flat" size="m" (click)="close()">Hủy</button>
+        <button tuiButton type="button" appearance="primary" size="m" (click)="confirm()">Chọn</button>
+      </div>
+    </div>
+  </div>
+</div>
