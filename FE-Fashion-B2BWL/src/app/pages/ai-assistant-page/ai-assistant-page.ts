@@ -15,12 +15,14 @@ import { catchError, map, of, switchMap } from 'rxjs';
 import {
   ApiService,
   AIResponse,
+  AIBundleSummary,
   AssistantSessionItem,
   AssistantTurn,
   Product,
   User,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { TuiButton, TuiScrollbar } from '@taiga-ui/core';
@@ -30,6 +32,7 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   time: Date;
   products?: Product[];
+  bundles?: AIBundleSummary[];
 }
 
 @Component({
@@ -51,6 +54,7 @@ interface ChatMessage {
 export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly cart = inject(CartService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   @ViewChild('scrollArea') private scrollArea?: ElementRef<HTMLElement>;
@@ -197,6 +201,7 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
     this.cdr.markForCheck();
 
     const u = this.auth.currentUserValue;
+    const hints = this.cart.getAssistantPricingHints();
     this.api
       .quoteTax({ userId: u?.id ?? null, orderAmount: 1_000_000 })
       .pipe(
@@ -206,17 +211,21 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
             userId: u?.id,
             sessionId: this.currentSessionId,
             storefrontContext: this.buildStorefrontContext(u, tax) ?? undefined,
+            pricingHintProductIds: hints.pricingHintProductIds,
+            pricingHintCategoryIds: hints.pricingHintCategoryIds,
           })
         )
       )
       .subscribe({
         next: (res: AIResponse) => {
           const products = res.products ?? [];
+          const bundles = res.bundles ?? [];
           this.messages.push({
             text: res.message,
             sender: 'ai',
             time: new Date(),
             products,
+            bundles,
           });
           if (products.length > 0) {
             this.lastResultProducts = products;
@@ -271,7 +280,30 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
         `- Thuế (quote 1M₫): ${String(tax['taxDisplayType'] ?? '')}, rate=${String(tax['taxRate'] ?? '')}%`
       );
     }
+    lines.push(
+      '- Giá trên thẻ sản phẩm API đã áp rule B2B/theo nhóm khi có userId; có thể có quantityBreaksJson (bậc sỉ) và totalStock (tồn tổng).'
+    );
     lines.push('- Trang assistant full: hiển thị bảng sản phẩm + link /product/:id; có lịch sử phiên.');
     return lines.join('\n');
+  }
+
+  stockLabel(p: Product): string {
+    const n = p.totalStock;
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    if (n <= 0) return 'Hết';
+    if (n < 5) return `Còn ${n} (ít)`;
+    return `Còn ${n}`;
+  }
+
+  bulkHint(p: Product): string {
+    if (p.quantityBreaksJson && p.quantityBreaksJson.length > 4) return 'Có bậc SL';
+    const d = (p.discountLabel || '').toLowerCase();
+    if (d.includes('sỉ') || d.includes('si') || d.includes('mua sỉ')) return p.discountLabel || 'Ưu đãi SL';
+    return '—';
+  }
+
+  bundlePrice(b: AIBundleSummary): number {
+    const x = b.newPrice ?? b.oldPrice;
+    return typeof x === 'number' ? x : Number(x);
   }
 }

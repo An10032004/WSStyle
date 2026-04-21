@@ -68,4 +68,14 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
             ) t ON v.product_id = t.product_id AND v.id = t.min_id
             """, nativeQuery = true)
     List<Object[]> findFirstSellableVariantWithPositiveListPriceByProductIds(@Param("ids") Collection<Integer> ids);
+
+    /** Tổng tồn SKU đang bán (không INACTIVE) theo sản phẩm — dùng AI / shop. */
+    @Query(value = """
+            SELECT v.product_id, COALESCE(SUM(v.stock_quantity), 0)
+            FROM product_variants v
+            WHERE v.product_id IN (:ids)
+              AND (v.status IS NULL OR TRIM(COALESCE(v.status, '')) = '' OR UPPER(TRIM(v.status)) <> 'INACTIVE')
+            GROUP BY v.product_id
+            """, nativeQuery = true)
+    List<Object[]> sumSellableStockByProductIds(@Param("ids") Collection<Integer> ids);
 }

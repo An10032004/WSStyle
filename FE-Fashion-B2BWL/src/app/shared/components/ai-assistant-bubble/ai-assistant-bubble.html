@@ -43,6 +43,12 @@
               </div>
             </div>
           </div>
+          <div class="ai-bundle-row" *ngIf="m.bundles && m.bundles.length">
+            <span class="bundle-h">Combo</span>
+            <button type="button" class="bundle-chip" *ngFor="let b of m.bundles" (click)="viewBundle(b)">
+              {{ b.name }} · {{ bundlePrice(b) | number }} ₫
+            </button>
+          </div>
         </div>
         <span class="message-time">{{ m.time | date:'HH:mm' }}</span>
       </div>

@@ -3,17 +3,22 @@ package com.fashionstore.core.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fashionstore.core.dto.response.AIBundleSummaryDTO;
 import com.fashionstore.core.dto.response.AIResponse;
 import com.fashionstore.core.dto.response.ProductResponseDTO;
+import com.fashionstore.core.model.Bundle;
 import com.fashionstore.core.model.Category;
 import com.fashionstore.core.model.Product;
 import com.fashionstore.core.model.User;
+import com.fashionstore.core.repository.BundleRepository;
 import com.fashionstore.core.repository.CategoryRepository;
 import com.fashionstore.core.repository.ProductRepository;
+import com.fashionstore.core.repository.ProductVariantRepository;
 import com.fashionstore.core.repository.specification.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -21,6 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -29,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -43,9 +54,12 @@ public class AIProductHelperService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final BundleRepository bundleRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final AiSiteContextLoader siteContextLoader;
     private final ProductMapperService productMapperService;
     private final UserService userService;
+    private final AssistantPricingHintService assistantPricingHintService;
 
     @Value("${google.ai.api-key:}")
     private String apiKey;
@@ -73,6 +87,9 @@ public class AIProductHelperService {
 
     private record VndRange(BigDecimal min, BigDecimal max) {}
 
+    /** Kết quả tìm SP + chuỗi dùng xếp hạng độ liên quan (có thể khác LIKE cuối khi fallback). */
+    private record ProductSearchOutcome(List<Product> products, String rankingQuery) {}
+
     /** Thứ tự: {@code google.ai.url} trước, sau đó fallback (bỏ trùng). */
     private List<String> geminiEndpointCandidates() {
         LinkedHashSet<String> set = new LinkedHashSet<>();
@@ -91,9 +108,21 @@ public class AIProductHelperService {
      *
      * @param storefrontUserId id user đăng nhập (optional) — map giá qua {@link ProductMapperService}
      * @param storefrontContext đoạn markdown/text do FE gửi (thuế demo, nhóm B2B, …) đưa vào prompt
+     * @param pricingHintProductIds id SP thuộc rule QUANTITY_BREAK/B2B khớp khách (FE — cùng logic giỏ)
+     * @param pricingHintCategoryIds id danh mục tương tự
      */
     @Transactional(readOnly = true)
     public AIResponse chat(String userMessage, Integer storefrontUserId, String storefrontContext) {
+        return chat(userMessage, storefrontUserId, storefrontContext, Collections.emptyList(), Collections.emptyList());
+    }
+
+    @Transactional(readOnly = true)
+    public AIResponse chat(
+            String userMessage,
+            Integer storefrontUserId,
+            String storefrontContext,
+            List<Integer> pricingHintProductIds,
+            List<Integer> pricingHintCategoryIds) {
         String cleanKey = (apiKey != null) ? apiKey.trim() : "";
         boolean hasValidKey = cleanKey.length() >= 8
                 && !cleanKey.equalsIgnoreCase("YOUR_API_KEY_HERE")
@@ -139,15 +168,32 @@ public class AIProductHelperService {
 
             return switch (intent) {
                 case "product_search" -> {
-                    List<Product> products = runProductSearch(decisionJson, userMessage);
-                    List<ProductResponseDTO> dtos = mapProductsForStorefront(products, storefrontUserId);
+                    ProductSearchOutcome outcome = runProductSearch(decisionJson, userMessage);
+                    List<Product> ranked = rankProductsForAi(outcome.products(), userMessage, outcome.rankingQuery());
+                    var serverHints = assistantPricingHintService.computeHints(storefrontUserId);
+                    List<Integer> mergedProductHints = unionIntIds(
+                            pricingHintProductIds,
+                            serverHints.getPricingHintProductIds(),
+                            AssistantPricingHintService.MAX_HINT_PRODUCT_IDS);
+                    List<Integer> mergedCategoryHints = unionIntIds(
+                            pricingHintCategoryIds,
+                            serverHints.getPricingHintCategoryIds(),
+                            AssistantPricingHintService.MAX_HINT_CATEGORY_IDS);
+                    List<Product> merged = mergePricingHints(
+                            ranked,
+                            userMessage,
+                            decisionJson,
+                            mergedProductHints,
+                            mergedCategoryHints);
+                    List<ProductResponseDTO> dtos = mapProductsForStorefront(merged, storefrontUserId);
+                    List<AIBundleSummaryDTO> bundles = resolveBundles(merged, userMessage, decisionJson);
                     String msg = message;
                     if (dtos.isEmpty()) {
                         msg = message
                                 + "<br><br><small><i>Chưa có sản phẩm khớp từ khóa trong kho. "
                                 + "Thử từ ngắn hơn (vd. chỉ \"áo\") hoặc vào <b>Shop</b> để lọc tay.</i></small>";
                     }
-                    yield new AIResponse(msg, dtos);
+                    yield new AIResponse(msg, dtos, bundles, null);
                 }
                 case "chat", "site_help" -> new AIResponse(message, Collections.emptyList());
                 default -> new AIResponse(message, Collections.emptyList());
@@ -163,7 +209,148 @@ public class AIProductHelperService {
     /** Tương thích gọi cũ — không user / không ngữ cảnh FE. */
     @Transactional(readOnly = true)
     public AIResponse chat(String userMessage) {
-        return chat(userMessage, null, null);
+        return chat(userMessage, null, null, Collections.emptyList(), Collections.emptyList());
+    }
+
+    /**
+     * Gộp SP từ gợi ý rule giá (FE gửi — khớp CartService) khi hỏi giá sỉ / B2B, để DB không cần cột "có sỉ".
+     */
+    private List<Product> mergePricingHints(
+            List<Product> ranked,
+            String userMessage,
+            JsonNode decisionJson,
+            List<Integer> hintProductIds,
+            List<Integer> hintCategoryIds) {
+        boolean hasHints = (hintProductIds != null && !hintProductIds.isEmpty())
+                || (hintCategoryIds != null && !hintCategoryIds.isEmpty());
+        if (!hasHints) {
+            return ranked;
+        }
+        boolean wholesaleFocus = looksLikeWholesaleIntent(userMessage);
+        String q = firstNonBlank(decisionJson.path("search").asText(""), extractProductSearchHint(userMessage))
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        LinkedHashMap<Integer, Product> byId = new LinkedHashMap<>();
+        if (hintProductIds != null) {
+            for (Product p : productRepository.findAllById(hintProductIds)) {
+                if (p.getId() == null) {
+                    continue;
+                }
+                if (!wholesaleFocus || q.isEmpty() || productMatchesLooseQuery(p, q)) {
+                    byId.put(p.getId(), p);
+                }
+            }
+        }
+        if (hintCategoryIds != null && !hintCategoryIds.isEmpty()) {
+            var page = productRepository.findAll(
+                    ProductSpecification.filterProducts(null, hintCategoryIds, null, null, List.of(), null),
+                    PageRequest.of(0, 40, Sort.by(Sort.Direction.DESC, "id")));
+            for (Product p : page.getContent()) {
+                if (p.getId() == null) {
+                    continue;
+                }
+                if (!wholesaleFocus || q.isEmpty() || productMatchesLooseQuery(p, q)) {
+                    byId.putIfAbsent(p.getId(), p);
+                }
+            }
+        }
+        if (byId.isEmpty()) {
+            return ranked;
+        }
+
+        List<Product> hintPool = new ArrayList<>(byId.values());
+        List<Product> hintRanked = rankProductsForAi(hintPool, userMessage, q);
+
+        if (wholesaleFocus) {
+            // Khách hỏi giá sỉ + có phạm vi rule: chỉ liệt kê SP thuộc rule, không trộn kết quả search chung.
+            // Không lọc theo cả câu khách (vd. "sản phẩm đang áp dụng giá sỉ") — dễ loại nhầm mọi SP; xếp hạng đã dùng userMessage.
+            if (!hintRanked.isEmpty()) {
+                return hintRanked.size() > 40 ? new ArrayList<>(hintRanked.subList(0, 40)) : new ArrayList<>(hintRanked);
+            }
+            return ranked;
+        }
+
+        LinkedHashSet<Integer> seen = new LinkedHashSet<>();
+        List<Product> out = new ArrayList<>();
+        for (Product p : hintRanked) {
+            if (out.size() >= 8) {
+                break;
+            }
+            if (p.getId() != null && seen.add(p.getId())) {
+                out.add(p);
+            }
+        }
+        for (Product p : ranked) {
+            if (p.getId() != null && seen.add(p.getId())) {
+                out.add(p);
+            }
+        }
+        return out;
+    }
+
+    private static boolean looksLikeWholesaleIntent(String msg) {
+        if (msg == null) {
+            return false;
+        }
+        String m = msg.toLowerCase(Locale.ROOT);
+        return m.contains("giá sỉ")
+                || m.contains("gia si")
+                || m.contains("áp dụng giá sỉ")
+                || m.contains("ap dung gia si")
+                || m.contains("mua sỉ")
+                || m.contains("mua si")
+                || m.contains("bậc giá")
+                || m.contains("bac gia")
+                || m.contains("sỉ ")
+                || m.contains(" si ")
+                || m.contains("theo số lượng")
+                || m.contains("theo so luong")
+                || m.contains("quantity break")
+                || m.contains("bulk ");
+    }
+
+    /** Gộp id gợi ý từ FE + từ server (trùng lặc giữ thứ tự). */
+    private static List<Integer> unionIntIds(List<Integer> fromRequest, List<Integer> fromServer, int max) {
+        LinkedHashSet<Integer> set = new LinkedHashSet<>();
+        if (fromRequest != null) {
+            for (Integer id : fromRequest) {
+                if (id != null && id > 0) {
+                    set.add(id);
+                    if (set.size() >= max) {
+                        return new ArrayList<>(set);
+                    }
+                }
+            }
+        }
+        if (fromServer != null) {
+            for (Integer id : fromServer) {
+                if (id != null && id > 0) {
+                    set.add(id);
+                    if (set.size() >= max) {
+                        break;
+                    }
+                }
+            }
+        }
+        return new ArrayList<>(set);
+    }
+
+    private static boolean productMatchesLooseQuery(Product p, String q) {
+        if (q.isEmpty()) {
+            return true;
+        }
+        String hay = ((p.getName() != null ? p.getName() : "") + " " + (p.getProductCode() != null ? p.getProductCode() : ""))
+                .toLowerCase(Locale.ROOT);
+        if (q.length() >= 2 && hay.contains(q)) {
+            return true;
+        }
+        for (String part : q.split("\\s+")) {
+            if (part.length() >= 2 && hay.contains(part)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<ProductResponseDTO> mapProductsForStorefront(List<Product> products, Integer storefrontUserId) {
@@ -189,7 +376,7 @@ public class AIProductHelperService {
                 .collect(Collectors.joining("\n"));
     }
 
-    private List<Product> runProductSearch(JsonNode aiJson, String userMessageFallback) {
+    private ProductSearchOutcome runProductSearch(JsonNode aiJson, String userMessageFallback) {
         String search = firstNonBlank(
                 aiJson.path("search").asText(""),
                 aiJson.path("keyword").asText("")
@@ -243,10 +430,14 @@ public class AIProductHelperService {
                 brands,
                 null);
 
+        String rankingBase = search.isBlank()
+                ? extractProductSearchHint(userMessageFallback != null ? userMessageFallback : "")
+                : search.trim();
+
         var page = productRepository.findAll(baseSpec, PageRequest.of(0, 20, sort));
         List<Product> found = page.getContent();
         if (!found.isEmpty()) {
-            return found;
+            return new ProductSearchOutcome(found, rankingBase);
         }
 
         LinkedHashSet<String> attempts = new LinkedHashSet<>();
@@ -280,10 +471,137 @@ public class AIProductHelperService {
                     PageRequest.of(0, 20, sort));
             if (!page2.getContent().isEmpty()) {
                 log.debug("AI product_search fallback hit: search '{}' → {} rows", att, page2.getContent().size());
-                return page2.getContent();
+                return new ProductSearchOutcome(page2.getContent(), att.trim());
             }
         }
-        return Collections.emptyList();
+        return new ProductSearchOutcome(Collections.emptyList(), rankingBase);
+    }
+
+    /** Ưu tiên tên/mã khớp từ khóa, sau đó tồn kho cao hơn (ít “random” theo id). */
+    private List<Product> rankProductsForAi(List<Product> products, String userMessage, String primarySearch) {
+        if (products == null || products.isEmpty()) {
+            return products;
+        }
+        String q = mergeRankingQuery(primarySearch, userMessage);
+        List<Integer> ids = products.stream().map(Product::getId).filter(Objects::nonNull).toList();
+        Map<Integer, Integer> stock = new HashMap<>();
+        if (!ids.isEmpty()) {
+            List<Object[]> rows = productVariantRepository.sumSellableStockByProductIds(ids);
+            if (rows != null) {
+                for (Object[] row : rows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        stock.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
+                    }
+                }
+            }
+        }
+        List<Product> copy = new ArrayList<>(products);
+        copy.sort(Comparator
+                .comparingInt((Product p) -> relevanceScore(p, q)).reversed()
+                .thenComparingInt((Product p) -> stock.getOrDefault(p.getId(), 0)).reversed()
+                .thenComparingInt((Product p) -> p.getId() != null ? p.getId() : 0).reversed());
+        return copy;
+    }
+
+    private static String mergeRankingQuery(String primarySearch, String userMessage) {
+        String p = primarySearch != null ? primarySearch.trim().toLowerCase(Locale.ROOT) : "";
+        String hint = extractProductSearchHint(userMessage != null ? userMessage : "");
+        if (!p.isEmpty() && !hint.isEmpty()) {
+            return (p + " " + hint).trim();
+        }
+        return !p.isEmpty() ? p : hint;
+    }
+
+    private static int relevanceScore(Product p, String q) {
+        if (q == null || q.isBlank()) {
+            return 0;
+        }
+        String name = (p.getName() != null ? p.getName() : "").toLowerCase(Locale.ROOT);
+        String code = (p.getProductCode() != null ? p.getProductCode() : "").toLowerCase(Locale.ROOT);
+        String hay = name + " " + code;
+        int score = 0;
+        String norm = q.trim().toLowerCase(Locale.ROOT);
+        if (norm.length() >= 2 && hay.contains(norm)) {
+            score += 50;
+        }
+        for (String part : norm.split("\\s+")) {
+            if (part.length() < 2) {
+                continue;
+            }
+            if (name.startsWith(part)) {
+                score += 8;
+            }
+            if (hay.contains(part)) {
+                score += 4;
+            }
+        }
+        return score;
+    }
+
+    private List<AIBundleSummaryDTO> resolveBundles(List<Product> products, String userMessage, JsonNode aiJson) {
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        List<AIBundleSummaryDTO> out = new ArrayList<>();
+        List<String> tokens = bundleSearchTokens(userMessage, aiJson);
+        for (String tok : tokens) {
+            if (tok.length() < 2) {
+                continue;
+            }
+            Page<Bundle> page = bundleRepository.findByStatusAndNameContainingIgnoreCaseOrderByIdDesc(
+                    Bundle.BundleStatus.ACTIVE, tok, PageRequest.of(0, 4));
+            for (Bundle b : page.getContent()) {
+                if (seen.add(b.getId())) {
+                    out.add(toBundleSummary(b));
+                }
+                if (out.size() >= 6) {
+                    return out;
+                }
+            }
+        }
+        if (products != null) {
+            int cap = Math.min(products.size(), 10);
+            for (int i = 0; i < cap; i++) {
+                Product p = products.get(i);
+                if (p == null || p.getId() == null) {
+                    continue;
+                }
+                for (Bundle b : bundleRepository.findActiveContainingProductId(p.getId())) {
+                    if (seen.add(b.getId())) {
+                        out.add(toBundleSummary(b));
+                    }
+                    if (out.size() >= 6) {
+                        return out;
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    private static AIBundleSummaryDTO toBundleSummary(Bundle b) {
+        return AIBundleSummaryDTO.builder()
+                .id(b.getId())
+                .name(b.getName())
+                .newPrice(b.getNewPrice())
+                .oldPrice(b.getOldPrice())
+                .imageUrl(b.getImageUrl())
+                .build();
+    }
+
+    private static List<String> bundleSearchTokens(String userMessage, JsonNode aiJson) {
+        String a = firstNonBlank(aiJson.path("search").asText(""), aiJson.path("keyword").asText(""));
+        String raw = ((userMessage != null ? userMessage : "") + " " + a).toLowerCase(Locale.ROOT);
+        raw = raw.replace("[tìm kiếm cửa hàng]", " ");
+        String[] parts = raw.split("\\s+");
+        LinkedHashSet<String> uniq = new LinkedHashSet<>();
+        for (String p : parts) {
+            String t = p.replaceAll("[^\\p{L}\\p{N}]+", "").trim();
+            if (t.length() >= 2) {
+                uniq.add(t);
+            }
+        }
+        List<String> list = new ArrayList<>(uniq);
+        list.sort(Comparator.comparingInt(String::length).reversed());
+        return list;
     }
 
     /**
@@ -446,6 +764,11 @@ public class AIProductHelperService {
                         5. Không đưa giá cụ thể từng SKU trong message trừ khi ngữ cảnh phiên có số rõ ràng; giá trên thẻ sản phẩm do hệ thống hiển thị sau truy vấn.
                         6. **Quản trị /admin**: Nếu khách hỏi panel admin, rule nội bộ, API key, SQL, nhân viên, dữ liệu người khác → intent **chat**, message từ chối lịch sự; **không** đưa link `/admin`; gợi **Hỗ trợ** hoặc liên hệ shop.
                         7. Nếu không chắc intent → site_help hoặc chat, message hỏi lại ngắn gọn.
+                        8. **product_search — tồn kho:** API trả mỗi sản phẩm thêm `totalStock` (tổng tồn SKU đang bán). Trong message, nêu rõ: **hết hàng** nếu 0; **còn hàng** nếu >0; có thể nói **sắp hết** nếu số rất thấp (vd. dưới 5) và hợp ngữ cảnh.
+                        9. **product_search — giá sỉ / B2B:** Giá trên thẻ (`calculatedPrice`) đã theo tài khoản & rule khi backend map được. **Không** viết câu kiểu «toàn bộ sản phẩm hiển thị đã áp giá sỉ / đã chiết khấu nhóm B2B» trừ khi **từng** mục trong mảng `products` có bằng chứng ưu đãi: `discountLabel`, hoặc `quantityBreaksJson` không rỗng, hoặc (khi có cả hai) `calculatedPrice` rõ ràng thấp hơn `basePrice`. Nếu không có dấu hiệu đó trên thẻ, nói đúng là giá niêm yết / giá theo rule hiển thị thuế, không suy diễn thêm.
+                        10. **product_search — combo/bundle:** Response có thể có mảng `bundles` (id, tên, giá). Khi có, trong message giới thiệu 1–2 combo liên quan và dùng `<a href="/bundle/{id}">Tên combo</a>` (id từ payload `bundles`).
+                        11. **Gợi ý giá sỉ (FE + BE):** Request có thể kèm `pricingHintProductIds` / `pricingHintCategoryIds` (mảng số). Backend tính từ rule ACTIVE (QUANTITY_BREAK, B2B_PRICE) khớp khách, **gồm** rule SPECIFIC theo `variantIds` (map sang productId). Khi khách hỏi giá sỉ / mua sỉ, danh sách `products` trả về đã ưu tiên đúng phạm vi đó — trong message chỉ nêu các SP thực sự có trong payload, không mở rộng sang cả catalog.
+                        12. **Nhóm khách B2B:** Thuộc nhóm B2B không có nghĩa mọi SKU đều đang giảm; chỉ SP nằm trong rule (và có dấu hiệu trên thẻ như mục 9) mới mô tả là có ưu đãi sỉ / B2B.
 
                         ## JSON SCHEMA
                         {
@@ -571,6 +894,11 @@ public class AIProductHelperService {
                 || m.contains("đen") || m.contains("den") || m.contains("trắng") || m.contains("trang")) {
             return true;
         }
+        if (m.contains("combo") || m.contains("bundle") || m.contains("gói") || m.contains(" goi")
+                || m.contains("giá sỉ") || m.contains("gia si") || m.contains(" sỉ") || m.contains(" si ")
+                || m.contains("tồn") || m.contains(" ton ") || m.contains("kho ")) {
+            return true;
+        }
         return m.contains("shop ") && (m.contains("bán") || m.contains("ban"));
     }
 
@@ -586,6 +914,7 @@ public class AIProductHelperService {
                         + "giúp|giup|giùm|gium|với|voi|nào|nao|ạ|\\ba\\b|nhé|nhe|luôn|luon|được|duoc|bán|ban|"
                         + "một|mot|vài|vai|some|any|màu|mau)\\b",
                 " ");
+        s = s.replaceAll("(?i)\\b(combo|bundle|gói|goi|set|bộ|bo)\\b", " ");
         s = s.replaceAll("\\s+", " ").trim();
         if (s.length() > 80) {
             s = s.substring(0, 80).trim();

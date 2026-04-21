@@ -45,6 +45,9 @@ public class ProductResponseDTO {
     /** Số biến thể (đếm từ DB, không cần tải hết SKU). */
     private Integer variantCount;
 
+    /** Tổng tồn các SKU đang bán (không INACTIVE) — gợi ý AI / shop. */
+    private Integer totalStock;
+
     // Net Term Info
     private Integer netTermDays;
     private Boolean isNetTermEligible;

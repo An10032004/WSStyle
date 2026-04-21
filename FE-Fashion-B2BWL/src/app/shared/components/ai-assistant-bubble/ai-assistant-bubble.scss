@@ -237,6 +237,13 @@
             }
           }
         }
+
+        .ai-bundle-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.68rem; }
+        .ai-bundle-row .bundle-h { font-weight: 700; color: #6366f1; }
+        .ai-bundle-row .bundle-chip {
+          padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(99, 102, 241, 0.25);
+          background: rgba(99, 102, 241, 0.08); cursor: pointer; color: #312e81; font-weight: 600;
+        }
       }
 
       .message-time {

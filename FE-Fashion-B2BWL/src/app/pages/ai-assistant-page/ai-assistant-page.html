@@ -53,6 +53,12 @@
                   <span class="mini-muted" *ngIf="p.hidePrice">{{ p.replacementText || 'Liên hệ' }}</span>
                 </a>
               </div>
+              <div class="inline-bundles" *ngIf="m.bundles?.length">
+                <span class="bundle-label">Combo gợi ý</span>
+                <a *ngFor="let b of m.bundles" [routerLink]="['/bundle', b.id]" class="mini-bundle">
+                  {{ b.name }} · {{ bundlePrice(b) | number }} ₫
+                </a>
+              </div>
             </div>
             <div class="typing" *ngIf="isLoading">Đang trả lời…</div>
           </div>
@@ -85,6 +91,8 @@
                 <th>Ảnh</th>
                 <th>Tên</th>
                 <th>Giá</th>
+                <th>Tồn</th>
+                <th>Ưu đãi</th>
                 <th></th>
               </tr>
             </thead>
@@ -106,6 +114,8 @@
                   </ng-container>
                   <span *ngIf="p.hidePrice">{{ p.replacementText || 'Liên hệ' }}</span>
                 </td>
+                <td class="td-stock">{{ stockLabel(p) }}</td>
+                <td class="td-bulk">{{ bulkHint(p) }}</td>
                 <td>
                   <a [routerLink]="['/product', p.id]" class="detail-link">Chi tiết</a>
                 </td>

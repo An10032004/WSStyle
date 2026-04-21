@@ -1,6 +1,14 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
-import { ApiService, Bundle, Coupon, Product, ProductVariant } from './api.service';
+import {
+  ApiService,
+  AssistantPricingHints,
+  Bundle,
+  Coupon,
+  Product,
+  ProductVariant,
+  User,
+} from './api.service';
 import { isVariantAvailableForSale } from '../utils/variant-availability';
 import { AuthService } from './auth.service';
 import { BehaviorSubject, Observable, combineLatest, forkJoin, fromEvent, of } from 'rxjs';
@@ -58,6 +66,8 @@ export interface PriceCalculationResult {
   appliedB2BRule: any | null;
   appliedQBBreak: any | null;
 }
+
+export type { AssistantPricingHints } from './api.service';
 
 @Injectable({
   providedIn: 'root'
@@ -134,6 +144,12 @@ export class CartService {
   private orderLimitsSubject = new BehaviorSubject<any[]>([]);
   orderLimits$ = this.orderLimitsSubject.asObservable();
 
+  /** Gợi ý AI từ GET /pricing-rules/assistant-hints (resolve variantIds). */
+  private assistantHintsSubject = new BehaviorSubject<AssistantPricingHints>({
+    pricingHintProductIds: [],
+    pricingHintCategoryIds: [],
+  });
+
   private currentUserId: number | null = null;
   
   get appliedCoupon(): Coupon | null {
@@ -149,6 +165,7 @@ export class CartService {
       const active = rules.filter(r => r.status === 'ACTIVE');
       this.pricingRulesSubject.next(active);
       this.refreshCartPrices();
+      this.refreshAssistantPricingHintsFromServer();
     });
     this.api.getOrderLimits().subscribe(limits => {
       const active = limits.filter(l => l.status === 'ACTIVE');
@@ -168,6 +185,22 @@ export class CartService {
     const items = this.currentItems;
     items.forEach(i => this.recalculateItemPrice(i));
     this.saveCart(items);
+  }
+
+  private refreshAssistantPricingHintsFromServer(): void {
+    const uid = this.auth.currentUserValue?.id ?? null;
+    this.api.getAssistantPricingHints(uid).subscribe({
+      next: (h) =>
+        this.assistantHintsSubject.next({
+          pricingHintProductIds: h.pricingHintProductIds ?? [],
+          pricingHintCategoryIds: h.pricingHintCategoryIds ?? [],
+        }),
+      error: () =>
+        this.assistantHintsSubject.next({
+          pricingHintProductIds: [],
+          pricingHintCategoryIds: [],
+        }),
+    });
   }
 
   /** Chọn một mã trong danh sách đủ điều kiện (hoặc bỏ chọn). */
@@ -1101,6 +1134,14 @@ export class CartService {
       return false;
     }
     return false;
+  }
+
+  /**
+   * Snapshot gợi ý cho AI — từ GET /api/pricing-rules/assistant-hints (gồm SPECIFIC theo variantIds).
+   * Cập nhật sau mỗi lần tải pricing rules; lần đầu có thể rỗng vài ms trước khi HTTP trả về.
+   */
+  getAssistantPricingHints(): AssistantPricingHints {
+    return this.assistantHintsSubject.value;
   }
 
   removeItem(productId: number, variantId: number | undefined, bundleId?: number | null) {

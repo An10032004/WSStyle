@@ -85,8 +85,18 @@ export interface Product {
   variantCount?: number;
   isNetTermEligible?: boolean;
   netTermDays?: number;
+  /** Tổng tồn SKU đang bán (assistant / shop). */
+  totalStock?: number | null;
   images?: any[];
   description?: string;
+}
+
+export interface AIBundleSummary {
+  id: number;
+  name: string;
+  newPrice?: number | null;
+  oldPrice?: number | null;
+  imageUrl?: string | null;
 }
 
 export interface ProductVariant {
@@ -132,8 +142,16 @@ export interface TranslationRequest {
 export interface AIResponse {
   message: string;
   products: Product[];
+  /** Combo/bundle ACTIVE gợi ý kèm (BE). */
+  bundles?: AIBundleSummary[];
   /** Phiên lịch sử (BE); gửi lại ở tin tiếp theo. */
   sessionId?: number | null;
+}
+
+/** Đồng bộ với GET /api/pricing-rules/assistant-hints (gồm rule SPECIFIC theo variantIds). */
+export interface AssistantPricingHints {
+  pricingHintProductIds: number[];
+  pricingHintCategoryIds: number[];
 }
 
 export interface AssistantSessionItem {
@@ -699,6 +717,25 @@ export class ApiService {
   getPricingRules(): Observable<PricingRule[]> {
     return this.http.get<ApiResponse<PricingRule[]>>(`${this.base}/pricing-rules`).pipe(map(r => r.data));
   }
+
+  /** Phạm vi SP/danh mục rule QB/B2B khớp user (BE resolve variantIds → productId). */
+  getAssistantPricingHints(userId: number | null | undefined): Observable<AssistantPricingHints> {
+    let params = new HttpParams();
+    if (userId != null) {
+      params = params.set('userId', String(userId));
+    }
+    return this.http
+      .get<ApiResponse<AssistantPricingHints>>(`${this.base}/pricing-rules/assistant-hints`, { params })
+      .pipe(
+        map(
+          (r) =>
+            r.data ?? {
+              pricingHintProductIds: [],
+              pricingHintCategoryIds: [],
+            },
+        ),
+      );
+  }
   createPricingRule(body: Partial<PricingRule>): Observable<PricingRule> {
     return this.http.post<ApiResponse<PricingRule>>(`${this.base}/pricing-rules`, body).pipe(map(r => r.data));
   }
@@ -1175,6 +1212,9 @@ export class ApiService {
       userId?: number | null;
       storefrontContext?: string | null;
       sessionId?: number | null;
+      /** Cùng logic rule giá với giỏ — BE gộp khi hỏi giá sỉ / product_search. */
+      pricingHintProductIds?: number[] | null;
+      pricingHintCategoryIds?: number[] | null;
     }
   ): Observable<AIResponse> {
     const body: Record<string, unknown> = { message };
@@ -1182,6 +1222,8 @@ export class ApiService {
     if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
     if (opts?.storefrontContext != null && opts.storefrontContext !== '')
       body['storefrontContext'] = opts.storefrontContext;
+    if (opts?.pricingHintProductIds?.length) body['pricingHintProductIds'] = opts.pricingHintProductIds;
+    if (opts?.pricingHintCategoryIds?.length) body['pricingHintCategoryIds'] = opts.pricingHintCategoryIds;
     return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, body).pipe(
       map((res) => {
         if (!res.success || res.data == null) {
@@ -1199,6 +1241,8 @@ export class ApiService {
       userId?: number | null;
       storefrontContext?: string | null;
       sessionId?: number | null;
+      pricingHintProductIds?: number[] | null;
+      pricingHintCategoryIds?: number[] | null;
     }
   ): Observable<AIResponse> {
     const body: Record<string, unknown> = { query };
@@ -1206,6 +1250,8 @@ export class ApiService {
     if (opts?.sessionId != null) body['sessionId'] = opts.sessionId;
     if (opts?.storefrontContext != null && opts.storefrontContext !== '')
       body['storefrontContext'] = opts.storefrontContext;
+    if (opts?.pricingHintProductIds?.length) body['pricingHintProductIds'] = opts.pricingHintProductIds;
+    if (opts?.pricingHintCategoryIds?.length) body['pricingHintCategoryIds'] = opts.pricingHintCategoryIds;
     return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/search`, body).pipe(
       map((res) => {
         if (!res.success || res.data == null) {

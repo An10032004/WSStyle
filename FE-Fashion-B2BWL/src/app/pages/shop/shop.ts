@@ -4,6 +4,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { ApiService, Product, Category } from '../../services/api.service';
 import { Observable, map, combineLatest } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
 import { TuiButton, TuiIcon, TuiFormatNumberPipe, TuiLabel, TuiDataList } from '@taiga-ui/core';
@@ -42,6 +43,7 @@ export class ShopComponent implements OnInit {
   readonly route = inject(ActivatedRoute);
   readonly cdr = inject(ChangeDetectorRef);
   readonly auth = inject(AuthService);
+  readonly cart = inject(CartService);
 
   products: Product[] = [];
   categories: Category[] = [];
@@ -221,8 +223,16 @@ export class ShopComponent implements OnInit {
     this.aiSearchLoading = true;
     this.aiHint = null;
     this.cdr.markForCheck();
-    const userId = this.auth.currentUserValue?.id;
-    this.api.aiSemanticSearch(q, { userId }).subscribe({
+    const u = this.auth.currentUserValue;
+    const userId = u?.id;
+    const hints = this.cart.getAssistantPricingHints();
+    this.api
+      .aiSemanticSearch(q, {
+        userId,
+        pricingHintProductIds: hints.pricingHintProductIds,
+        pricingHintCategoryIds: hints.pricingHintCategoryIds,
+      })
+      .subscribe({
       next: (res) => {
         this.aiHint = res.message || null;
         const ids = (res.products ?? []).map((p) => p.id).filter((id) => id != null);

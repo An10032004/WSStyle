@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TuiButton, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
-import { ApiService, Product, AIResponse, User } from '../../../services/api.service';
+import { ApiService, Product, AIResponse, AIBundleSummary, User } from '../../../services/api.service';
 import { AuthService } from '../../../services/auth.service';
+import { CartService } from '../../../services/cart.service';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { catchError, map, of, switchMap } from 'rxjs';
 
@@ -13,6 +14,7 @@ interface Message {
   sender: 'user' | 'ai';
   time: Date;
   products?: Product[];
+  bundles?: AIBundleSummary[];
 }
 
 @Component({
@@ -37,6 +39,7 @@ interface Message {
 export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly cart = inject(CartService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   
@@ -85,6 +88,7 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
     this.cdr.markForCheck();
 
     const u = this.auth.currentUserValue;
+    const hints = this.cart.getAssistantPricingHints();
     this.api
       .quoteTax({ userId: u?.id ?? null, orderAmount: 1_000_000 })
       .pipe(
@@ -94,6 +98,8 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
           return this.api.chatWithAI(userMsg, {
             userId: u?.id,
             storefrontContext: storefrontContext ?? undefined,
+            pricingHintProductIds: hints.pricingHintProductIds,
+            pricingHintCategoryIds: hints.pricingHintCategoryIds,
           });
         })
       )
@@ -104,6 +110,7 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
             sender: 'ai',
             time: new Date(),
             products: response.products,
+            bundles: response.bundles,
           });
           this.isLoading = false;
           this.cdr.markForCheck();
@@ -138,6 +145,9 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
       lines.push('- Quote thuế mẫu (1M): không áp dụng rule hiển thị hoặc chưa lấy được.');
     }
     lines.push(
+      '- Giá thẻ sản phẩm đã theo rule B2B khi có userId; có thể có quantityBreaksJson (bậc sỉ) và totalStock (tồn tổng).'
+    );
+    lines.push(
       '- Phí ship: phụ thuộc địa chỉ và cấu hình checkout; không cố định trong chat. Hướng dẫn khách xem bước thanh toán hoặc trang hỗ trợ.'
     );
     return lines.join('\n');
@@ -150,6 +160,15 @@ export class AiAssistantBubbleComponent implements AfterViewChecked, OnInit {
 
   viewProduct(p: Product): void {
     void this.router.navigate(['/product', p.id]);
+  }
+
+  viewBundle(b: AIBundleSummary): void {
+    void this.router.navigate(['/bundle', b.id]);
+  }
+
+  bundlePrice(b: AIBundleSummary): number {
+    const x = b.newPrice ?? b.oldPrice;
+    return typeof x === 'number' ? x : Number(x);
   }
 
   displayPrice(p: Product): number {

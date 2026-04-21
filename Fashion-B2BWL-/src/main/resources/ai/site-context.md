@@ -58,6 +58,8 @@
 ## Khái niệm nghiệp vụ (tóm tắt)
 
 - **B2B**: giá có thể theo nhóm khách và rule; hiển thị theo tài khoản đăng nhập.
+- **Payload sản phẩm (API assistant / shop)**: có thể có `totalStock` (tổng tồn SKU đang bán), `quantityBreaksJson` (bậc giá theo SL), `discountLabel`. `calculatedPrice` đã theo rule + tài khoản khi backend nhận `userId`.
+- **Combo gợi ý**: response có thể có mảng `bundles` (id, tên, giá) — link storefront `/bundle/{id}`.
 - **Thuế / phí ship**: phụ thuộc cấu hình; không bịa số nếu không có trong ngữ cảnh phiên.
 - **Công nợ (Net terms)**: có thể liên quan checkout và **Hồ sơ & đơn hàng** — không giải thích cấu hình admin.
 

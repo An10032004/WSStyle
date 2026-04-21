@@ -43,12 +43,14 @@ public class ProductMapperService {
 
         List<Integer> productIds = products.stream().map(Product::getId).filter(Objects::nonNull).toList();
         Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+        Map<Integer, Integer> totalStock = fetchTotalStockByProductIds(productIds);
         Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(productIds);
         Map<Integer, FirstVariantPricing> listingVariantPricing =
                 mergeListingVariantPricingForProducts(products, variantCounts, primary);
 
         return products.stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts, listingVariantPricing))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts,
+                        listingVariantPricing, totalStock))
                 .toList();
     }
 
@@ -64,12 +66,14 @@ public class ProductMapperService {
         List<Product> pageProducts = productsPage.getContent();
         List<Integer> productIds = pageProducts.stream().map(Product::getId).filter(Objects::nonNull).toList();
         Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(productIds);
+        Map<Integer, Integer> totalStock = fetchTotalStockByProductIds(productIds);
         Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(productIds);
         Map<Integer, FirstVariantPricing> listingVariantPricing =
                 mergeListingVariantPricingForProducts(pageProducts, variantCounts, primary);
 
         List<ProductResponseDTO> dtos = pageProducts.stream()
-                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts, listingVariantPricing))
+                .map(p -> toDTO(p, user, hidePriceRules, campaigns, pricingRules, taxRules, netTermRules, variantCounts,
+                        listingVariantPricing, totalStock))
                 .toList();
 
         return new PageImpl<>(dtos, productsPage.getPageable(), productsPage.getTotalElements());
@@ -78,6 +82,7 @@ public class ProductMapperService {
     public ProductResponseDTO toDTO(Product product, User user) {
         List<Integer> pids = product.getId() == null ? List.of() : List.of(product.getId());
         Map<Integer, Integer> variantCounts = fetchVariantCountsByProductIds(pids);
+        Map<Integer, Integer> totalStock = fetchTotalStockByProductIds(pids);
         Map<Integer, FirstVariantPricing> primary = fetchFirstVariantPricingByProductIds(pids);
         Map<Integer, FirstVariantPricing> listingVariantPricing =
                 mergeListingVariantPricingForProducts(List.of(product), variantCounts, primary);
@@ -88,7 +93,8 @@ public class ProductMapperService {
             ruleCoreService.getAllActiveTaxRules(),
             ruleCoreService.getAllActiveNetTermRules(),
             variantCounts,
-            listingVariantPricing
+            listingVariantPricing,
+            totalStock
         );
     }
 
@@ -102,6 +108,24 @@ public class ProductMapperService {
             if (row[0] != null && row[1] != null) {
                 out.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
             }
+        }
+        return out;
+    }
+
+    private Map<Integer, Integer> fetchTotalStockByProductIds(List<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = productVariantRepository.sumSellableStockByProductIds(productIds);
+        Map<Integer, Integer> out = new HashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+                continue;
+            }
+            out.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
         }
         return out;
     }
@@ -214,12 +238,16 @@ public class ProductMapperService {
                                     List<TaxDisplayRule> taxRules,
                                     List<NetTermRule> netTermRules,
                                     Map<Integer, Integer> variantCountsByProductId,
-                                    Map<Integer, FirstVariantPricing> firstVariantPricingByProductId) {
+                                    Map<Integer, FirstVariantPricing> firstVariantPricingByProductId,
+                                    Map<Integer, Integer> totalStockByProductId) {
         Integer productId = product.getId();
         Integer categoryId = product.getCategoryId();
         int variantCount = variantCountsByProductId == null || productId == null
                 ? 0
                 : variantCountsByProductId.getOrDefault(productId, 0);
+        int totalStock = totalStockByProductId == null || productId == null
+                ? 0
+                : totalStockByProductId.getOrDefault(productId, 0);
 
         BigDecimal productBase = Optional.ofNullable(product.getBasePrice()).orElse(BigDecimal.ZERO);
         FirstVariantPricing fp = firstVariantPricingByProductId == null || productId == null
@@ -241,6 +269,7 @@ public class ProductMapperService {
                 .origin(product.getOrigin())
                 .variantDimensionLabels(product.getVariantDimensionLabels())
                 .variantCount(variantCount)
+                .totalStock(totalStock)
                 .hidePrice(false)
                 .hideAddToCart(false)
                 .isNetTermEligible(false)

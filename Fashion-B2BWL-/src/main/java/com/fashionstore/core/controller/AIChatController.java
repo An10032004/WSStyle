@@ -9,6 +9,8 @@ import com.fashionstore.core.service.LuxeAssistantHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -66,8 +68,10 @@ public class AIChatController {
             Integer userId = intField(request, "userId");
             String storefrontContext = stringField(request, "storefrontContext");
             Long sessionIdIn = longField(request, "sessionId");
+            List<Integer> hintPids = intListField(request, "pricingHintProductIds");
+            List<Integer> hintCids = intListField(request, "pricingHintCategoryIds");
 
-            AIResponse response = aiService.chat(message.trim(), userId, storefrontContext);
+            AIResponse response = aiService.chat(message.trim(), userId, storefrontContext, hintPids, hintCids);
 
             if (userId != null) {
                 Long sid = assistantHistoryService.recordExchange(sessionIdIn, userId, message.trim(), response);
@@ -110,7 +114,9 @@ public class AIChatController {
             Integer userId = intField(request, "userId");
             String storefrontContext = stringField(request, "storefrontContext");
             Long sessionIdIn = longField(request, "sessionId");
-            AIResponse response = aiService.chat(msg, userId, storefrontContext);
+            List<Integer> hintPids = intListField(request, "pricingHintProductIds");
+            List<Integer> hintCids = intListField(request, "pricingHintCategoryIds");
+            AIResponse response = aiService.chat(msg, userId, storefrontContext, hintPids, hintCids);
             if (userId != null) {
                 Long sid = assistantHistoryService.recordExchange(sessionIdIn, userId, msg, response);
                 response.setSessionId(sid);
@@ -149,6 +155,29 @@ public class AIChatController {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private static List<Integer> intListField(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        if (v == null) {
+            return Collections.emptyList();
+        }
+        if (v instanceof List<?> list) {
+            List<Integer> out = new ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Number n) {
+                    out.add(n.intValue());
+                } else {
+                    try {
+                        out.add(Integer.parseInt(o.toString().trim()));
+                    } catch (NumberFormatException ignored) {
+                        // skip
+                    }
+                }
+            }
+            return out.isEmpty() ? Collections.emptyList() : out;
+        }
+        return Collections.emptyList();
     }
 
     private static Long longField(Map<String, Object> m, String key) {
