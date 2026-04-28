@@ -7,6 +7,7 @@ import com.fashionstore.core.dto.response.DebtSummaryResponse;
 import com.fashionstore.core.model.Order;
 import com.fashionstore.core.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
@@ -24,8 +25,16 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping
-    public ApiResponse<Order> createOrder(@RequestBody OrderRequest request) {
-        return ApiResponse.success(orderService.createOrder(request));
+    public ResponseEntity<ApiResponse<Order>> createOrder(@RequestBody OrderRequest request) {
+        try {
+            Order order = orderService.createOrder(request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(order));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @GetMapping

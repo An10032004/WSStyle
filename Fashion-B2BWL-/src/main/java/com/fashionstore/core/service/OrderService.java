@@ -3,6 +3,7 @@ package com.fashionstore.core.service;
 import com.fashionstore.core.dto.response.ShippingQuoteResponse;
 import com.fashionstore.core.dto.response.DebtOrderReportRowResponse;
 import com.fashionstore.core.dto.response.DebtSummaryResponse;
+import com.fashionstore.core.constant.OrderValidationMessages;
 import com.fashionstore.core.dto.request.OrderRequest;
 import com.fashionstore.core.dto.request.OrderItemRequest;
 import com.fashionstore.core.model.Coupon;
@@ -29,11 +30,15 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
+    /** Đồng bộ đăng ký / thanh toán storefront: 10 chữ số bắt đầu bằng 0. */
+    private static final Pattern CHECKOUT_PHONE_VN = Pattern.compile("^0[0-9]{9}$");
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -56,16 +61,35 @@ public class OrderService {
     @Transactional
     public Order createOrder(OrderRequest request) {
         if (request == null || request.getUserId() == null) {
-            throw new RuntimeException("Thiếu thông tin người dùng (userId). Vui lòng đăng nhập lại trước khi đặt hàng.");
+            throw new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO);
         }
+
+        String fullName = request.getFullName() == null ? "" : request.getFullName().trim();
+        String phoneRaw = request.getPhone() == null ? "" : request.getPhone().trim();
+        String shippingAddr = request.getShippingAddress() == null ? "" : request.getShippingAddress().trim();
+        if (fullName.isEmpty() || phoneRaw.isEmpty() || shippingAddr.isEmpty()) {
+            throw new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO);
+        }
+        if (!CHECKOUT_PHONE_VN.matcher(phoneRaw).matches()) {
+            throw new IllegalArgumentException(OrderValidationMessages.INVALID_PHONE);
+        }
+
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO));
 
         if (hasOverdueDebt(user.getId())) {
-            throw new RuntimeException("Bạn có đơn công nợ quá hạn. Vui lòng thanh toán trước khi tạo đơn mới.");
+            throw new IllegalArgumentException(OrderValidationMessages.OVERDUE_DEBT);
         }
 
         List<OrderItemRequest> itemReqs = request.getItems() != null ? request.getItems() : List.of();
+        if (itemReqs.isEmpty()) {
+            throw new IllegalArgumentException(OrderValidationMessages.EMPTY_ITEMS);
+        }
+        for (OrderItemRequest line : itemReqs) {
+            if (line.getQuantity() == null || line.getQuantity() <= 0) {
+                throw new IllegalArgumentException(OrderValidationMessages.QUANTITY_POSITIVE);
+            }
+        }
         List<ProductVariant> resolvedVariants = new ArrayList<>(itemReqs.size());
         List<OrderLimitService.CartItemDTO> limitCart = new ArrayList<>(itemReqs.size());
         for (OrderItemRequest itemReq : itemReqs) {
@@ -106,9 +130,9 @@ public class OrderService {
                 .user(user)
                 .orderType(request.getOrderType())
                 .paymentMethod(request.getPaymentMethod())
-                .fullName(request.getFullName())
-                .phone(request.getPhone())
-                .shippingAddress(request.getShippingAddress())
+                .fullName(fullName)
+                .phone(phoneRaw)
+                .shippingAddress(shippingAddr)
                 .note(request.getNote())
                 .status("PENDING")
                 .paymentStatus("PENDING")
