@@ -5,6 +5,7 @@ import com.fashionstore.core.dto.request.B2BRegistrationFormRequest;
 import com.fashionstore.core.model.B2BRegistrationForm;
 import com.fashionstore.core.service.B2BRegistrationFormService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,14 @@ public class B2BRegistrationFormController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<B2BRegistrationForm>> createForm(@RequestBody B2BRegistrationFormRequest request) {
-        return ResponseEntity.ok(new ApiResponse<>(true, "Form created successfully", b2bRegistrationFormService.createForm(request)));
+        try {
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "Form created successfully", b2bRegistrationFormService.createForm(request)));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}")

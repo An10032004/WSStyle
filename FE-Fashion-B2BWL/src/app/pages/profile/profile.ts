@@ -48,18 +48,36 @@ import {
   ],
   template: `
     <app-storefront-header></app-storefront-header>
-    <div class="profile-container">
-      <h1>My Account</h1>
-      
+    <div
+      class="profile-container"
+      [class.profile-container--wholesale]="!!me && isApprovedWholesale(me)"
+      [class.profile-container--pending-b2b]="!!me && isWholesalePending(me)"
+      *ngIf="user$ | async as me"
+    >
+      <h1>{{ profileHeading(me) }}</h1>
+
+      <div class="profile-status-banner profile-banner--pending" *ngIf="isWholesalePending(me)">
+        <strong>Chờ xác nhận đại lý</strong>
+        <p>
+          Hồ sơ đăng ký mua sỉ đang chờ admin duyệt. Trước khi duyệt, bạn vẫn mua với giá lẻ. Sau khi duyệt, tài khoản chuyển sang <strong>khách sỉ</strong> và giao diện hồ sơ cập nhật.
+        </p>
+      </div>
+      <div class="profile-status-banner profile-banner--wholesale" *ngIf="isApprovedWholesale(me)">
+        <strong>Tài khoản khách sỉ</strong>
+        <p>Đại lý đã được duyệt — bạn xem giá và chính sách theo khách mua sỉ.</p>
+      </div>
+
       <div class="profile-grid">
-        <ng-container *ngIf="user$ | async as me">
+        <ng-container>
           <div class="profile-top-row">
             <div class="profile-card info-card">
               <div class="profile-header">
                 <div class="avatar">{{ me.fullName?.charAt(0) }}</div>
                 <h2>{{ me.fullName }}</h2>
                 <div class="role-badges">
-                  <span class="role-badge">{{ me.role }}</span>
+                  <span class="role-badge role-badge--wholesale" *ngIf="isApprovedWholesale(me)">Khách sỉ</span>
+                  <span class="role-badge role-badge--pending" *ngIf="isWholesalePending(me)">Chờ duyệt đại lý</span>
+                  <span class="role-badge" *ngIf="!isApprovedWholesale(me)">{{ me.role }}</span>
                   <span class="role-badge group" *ngIf="me.customerGroup">{{ me.customerGroup.name }}</span>
                 </div>
               </div>
@@ -320,8 +338,30 @@ import {
     </div>
   `,
   styles: [`
-    .profile-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; }
+    .profile-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; transition: color 0.2s; }
     h1 { font-weight: 800; margin-bottom: 30px; font-size: 32px; }
+    .profile-container--wholesale h1 { color: #312e81; }
+    .profile-container--pending-b2b h1 { color: #92400e; }
+
+    .profile-status-banner {
+      margin-bottom: 24px;
+      padding: 16px 20px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .profile-status-banner strong { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 800; }
+    .profile-status-banner p { margin: 0; }
+    .profile-banner--pending {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+    }
+    .profile-banner--wholesale {
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      color: #3730a3;
+    }
     
     .profile-grid { display: flex; flex-direction: column; gap: 28px; }
     .profile-top-row {
@@ -344,6 +384,8 @@ import {
     .role-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
     .role-badge { padding: 4px 12px; background: #f0f0f0; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .role-badge.group { background: #eefdf9; color: #007052; }
+    .role-badge--wholesale { background: #e0e7ff !important; color: #3730a3 !important; border: 1px solid #c7d2fe; }
+    .role-badge--pending { background: #fef3c7 !important; color: #b45309 !important; border: 1px solid #fcd34d; }
     
     .detail-item { margin-bottom: 20px; 
       label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
@@ -522,6 +564,20 @@ export class ProfileComponent {
   pwdBusy = false;
 
   profileAddressPayload: VnAddressPayload | null = null;
+
+  /** Chỉ sau khi admin APPROVED + có WHOLESALE — giao diện khách sỉ. */
+  isApprovedWholesale(user: User): boolean {
+    return this.auth.isApprovedWholesaleCustomer(user);
+  }
+
+  /** Đã gửi form đại lý, chờ duyệt — vẫn giá lẻ trên storefront. */
+  isWholesalePending(user: User): boolean {
+    return this.auth.isWholesaleApplicationPending(user);
+  }
+
+  profileHeading(user: User): string {
+    return this.isApprovedWholesale(user) ? 'Tài khoản khách sỉ' : 'My Account';
+  }
 
   onProfileAddressPayload(p: VnAddressPayload | null): void {
     this.profileAddressPayload = p;

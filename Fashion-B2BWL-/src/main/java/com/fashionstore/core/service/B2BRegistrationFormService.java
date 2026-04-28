@@ -7,13 +7,13 @@ import com.fashionstore.core.repository.B2BRegistrationFormRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,11 +35,10 @@ public class B2BRegistrationFormService {
     }
 
     /**
-     * Đồng bộ hồ sơ đại lý lên User: vai trò WHOLESALE, tên công ty, MST; không gán nhóm khách (admin tự cập nhật).
-     * Địa chỉ / loại hình / mô tả lưu trong tags.b2bRegistrationDetails để admin xem.
-     * Bản ghi formData giữ nguyên trong bảng hồ sơ.
+     * Ghi thông tin doanh nghiệp / MST / chi tiết form vào User (tags.b2bRegistrationDetails).
+     * Không gán WHOLESALE — quyền đại lý chỉ khi admin duyệt ({@link UserService#grantWholesaleSecondaryRoleIfAbsent}).
      */
-    private void syncUserProfileFromB2BJson(User user, String formDataJson) {
+    private void mergeB2BFormJsonIntoUser(User user, String formDataJson) {
         if (formDataJson == null || formDataJson.isBlank()) {
             return;
         }
@@ -59,9 +58,6 @@ public class B2BRegistrationFormService {
                 }
             }
 
-            // Do NOT override the user's primary `role` (keeps ADMIN/STAFF safe).
-            // Instead add a secondary role marker inside `tags.secondaryRoles`.
-
             ObjectNode root;
             if (user.getTags() != null && !user.getTags().isBlank()) {
                 JsonNode existing = objectMapper.readTree(user.getTags());
@@ -69,25 +65,6 @@ public class B2BRegistrationFormService {
             } else {
                 root = objectMapper.createObjectNode();
             }
-
-            // Ensure secondaryRoles array contains WHOLESALE
-            ArrayNode secRoles;
-            if (root.has("secondaryRoles") && root.get("secondaryRoles").isArray()) {
-                secRoles = (ArrayNode) root.get("secondaryRoles");
-            } else {
-                secRoles = objectMapper.createArrayNode();
-            }
-            boolean hasWholesale = false;
-            for (JsonNode r : secRoles) {
-                if (r != null && "WHOLESALE".equalsIgnoreCase(r.asText())) {
-                    hasWholesale = true;
-                    break;
-                }
-            }
-            if (!hasWholesale) {
-                secRoles.add("WHOLESALE");
-            }
-            root.set("secondaryRoles", secRoles);
 
             ObjectNode extra = objectMapper.createObjectNode();
             if (node.has("address")) {
@@ -104,16 +81,54 @@ public class B2BRegistrationFormService {
             }
 
             user.setTags(objectMapper.writeValueAsString(root));
-            userService.save(user);
         } catch (Exception e) {
-            log.error("Error syncing B2B registration JSON to user profile: {}", e.getMessage());
+            log.error("Error merging B2B registration JSON to user profile: {}", e.getMessage());
+        }
+    }
+
+    private void validateFormPayload(String formDataJson) {
+        if (formDataJson == null || formDataJson.isBlank()) {
+            throw new IllegalArgumentException("Thiếu dữ liệu form.");
+        }
+        try {
+            JsonNode node = objectMapper.readTree(formDataJson);
+            String[] keys = {"companyName", "taxCode", "address", "businessType"};
+            for (String k : keys) {
+                if (!node.has(k) || node.get(k).asText("").isBlank()) {
+                    throw new IllegalArgumentException("Thiếu hoặc trống trường bắt buộc: " + k);
+                }
+            }
+            String tax = node.get("taxCode").asText("").trim().replace("-", "");
+            if (!tax.matches("\\d{10}|\\d{13}")) {
+                throw new IllegalArgumentException("Mã số thuế phải gồm 10 hoặc 13 chữ số.");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Dữ liệu form không hợp lệ.");
         }
     }
 
     @Transactional
     public B2BRegistrationForm createForm(B2BRegistrationFormRequest request) {
+        validateFormPayload(request.getFormData());
+
         User user = userService.getUserById(request.getUserId());
-        syncUserProfileFromB2BJson(user, request.getFormData());
+
+        Optional<B2BRegistrationForm> existingOpt = b2bRegistrationFormRepository.findByUser_Id(user.getId());
+        if (existingOpt.isPresent()) {
+            String st = user.getRegistrationStatus();
+            if (st != null && "REJECTED".equalsIgnoreCase(st)) {
+                b2bRegistrationFormRepository.delete(existingOpt.get());
+            } else {
+                throw new IllegalStateException(
+                        "Bạn đã gửi hồ sơ đăng ký đại lý. Không thể gửi lại cho đến khi có kết quả xử lý.");
+            }
+        }
+
+        mergeB2BFormJsonIntoUser(user, request.getFormData());
+        user.setRegistrationStatus("PENDING");
+        userService.save(user);
 
         B2BRegistrationForm form = B2BRegistrationForm.builder()
                 .user(user)
@@ -127,7 +142,8 @@ public class B2BRegistrationFormService {
         B2BRegistrationForm form = getFormById(id);
         form.setFormData(request.getFormData());
         User user = userService.getUserById(form.getUser().getId());
-        syncUserProfileFromB2BJson(user, request.getFormData());
+        mergeB2BFormJsonIntoUser(user, request.getFormData());
+        userService.save(user);
         return b2bRegistrationFormRepository.save(form);
     }
 

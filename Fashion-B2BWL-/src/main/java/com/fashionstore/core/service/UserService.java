@@ -15,6 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.util.Optional;
 
 import java.util.List;
@@ -29,6 +34,8 @@ public class UserService {
     private final CustomerGroupService customerGroupService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<User> getAllUsers() {
         return userRepository.findAllWithCustomerGroup();
@@ -70,9 +77,45 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * Khi admin duyệt đăng ký đại lý (PENDING → APPROVED), gắn vai trò WHOLESALE phụ trong tags.secondaryRoles.
+     */
+    public void grantWholesaleSecondaryRoleIfAbsent(User user) {
+        try {
+            ObjectNode root;
+            if (user.getTags() != null && !user.getTags().isBlank()) {
+                JsonNode existing = objectMapper.readTree(user.getTags());
+                root = existing.isObject() ? (ObjectNode) existing : objectMapper.createObjectNode();
+            } else {
+                root = objectMapper.createObjectNode();
+            }
+            ArrayNode secRoles;
+            if (root.has("secondaryRoles") && root.get("secondaryRoles").isArray()) {
+                secRoles = (ArrayNode) root.get("secondaryRoles");
+            } else {
+                secRoles = objectMapper.createArrayNode();
+            }
+            boolean hasWholesale = false;
+            for (JsonNode r : secRoles) {
+                if (r != null && "WHOLESALE".equalsIgnoreCase(r.asText())) {
+                    hasWholesale = true;
+                    break;
+                }
+            }
+            if (!hasWholesale) {
+                secRoles.add("WHOLESALE");
+            }
+            root.set("secondaryRoles", secRoles);
+            user.setTags(objectMapper.writeValueAsString(root));
+        } catch (Exception e) {
+            log.warn("grantWholesaleSecondaryRoleIfAbsent failed for user {}: {}", user.getId(), e.getMessage());
+        }
+    }
+
     @Transactional
     public User updateUser(Integer id, UserRequest request) {
         User user = getUserById(id);
+        String oldRegistrationStatus = user.getRegistrationStatus();
 
         if (request.getEmail() != null)
             user.setEmail(request.getEmail());
@@ -97,6 +140,13 @@ public class UserService {
             user.setAccountStatus(parseAccountStatusOrDefault(request.getAccountStatus()));
         }
 
+        if (request.getRegistrationStatus() != null
+                && "APPROVED".equalsIgnoreCase(request.getRegistrationStatus())
+                && oldRegistrationStatus != null
+                && "PENDING".equalsIgnoreCase(oldRegistrationStatus)) {
+            grantWholesaleSecondaryRoleIfAbsent(user);
+        }
+
         return userRepository.save(user);
     }
 
@@ -110,6 +160,8 @@ public class UserService {
             throw new InvalidEmailException();
         }
 
+        // Đăng ký tài khoản mua lẻ: APPROVED để mua hàng ngay. Trạng thái PENDING cho hồ sơ đại lý
+        // chỉ gán khi gửi form /become-a-partner (B2BRegistrationFormService.createForm).
         User user = User.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))

@@ -229,7 +229,9 @@
     "SHIPPING_DISPLAY": "Shipping / Province",
     "USER_DETAIL": "User Account Details",
     "FORM_DETAIL": "Wholesale registration detail",
-    "ASSIGNED_ROLE": "Assigned permission role"
+    "ASSIGNED_ROLE": "Assigned permission role",
+    "APPROVE_DEALER": "Approve dealer",
+    "STATUS_DEALER_HINT": "Dealer applications show PENDING. Choose Approved or use Approve dealer in the grid to grant wholesale access."
   },
   "ENUMS": {
     "ACTIVE": "Active",

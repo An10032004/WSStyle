@@ -187,6 +187,112 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.status-wrap {
+  text-align: center;
+  padding: 24px 0 8px;
+
+  h3 {
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 800;
+    margin: 16px 0 12px;
+  }
+  p,
+  .muted {
+    color: #64748b;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 0;
+  }
+}
+
+.dealer-info {
+  text-align: left;
+  .success-icon {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h3 {
+    text-align: center;
+  }
+  .muted {
+    text-align: center;
+    display: block;
+    margin-bottom: 24px;
+  }
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.dealer-dl {
+  margin: 24px 0 0;
+  padding: 20px 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  text-align: left;
+  dt {
+    font-size: 11px;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 12px;
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+  dd {
+    margin: 4px 0 0;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  &.compact {
+    margin-top: 16px;
+  }
+}
+
+.pending-icon {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+}
+
+.status-accent {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+}
+
+.req {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 4px 0 0 4px;
+  &.error {
+    color: #dc2626;
+  }
+}
+
+.error-note {
+  margin-top: 20px;
+}
+
 @media (max-width: 768px) {
   .b2b-card { padding: 48px 24px; border-radius: 32px; }
   .form-grid { grid-template-columns: 1fr; }

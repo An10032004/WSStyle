@@ -231,7 +231,9 @@
     "SHIPPING_DISPLAY": "Địa chỉ giao / Tỉnh",
     "USER_DETAIL": "Chi tiết tài khoản người dùng",
     "FORM_DETAIL": "Chi tiết đăng ký đại lý mua sỉ",
-    "ASSIGNED_ROLE": "Quyền được gán"
+    "ASSIGNED_ROLE": "Quyền được gán",
+    "APPROVE_DEALER": "Duyệt đại lý",
+    "STATUS_DEALER_HINT": "Khách gửi form đại lý: trạng thái PENDING. Chọn Đã duyệt (APPROVED) hoặc nút Duyệt đại lý trên lưới để cấp quyền khách sỉ."
   },
   "ENUMS": {
     "ACTIVE": "Đang hoạt động",

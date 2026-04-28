@@ -206,10 +206,11 @@ export class UsersComponent implements OnInit, OnDestroy {
       },
       { 
         headerValueGetter: () => this.transloco.translate('COMMON.ACTIONS'),
-        width: 260,
+        width: 360,
         cellRenderer: ActionRendererComponent,
         cellRendererParams: {
           onView: (data: User) => this.onView(data),
+          onApproveDealer: (data: User) => this.approveDealerApplication(data),
           onEdit: (data: User) => this.onEdit(data),
           onDelete: (data: User) => this.onDelete(data)
         },
@@ -283,6 +284,51 @@ export class UsersComponent implements OnInit, OnDestroy {
     };
     this.showForm = true;
     this.cdr.detectChanges();
+  }
+
+  /**
+   * Duyệt hồ sơ đại lý: PENDING → APPROVED, backend gắn WHOLESALE (khách sỉ).
+   * Lấy user mới nhất từ API rồi gửi đủ trường để không xóa tags / hồ sơ.
+   */
+  approveDealerApplication(user: User): void {
+    const st = (user.registrationStatus || '').toUpperCase();
+    if (st !== 'PENDING') {
+      this.alerts.open('Chỉ duyệt khi trạng thái đăng ký là Chờ duyệt (PENDING).', { appearance: 'warning' }).subscribe();
+      return;
+    }
+    if (
+      !confirm(
+        `Duyệt đại lý cho ${user.email}?\nSau khi duyệt, tài khoản sẽ chuyển sang khách sỉ (giá sỉ) theo cấu hình shop.`,
+      )
+    ) {
+      return;
+    }
+    this.api.getUserById(user.id).subscribe({
+      next: (fresh) => {
+        const body: Record<string, unknown> = {
+          email: fresh.email,
+          fullName: fresh.fullName,
+          phone: fresh.phone,
+          role: fresh.role,
+          customerGroupId: fresh.customerGroup?.id ?? null,
+          tags: fresh.tags ?? null,
+          registrationStatus: 'APPROVED',
+          companyName: fresh.companyName,
+          taxCode: fresh.taxCode,
+        };
+        this.api.updateUser(user.id, body).subscribe({
+          next: () => {
+            this.alerts
+              .open('Đã duyệt đại lý. Tài khoản đã là khách sỉ.', { appearance: 'success' })
+              .subscribe();
+            this.loadData();
+            this.cdr.markForCheck();
+          },
+          error: (err) => this.handleApiError(err),
+        });
+      },
+      error: (err) => this.handleApiError(err),
+    });
   }
 
   onEdit(user: User): void {

@@ -150,4 +150,31 @@ export class AuthService {
     }
     return roles;
   }
+
+  /** Primary + secondary (tags): dùng khi cần kiểm tra quyền đại lý ngoài template. */
+  getEffectiveRoles(user: User | null | undefined): string[] {
+    if (!user) return [];
+    return this.computeRoles(user);
+  }
+
+  /** Đại lý mua sỉ: vai trò WHOLESALE (chính hoặc phụ trong tags). */
+  hasWholesaleAccess(user: User | null | undefined): boolean {
+    return this.getEffectiveRoles(user ?? null).some((r) => r?.toUpperCase() === 'WHOLESALE');
+  }
+
+  /**
+   * Khách sỉ đã được admin duyệt — giao diện profile / giá sỉ chỉ bật khi đúng điều kiện này.
+   * (Ai đã gửi form nhưng registrationStatus = PENDING vẫn là khách lẻ về quyền sỉ.)
+   */
+  isApprovedWholesaleCustomer(user: User | null | undefined): boolean {
+    if (!user || String(user.registrationStatus || '').toUpperCase() !== 'APPROVED') {
+      return false;
+    }
+    return this.hasWholesaleAccess(user);
+  }
+
+  /** Đã gửi hồ sơ đại lý, chờ admin xác nhận (chưa phải khách sỉ). */
+  isWholesaleApplicationPending(user: User | null | undefined): boolean {
+    return String(user?.registrationStatus || '').toUpperCase() === 'PENDING';
+  }
 }

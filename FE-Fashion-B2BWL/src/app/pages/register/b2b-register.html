@@ -1,6 +1,6 @@
 <div class="b2b-page">
   <app-storefront-header></app-storefront-header>
-  
+
   <div class="b2b-container" *transloco="let t">
     <div class="b2b-glass-card">
       <div class="form-header">
@@ -11,50 +11,112 @@
         <p class="tui-text_body-s">Đăng ký ngay để nhận chiết khấu đại lý và chính sách giá sỉ ưu đãi nhất.</p>
       </div>
 
-      <div *ngIf="success" class="success-wrap">
-        <div class="success-icon">
-           <tui-icon icon="@tui.check-circle"></tui-icon>
+      <!-- Chưa đăng nhập -->
+      <div *ngIf="pageState === 'guest'" class="status-wrap">
+        <tui-notification status="warning" hasIcon="true" size="m">
+          Bạn cần đăng nhập để gửi hoặc xem hồ sơ đại lý.
+        </tui-notification>
+        <div class="status-actions">
+          <a tuiButton routerLink="/login" size="m" appearance="primary">Đăng nhập</a>
+          <a tuiButton routerLink="/storefront" size="m" appearance="secondary">Về trang chủ</a>
         </div>
-        <h3>Gửi hồ sơ thành công!</h3>
-        <p>Chúng tôi sẽ xem xét và phản hồi qua email trong vòng 24 giờ làm việc.</p>
-        <button tuiButton type="button" size="m" appearance="secondary" routerLink="/storefront">Quay lại trang chủ</button>
       </div>
 
-      <form *ngIf="!success" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <!-- Đang tải -->
+      <div *ngIf="pageState === 'loading'" class="loading-wrap">
+        <tui-loader [showLoader]="true"></tui-loader>
+      </div>
+
+      <!-- Đã duyệt — khách sỉ -->
+      <div *ngIf="pageState === 'dealer'" class="status-wrap dealer-info">
+        <div class="success-icon status-accent">
+          <tui-icon icon="@tui.check-circle"></tui-icon>
+        </div>
+        <h3>Đã duyệt</h3>
+        <p class="muted">Bạn là đại lý mua sỉ. Thông tin doanh nghiệp hiển thị dưới đây.</p>
+        <dl class="dealer-dl">
+          <dt>Tên doanh nghiệp</dt>
+          <dd>{{ auth.currentUserValue?.companyName || '—' }}</dd>
+          <dt>Mã số thuế</dt>
+          <dd>{{ auth.currentUserValue?.taxCode || '—' }}</dd>
+          <dt *ngIf="b2bDetails?.address">Địa chỉ kinh doanh</dt>
+          <dd *ngIf="b2bDetails?.address">{{ b2bDetails?.address }}</dd>
+          <dt *ngIf="b2bDetails?.businessType">Loại hình</dt>
+          <dd *ngIf="b2bDetails?.businessType">{{ b2bDetails?.businessType }}</dd>
+          <dt *ngIf="b2bDetails?.description">Giới thiệu</dt>
+          <dd *ngIf="b2bDetails?.description">{{ b2bDetails?.description }}</dd>
+        </dl>
+        <div class="status-actions">
+          <a tuiButton routerLink="/storefront" size="m" appearance="secondary">Về trang chủ</a>
+        </div>
+      </div>
+
+      <!-- Chờ xác nhận — chưa phải khách sỉ -->
+      <div *ngIf="pageState === 'pending'" class="status-wrap">
+        <div class="success-icon pending-icon">
+          <tui-icon icon="@tui.clock"></tui-icon>
+        </div>
+        <h3>Chờ xác nhận</h3>
+        <p>
+          Hồ sơ đại lý của bạn đang chờ admin duyệt. Sau khi duyệt, tài khoản sẽ chuyển sang khách sỉ và giao diện hồ sơ cập nhật tương ứng. Bạn không thể gửi lại đơn trùng.
+        </p>
+        <dl class="dealer-dl compact" *ngIf="auth.currentUserValue?.companyName">
+          <dt>Tên doanh nghiệp</dt>
+          <dd>{{ auth.currentUserValue?.companyName }}</dd>
+          <dt>Mã số thuế</dt>
+          <dd>{{ auth.currentUserValue?.taxCode }}</dd>
+        </dl>
+        <div class="status-actions">
+          <a tuiButton routerLink="/storefront" size="m" appearance="secondary">Về trang chủ</a>
+        </div>
+      </div>
+
+      <!-- Form đăng ký -->
+      <form *ngIf="pageState === 'form'" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
         <div class="form-grid">
           <div class="field-wrap">
-            <span class="field-label">Tên doanh nghiệp</span>
+            <span class="field-label">Tên doanh nghiệp <span class="req">*</span></span>
             <tui-textfield>
-              <input tuiTextfield formControlName="companyName" />
+              <input tuiTextfield formControlName="companyName" autocomplete="organization" />
+              <tui-error formControlName="companyName" [error]="[] | tuiFieldError | async"></tui-error>
             </tui-textfield>
           </div>
 
           <div class="field-wrap">
-            <span class="field-label">Mã số thuế</span>
+            <span class="field-label">Mã số thuế <span class="req">*</span></span>
             <tui-textfield>
-              <input tuiTextfield formControlName="taxCode" />
+              <input tuiTextfield formControlName="taxCode" inputmode="numeric" autocomplete="off" placeholder="10 hoặc 13 chữ số" />
+              <tui-error formControlName="taxCode" [error]="[] | tuiFieldError | async"></tui-error>
+            </tui-textfield>
+            <p class="field-hint" *ngIf="registerForm.controls.taxCode.touched && registerForm.controls.taxCode.errors?.['taxCodeLength']">
+              Mã số thuế phải gồm đúng 10 hoặc 13 chữ số (có thể thêm 3 số chi nhánh).</p>
+            <p class="field-hint" *ngIf="registerForm.controls.taxCode.touched && registerForm.controls.taxCode.errors?.['taxCodeFormat']">
+              Chỉ được nhập chữ số (và dấu - giữa phần mở rộng nếu có).</p>
+          </div>
+
+          <div class="field-wrap full">
+            <span class="field-label">Địa chỉ kinh doanh <span class="req">*</span></span>
+            <tui-textfield>
+              <input tuiTextfield formControlName="address" autocomplete="street-address" />
+              <tui-error formControlName="address" [error]="[] | tuiFieldError | async"></tui-error>
             </tui-textfield>
           </div>
 
           <div class="field-wrap full">
-            <span class="field-label">Địa chỉ kinh doanh</span>
-            <tui-textfield>
-              <input tuiTextfield formControlName="address" />
-            </tui-textfield>
-          </div>
-
-          <div class="field-wrap full">
-            <span class="field-label">Loại hình kinh doanh</span>
+            <span class="field-label">Loại hình kinh doanh <span class="req">*</span></span>
             <tui-textfield>
               <input tuiTextfield formControlName="businessType" />
+              <tui-error formControlName="businessType" [error]="[] | tuiFieldError | async"></tui-error>
             </tui-textfield>
           </div>
 
           <div class="field-wrap full">
             <span class="field-label">Giới thiệu ngắn (Tùy chọn)</span>
             <div class="custom-textarea-container">
-              <textarea formControlName="description"></textarea>
+              <textarea formControlName="description" rows="4"></textarea>
             </div>
+            <p class="field-hint error" *ngIf="registerForm.controls.description.touched && registerForm.controls.description.errors?.['maxlength']">
+              Tối đa 2000 ký tự.</p>
           </div>
         </div>
 
