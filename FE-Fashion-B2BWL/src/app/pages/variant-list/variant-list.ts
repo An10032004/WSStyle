@@ -74,6 +74,8 @@ export interface CombinationTableRow {
   styleUrl: './variant-list.scss',
 })
 export class VariantListComponent implements OnInit, OnDestroy {
+  private static readonly MAX_COMBINATION_ROWS = 1000;
+  private static readonly ATTR_VALUE_ALLOWED_REGEX = /^[\p{L}\p{N}\s._-]+$/u;
   /** Màu gợi ý khi chiều dùng ô màu trên PDP (bấm để thêm chip). */
   readonly presetColorSwatches = PRESET_COLOR_SWATCHES;
   rowData: ProductVariant[] = [];
@@ -536,6 +538,11 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   removeAttributeRow(index: number): void {
     this.attributeRows.splice(index, 1);
+    // Nếu đã có bảng nháp thì tự cập nhật lại theo tập thuộc tính mới.
+    if (this.combinationRows.length > 0) {
+      this.generateCombinations();
+      return;
+    }
     this.cdr.markForCheck();
   }
 
@@ -571,6 +578,12 @@ export class VariantListComponent implements OnInit, OnDestroy {
   }
 
   generateCombinations(): void {
+    const attrsValidationError = this.validateAttributeRowsForGeneration();
+    if (attrsValidationError) {
+      this.alerts.open(attrsValidationError, { appearance: 'warning' }).subscribe();
+      return;
+    }
+
     const dims = this.attributeRows
       .map((r) => r.values.map((v) => v.trim()).filter(Boolean))
       .filter((arr) => arr.length > 0);
@@ -579,6 +592,15 @@ export class VariantListComponent implements OnInit, OnDestroy {
       return;
     }
     const combos = this.cartesian(dims);
+    if (combos.length > VariantListComponent.MAX_COMBINATION_ROWS) {
+      this.alerts
+        .open(
+          `Số lượng tổ hợp quá lớn (${combos.length}), vui lòng kiểm tra lại`,
+          { appearance: 'warning' },
+        )
+        .subscribe();
+      return;
+    }
     const raw = this.combinationEditorProduct
       ? this.variantsRawForProduct(this.combinationEditorProduct.id)
       : [];
@@ -940,11 +962,24 @@ export class VariantListComponent implements OnInit, OnDestroy {
   saveCombinationEditor(): void {
     this.clearFormErrors();
     if (!this.combinationEditorProduct) return;
+
+    const attrsValidationError = this.validateAttributeRowsForGeneration();
+    if (attrsValidationError) {
+      this.alerts.open(attrsValidationError, { appearance: 'warning' }).subscribe();
+      return;
+    }
+
     const productId = this.combinationEditorProduct.id;
     const activeRows = this.combinationRows;
     for (const r of activeRows) {
       if (!String(r.sku || '').trim()) {
-        this.alerts.open(this.transloco.translate('VARIANT.SKU_REQUIRED'), { appearance: 'warning' }).subscribe();
+        this.alerts.open('Tất cả các tổ hợp phải có mã SKU', { appearance: 'warning' }).subscribe();
+        return;
+      }
+
+      const price = this.getNumericValue(r.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        this.alerts.open('Tất cả các tổ hợp phải có giá hợp lệ', { appearance: 'warning' }).subscribe();
         return;
       }
     }
@@ -952,7 +987,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
     for (const r of activeRows) {
       const sk = String(r.sku).trim().toLowerCase();
       if (skuSet.has(sk)) {
-        this.alerts.open(this.transloco.translate('VARIANT.SKU_DUPLICATE'), { appearance: 'warning' }).subscribe();
+        this.alerts.open('Mã SKU không được trùng nhau trong danh sách', { appearance: 'warning' }).subscribe();
         return;
       }
       skuSet.add(sk);
@@ -1050,6 +1085,30 @@ export class VariantListComponent implements OnInit, OnDestroy {
       },
       error: (err) => this.handleApiError(err),
     });
+  }
+
+  private validateAttributeRowsForGeneration(): string | null {
+    const names = this.attributeRows
+      .map((r) => String(r.name || '').trim())
+      .filter(Boolean)
+      .map((n) => n.toLowerCase());
+
+    const uniqNames = new Set(names);
+    if (names.length !== uniqNames.size) {
+      return 'Tên thuộc tính không được trùng nhau';
+    }
+
+    for (const row of this.attributeRows) {
+      for (const val of row.values) {
+        const normalized = String(val || '').trim();
+        if (!normalized) continue;
+        if (!VariantListComponent.ATTR_VALUE_ALLOWED_REGEX.test(normalized)) {
+          return `Giá trị thuộc tính không hợp lệ: "${normalized}"`;
+        }
+      }
+    }
+
+    return null;
   }
 
   /** Mở cùng form tổ hợp theo sản phẩm cha (từ một dòng biến thể). */

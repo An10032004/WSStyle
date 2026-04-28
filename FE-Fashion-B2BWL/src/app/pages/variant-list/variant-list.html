@@ -227,18 +227,18 @@
                     <input type="checkbox" class="combination-table__checkbox" [(ngModel)]="r._selected" />
                   </td>
                   <td class="combination-table__variant">{{ r.label }}</td>
-                  <td>
-                    <tui-textfield tuiTextfieldSize="s">
+                  <td class="combination-table__cell combination-table__cell--price">
+                    <tui-textfield tuiTextfieldSize="m" class="combination-table__input">
                       <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="r.price" maxlength="13" />
                     </tui-textfield>
                   </td>
-                  <td>
-                    <tui-textfield tuiTextfieldSize="s">
+                  <td class="combination-table__cell combination-table__cell--stock">
+                    <tui-textfield tuiTextfieldSize="m" class="combination-table__input">
                       <input tuiTextfield [maskito]="maskOptions" [(ngModel)]="r.stockQuantity" maxlength="13" />
                     </tui-textfield>
                   </td>
-                  <td>
-                    <tui-textfield tuiTextfieldSize="s">
+                  <td class="combination-table__cell combination-table__cell--sku">
+                    <tui-textfield tuiTextfieldSize="m" class="combination-table__input">
                       <input tuiTextfield [(ngModel)]="r.sku" />
                     </tui-textfield>
                   </td>
@@ -488,6 +488,9 @@
             </div>
           </div>
           <div class="product-variant-card__actions">
+            <button tuiButton type="button" appearance="outline" size="s" iconStart="@tui.plus" (click)="openCombinationEditor(p)">
+              Thêm biến thể
+            </button>
             <button tuiButton type="button" appearance="primary" size="s" iconStart="@tui.pencil" (click)="openCombinationEditor(p)">
               {{ 'VARIANT.EDIT_VARIANTS_BTN' | transloco }}
             </button>
@@ -504,9 +507,9 @@
                 <tr>
                   <th>{{ 'VARIANT.SKU' | transloco }}</th>
                   <th>{{ 'VARIANT.STOCK' | transloco }}</th>
-                  <th>{{ 'VARIANT.COLOR' | transloco }}</th>
-                  <th>{{ 'VARIANT.SIZE' | transloco }}</th>
-                  <th>{{ 'VARIANT.WEIGHT' | transloco }}</th>
+                  <th>Thuộc tính 1</th>
+                  <th>Thuộc tính 2</th>
+                  <th>Thuộc tính 3</th>
                   <th>{{ 'PRODUCT.ACTIONS' | transloco }}</th>
                 </tr>
               </thead>

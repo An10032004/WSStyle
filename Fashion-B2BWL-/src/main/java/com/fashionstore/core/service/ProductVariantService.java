@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -19,6 +21,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 @RequiredArgsConstructor
 @Transactional
 public class ProductVariantService {
+    private static final Pattern ATTR_VALUE_ALLOWED_PATTERN =
+            Pattern.compile("^[\\p{L}\\p{N}\\s._-]+$");
 
     private final ProductVariantRepository productVariantRepository;
     private final ProductRepository productRepository;
@@ -61,17 +65,18 @@ public class ProductVariantService {
      * Tạo biến thể mới
      */
     public ProductVariant createVariant(ProductVariantRequest request) {
+        validateVariantRequest(request, null);
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm", "id", request.getProductId()));
 
         ProductVariant variant = ProductVariant.builder()
                 .product(product)
-                .sku(request.getSku())
+                .sku(request.getSku().trim())
                 .stockQuantity(request.getStockQuantity())
                 .imageUrl(request.getImageUrl())
-                .color(request.getColor())
-                .size(request.getSize())
-                .weight(request.getWeight())
+                .color(trimToNull(request.getColor()))
+                .size(trimToNull(request.getSize()))
+                .weight(trimToNull(request.getWeight()))
                 .length(request.getLength())
                 .width(request.getWidth())
                 .height(request.getHeight())
@@ -90,18 +95,19 @@ public class ProductVariantService {
      * Cập nhật biến thể
      */
     public ProductVariant updateVariant(Integer id, ProductVariantRequest request) {
+        validateVariantRequest(request, id);
         ProductVariant variant = getVariantById(id);
 
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm", "id", request.getProductId()));
 
         variant.setProduct(product);
-        variant.setSku(request.getSku());
+        variant.setSku(request.getSku().trim());
         variant.setStockQuantity(request.getStockQuantity());
         variant.setImageUrl(request.getImageUrl());
-        variant.setColor(request.getColor());
-        variant.setSize(request.getSize());
-        variant.setWeight(request.getWeight());
+        variant.setColor(trimToNull(request.getColor()));
+        variant.setSize(trimToNull(request.getSize()));
+        variant.setWeight(trimToNull(request.getWeight()));
         variant.setLength(request.getLength());
         variant.setWidth(request.getWidth());
         variant.setHeight(request.getHeight());
@@ -151,5 +157,42 @@ public class ProductVariantService {
                 return null;
             }
         }
+    }
+
+    private void validateVariantRequest(ProductVariantRequest request, Integer editingId) {
+        String sku = request.getSku() == null ? "" : request.getSku().trim();
+        if (sku.isEmpty()) {
+            throw new IllegalArgumentException("Tất cả các tổ hợp phải có mã SKU");
+        }
+
+        if (request.getPrice() == null || request.getPrice().signum() <= 0) {
+            throw new IllegalArgumentException("Tất cả các tổ hợp phải có giá hợp lệ");
+        }
+
+        validateAttributeValue(request.getColor());
+        validateAttributeValue(request.getSize());
+        validateAttributeValue(request.getWeight());
+
+        ProductVariant existed = productVariantRepository.findBySkuIgnoreCase(sku).orElse(null);
+        if (existed != null) {
+            Integer existedId = existed.getId();
+            if (editingId == null || !Objects.equals(existedId, editingId)) {
+                throw new IllegalArgumentException("SKU [" + sku + "] đã tồn tại trong hệ thống");
+            }
+        }
+    }
+
+    private void validateAttributeValue(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) return;
+        if (!ATTR_VALUE_ALLOWED_PATTERN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("Giá trị thuộc tính không hợp lệ: \"" + normalized + "\"");
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

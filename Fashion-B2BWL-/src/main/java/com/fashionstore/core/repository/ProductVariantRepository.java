@@ -24,6 +24,10 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
      */
     Optional<ProductVariant> findBySku(String sku);
 
+    Optional<ProductVariant> findBySkuIgnoreCase(String sku);
+
+    boolean existsBySkuIgnoreCaseAndIdNot(String sku, Integer id);
+
     /**
      * Đếm biến thể theo từng sản phẩm (một query — dùng cho danh sách SP).
      */

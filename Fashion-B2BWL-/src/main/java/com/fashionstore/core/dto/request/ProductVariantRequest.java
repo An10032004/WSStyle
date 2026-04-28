@@ -18,11 +18,11 @@ public class ProductVariantRequest {
     @NotBlank(message = "SKU không được để trống")
     private String sku;
 
-
+    @NotNull(message = "Giá không được để trống")
+    @DecimalMin(value = "0.01", message = "Giá không hợp lệ")
+    private BigDecimal price;
 
     private Integer stockQuantity;
-    
-    private BigDecimal price;
 
     private String imageUrl;
     private String imageUrls;
