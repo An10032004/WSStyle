@@ -1,0 +1,482 @@
+@startuml Fashion_B2BWL_ERD
+' Nguon: JPA @Entity trong Fashion-B2BWL- (schema DB thuc te; neu dump MySQL co cot JSON/TEXT khac mot chut thi van tuong duong logic).
+skinparam handwritten false
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 28
+skinparam ranksep 28
+skinparam packageStyle rectangle
+skinparam entity {
+  BackgroundColor #FAFAFA
+  BorderColor #333333
+}
+hide circle
+top to bottom direction
+
+title Trang 1 — Quan he FK / quan he ORM ( Hibernate )
+
+package "Khach & phan quyen" {
+  entity users {
+    *id : int
+    --
+    shop_id : int?
+    email : string
+    customer_group_id : int FK
+    role : string
+    tags : JSON
+    shipping_address_json : text
+    active : bool
+    account_status : string
+    deleted_at : datetime
+    --
+    .. khong FK: gio client localStorage ..
+  }
+
+  entity customer_groups {
+    *id : int
+    --
+    shop_id : int?
+    name : string
+    default_discount_rate : decimal
+  }
+
+  entity app_roles {
+    *id : int
+    --
+    name : string unique
+    is_admin : bool?
+    permissions_json : JSON
+    created_at : datetime
+  }
+
+  entity refresh_tokens {
+    *id : int
+    --
+    user_id : int FK
+    token : string unique
+    expiry_date : instant
+  }
+
+  entity password_reset_tokens {
+    *id : long
+    --
+    user_id : int
+    token : string unique
+    expires_at : instant
+    used_at : instant?
+  }
+
+  entity b2b_registration_forms {
+    *id : int
+    --
+    shop_id : int?
+    user_id : int FK
+    form_data : text
+  }
+}
+
+package "Danh muc & san pham" {
+  entity categories {
+    *id : int
+    --
+    shop_id : int?
+    parent_id : int? FK self
+    name : string
+  }
+
+  entity products {
+    *id : int
+    --
+    shop_id : int?
+    category_id : int FK
+    product_code : string unique
+    name : string
+    base_price : decimal?
+    image_url : string?
+    image_urls : text
+    brand : string?
+    variant_dimension_labels : text
+    is_sale : bool
+  }
+
+  entity product_variants {
+    *id : int
+    --
+    shop_id : int?
+    product_id : int FK
+    sku : string unique
+    stock_quantity : int
+    price : decimal?
+    discount_price : decimal?
+    price_adjustment : decimal?
+    status : string?
+    color : string?
+    size : string?
+    image_urls : text
+  }
+
+  entity attribute_templates {
+    *id : int
+    --
+    shop_id : int?
+    category_id : int FK
+    required_attributes : JSON
+  }
+
+  entity translations {
+    *id : int
+    --
+    shop_id : int?
+    resource_id : int
+    resource_type : string
+    language_code : string
+    translated_name : text
+  }
+
+  entity ai_product_sync {
+    *id : int
+    --
+    shop_id : int?
+    product_id : int FK 1-1
+    content : text
+    vector_id : string?
+  }
+
+  entity product_reviews {
+    *id : int
+    --
+    product_id : int
+    user_id : int
+    rating : int
+    comment : text
+    is_pinned : bool
+  }
+
+  entity bundles {
+    *id : long
+    --
+    name : string
+    status : enum string
+    discount_type : string?
+    discount_value : decimal?
+    old_price : decimal?
+    new_price : decimal?
+    customer_type : string?
+    image_url : string?
+  }
+
+  entity bundle_items {
+    *id : long
+    --
+    bundle_id : long FK
+    variant_id : long
+    quantity : int
+  }
+}
+
+package "Don hang & thanh toan" {
+  entity orders {
+    *id : int
+    --
+    shop_id : int?
+    user_id : int FK
+    order_type : string
+    status : string
+    payment_method : string
+    payment_status : string
+    total_amount : decimal
+    shipping_fee : decimal?
+    tax_amount : decimal?
+    paid_amount : decimal?
+    debt_amount : decimal?
+    due_date : datetime?
+    shipping_address : text
+    shipping_province_code : string?
+    coupon_code : string?
+    discount_amount : decimal?
+    created_at : datetime
+    stock_reduced : bool?
+    refund_processed_at : datetime?
+  }
+
+  entity order_items {
+    *id : int
+    --
+    shop_id : int?
+    order_id : int FK
+    variant_id : int FK
+    quantity : int
+    unit_price : decimal
+    applied_rule_id : int?
+    pricing_note : text
+  }
+
+  entity payment_transactions {
+    *id : int
+    --
+    shop_id : int?
+    order_id : int FK
+    provider : string
+    amount : decimal
+    status : string
+    transaction_reference : string?
+    provider_transaction_no : string?
+    bank_code : string?
+    response_code : string?
+    pay_date : datetime?
+  }
+}
+
+package "Vi & tro ly & khac" {
+  entity wallets {
+    *id : int
+    --
+    user_id : int unique
+    balance : decimal
+    currency : string
+    status : string
+    metadata : text
+  }
+
+  entity wallet_transactions {
+    *id : int
+    --
+    wallet_id : int
+    amount : decimal
+    type : string
+    description : text
+  }
+
+  entity luxe_assistant_sessions {
+    *id : long
+    --
+    user_id : int
+    title : string?
+  }
+
+  entity luxe_assistant_turns {
+    *id : long
+    --
+    session_id : long FK
+    role : string
+    content : text
+    product_ids_json : text
+  }
+
+  entity chat_messages {
+    *id : int
+    --
+    sender_id : int
+    receiver_id : int
+    message : text
+    is_read : bool
+  }
+
+  entity expenses {
+    *id : long
+    --
+    shop_id : long?
+    category : string enum
+    amount : decimal
+    date : datetime
+  }
+
+  entity home_settings {
+    *id : int
+    --
+    shop_id : int?
+    setting_key : string unique
+    setting_value : text
+  }
+}
+
+' --- FK / ORM ---
+customer_groups ||--o{ users : customer_group_id
+users ||--o| refresh_tokens : user_id
+users ||--o| b2b_registration_forms : user_id
+
+categories ||--o{ categories : parent_id
+categories ||--o{ products : category_id
+categories ||--o{ attribute_templates : category_id
+products ||--o{ product_variants : product_id
+products ||--o| ai_product_sync : product_id
+
+users ||--o{ orders : user_id
+orders ||--o{ order_items : order_id
+product_variants ||--o{ order_items : variant_id
+orders ||--o{ payment_transactions : order_id
+
+bundles ||--o{ bundle_items : bundle_id
+bundle_items ..> product_variants : variant_id logical ref
+
+users ||--o{ product_reviews : user_id
+products ||--o{ product_reviews : product_id
+
+users ||--o{ wallets : user_id
+wallets ||--o{ wallet_transactions : wallet_id
+
+users ||--o{ luxe_assistant_sessions : user_id
+luxe_assistant_sessions ||--o{ luxe_assistant_turns : session_id
+
+users ..> chat_messages : sender_id receiver_id no JoinColumn
+
+note bottom of users
+  **Gio hang:** khong bang DB — FE `localStorage`
+  (app_cart_{userId} / app_cart_guest).
+  **Ma giam gia:** orders.coupon_code — chuoi,
+  khong FK toi bang coupons.
+end note
+
+note right of bundle_items
+  JPA: variant_id Long,
+  khong @ManyToOne product_variants.
+end note
+
+newpage
+top to bottom direction
+title Trang 2 — Rule engine (khong FK toi user/product; match runtime JSON/type)
+
+package "Rule tables (shop_id + dieu kien JSON/text)" {
+  entity pricing_rules {
+    *id : int
+    --
+    shop_id : int?
+    apply_customer_type / value : text-json
+    apply_product_type / value : text-json
+    exclude_* : text-json
+    action_config : text
+    rule_type : string
+    discount_type / value
+    start_date / end_date
+  }
+
+  entity order_limits {
+    *id : int
+    --
+    shop_id : int?
+    limit_level / limit_type / limit_value
+    apply_* / exclude_* : text-json
+  }
+
+  entity hide_price_rules {
+    *id : int
+    --
+    shop_id : int?
+    apply_customer_value : JSON
+    apply_product_value : JSON
+    hide_price / hide_add_to_cart
+  }
+
+  entity tax_display_rules {
+    *id : int
+    --
+    shop_id : int?
+    tax_display_type / display_type
+    design_config : JSON
+    apply_* : JSON
+    discount_rate : double?
+  }
+
+  entity net_terms_rules {
+    *id : int
+    --
+    shop_id : int?
+    apply_customer_value : JSON
+    net_term_days : int
+    condition_type : string?
+  }
+
+  entity shipping_rules {
+    *id : int
+    --
+    shop_id : int?
+    base_on : string
+    rate_ranges : text
+    apply_* : text
+    discount_type / discount_value
+  }
+
+  entity shipping_zones {
+    *id : int
+    --
+    shop_id : int?
+    province_codes : text JSON array
+    standard_fee / express_fee
+  }
+
+  entity coupons {
+    *id : int
+    --
+    shop_id : int
+    code : string unique
+    discount_type / value
+    apply_* : text
+    minimum_prior_orders : int
+    used_count / start_date / end_date
+  }
+
+  entity sale_campaigns {
+    *id : int
+    --
+    shop_id : int
+    name / banner_url / description
+    discount_percentage : int?
+    apply_* : text
+    is_active / priority / status
+  }
+}
+
+package "Hub (chi de doc so do — khong phai bang DB)" {
+  entity rule_customer_scope <<logical>> {
+    ~match~
+    --
+    user id
+    customer_group id
+    role / tags JSON
+  }
+
+  entity rule_product_scope <<logical>> {
+    ~match~
+    --
+    category / product / variant ids
+    trong JSON
+  }
+
+  entity order_shipping_scope <<logical>> {
+    ~match~
+    --
+    orders.shipping_province_code
+    vs shipping_zones.province_codes
+  }
+}
+
+pricing_rules ..> rule_customer_scope
+pricing_rules ..> rule_product_scope
+order_limits ..> rule_customer_scope
+order_limits ..> rule_product_scope
+hide_price_rules ..> rule_customer_scope
+hide_price_rules ..> rule_product_scope
+tax_display_rules ..> rule_customer_scoped
+tax_display_rules ..> rule_product_scope
+net_terms_rules ..> rule_customer_scope
+shipping_rules ..> rule_customer_scope
+shipping_rules ..> rule_product_scope
+coupons ..> rule_customer_scope
+coupons ..> rule_product_scope
+sale_campaigns ..> rule_customer_scope
+sale_campaigns ..> rule_product_scope
+shipping_zones ..> order_shipping_scope
+
+rule_customer_scope ..> users : RuleCoreService\nisCustomerMatch
+rule_product_scope ..> products : isProductMatch
+rule_product_scope ..> product_variants
+order_shipping_scope ..> orders : tinh phi ship
+
+note as N1
+  **Backend:** RuleCoreService + service rule rieng.
+  **FE:** tinh gia/hien thi nhanh, createOrder tinh lai.
+  Bang **permissions** neu co tren MySQL
+  nhung khong co @Entity trong repo — bo qua o so do code.
+end note
+
+@enduml
