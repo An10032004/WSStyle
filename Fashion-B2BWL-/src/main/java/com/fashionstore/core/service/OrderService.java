@@ -321,6 +321,14 @@ public class OrderService {
     public Order updatePaymentStatus(Integer id, String paymentStatus) {
         Order order = requireOrderWithItems(id);
         String previousPaymentStatus = order.getPaymentStatus();
+        String method = order.getPaymentMethod() != null ? order.getPaymentMethod().trim().toUpperCase() : "";
+        String status = order.getStatus() != null ? order.getStatus().trim().toUpperCase() : "";
+
+        // COD: chỉ ghi nhận "đã nhận tiền" sau khi đơn hoàn tất (khách đã nhận hàng).
+        if ("COD".equals(method) && "PAID".equalsIgnoreCase(paymentStatus) && !"COMPLETED".equals(status)) {
+            throw new IllegalArgumentException("Đơn COD chỉ được xác nhận đã nhận tiền sau khi khách đã nhận hàng.");
+        }
+
         order.setPaymentStatus(paymentStatus);
         if ("PAID".equalsIgnoreCase(paymentStatus)) {
             order.setPaidAmount(order.getTotalAmount());
@@ -367,7 +375,7 @@ public class OrderService {
     }
 
     /**
-     * Admin: đơn hủy/từ chối + đã thu tiền qua QR/CK (VNPAY) — đánh dấu đã chuyển khoản hoàn cho khách.
+     * Admin: đơn hủy/từ chối + đã thu tiền qua cổng online (VNPAY/MOMO) — đánh dấu đã hoàn tiền cho khách.
      */
     @Transactional
     public Order markRefundProcessed(Integer id) {
@@ -386,8 +394,8 @@ public class OrderService {
         if ("NET_TERMS".equals(method)) {
             throw new RuntimeException("Đơn công nợ: dùng mục ghi nhận thanh toán công nợ, không dùng hoàn QR/CK.");
         }
-        if (!"VNPAY".equals(method)) {
-            throw new RuntimeException("Nút này dành cho đơn đã thu qua chuyển khoản/QR (VNPAY).");
+        if (!"VNPAY".equals(method) && !"MOMO".equals(method)) {
+            throw new RuntimeException("Nút này dành cho đơn đã thu qua cổng online (VNPAY/MOMO).");
         }
         if (order.getRefundProcessedAt() != null) {
             return order;

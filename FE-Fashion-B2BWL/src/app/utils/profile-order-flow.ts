@@ -18,15 +18,16 @@ function isFulfilmentDone(order: Order): boolean {
   return s === 'COMPLETED' || s === 'APPROVED';
 }
 
-function isVnpay(order: Order): boolean {
-  return (order.paymentMethod || '').toUpperCase() === 'VNPAY';
+function isOnlineRefundMethod(order: Order): boolean {
+  const method = (order.paymentMethod || '').toUpperCase();
+  return method === 'VNPAY' || method === 'MOMO';
 }
 
 /** Đơn hủy/từ chối + đã thu QR/CK — cần hoàn tiền (copy cảnh báo). */
 export function needsRefundQrNotice(order: Order): boolean {
   if (!isTerminalCancelled(order)) return false;
   const ps = (order.paymentStatus || '').toUpperCase();
-  return ps === 'PAID' && isVnpay(order);
+  return ps === 'PAID' && isOnlineRefundMethod(order);
 }
 
 /** Đơn hủy + QR đã thu, shop chưa đánh dấu hoàn — khách cần liên hệ. */
@@ -52,7 +53,7 @@ export function canCustomerConfirmRefundReceived(order: Order): boolean {
 export function shouldWarnQrRefundOnCancel(order: Order): boolean {
   if (isTerminalCancelled(order)) return false;
   const ps = (order.paymentStatus || '').toUpperCase();
-  return isVnpay(order) && ps === 'PAID';
+  return isOnlineRefundMethod(order) && ps === 'PAID';
 }
 
 /** Tiền đã vào nhưng shop chưa xác nhận đơn — giải thích vì sao không có nút "Đã nhận hàng". */

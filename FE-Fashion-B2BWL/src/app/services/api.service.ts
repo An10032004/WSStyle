@@ -22,7 +22,7 @@ export interface OrderItemRequest {
 export interface OrderRequest {
   userId?: number;
   orderType: 'RETAIL' | 'WHOLESALE';
-  paymentMethod: 'COD' | 'VNPAY' | 'NET_TERMS';
+  paymentMethod: 'COD' | 'VNPAY' | 'MOMO' | 'NET_TERMS';
   fullName: string;
   phone: string;
   shippingAddress: string;

@@ -189,11 +189,11 @@ ModuleRegistry.registerModules([AllCommunityModule]);
             tuiButton
             size="m"
             appearance="primary"
-            *ngIf="selectedOrder?.paymentMethod !== 'NET_TERMS' && selectedOrder?.paymentStatus !== 'PAID'"
+            *ngIf="canShowMarkPaidButton(selectedOrder)"
             [disabled]="orderActionBusy"
             (click)="updatePaymentStatus(selectedOrder!.id, 'PAID')"
           >
-            Xác nhận đã nhận tiền (CK/QR trước giao)
+            {{ markPaidButtonLabel(selectedOrder) }}
           </button>
           <button
             tuiButton
@@ -391,7 +391,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
     const st = (o.status || '').toUpperCase();
     const ps = (o.paymentStatus || '').toUpperCase();
     const m = (o.paymentMethod || '').toUpperCase();
-    return (st === 'CANCELLED' || st === 'REJECTED') && ps === 'PAID' && m === 'VNPAY';
+    return (st === 'CANCELLED' || st === 'REJECTED') && ps === 'PAID' && (m === 'VNPAY' || m === 'MOMO');
   }
 
   markRefundProcessed(): void {
@@ -495,6 +495,23 @@ export class OrdersComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  canShowMarkPaidButton(order: Order | null): boolean {
+    if (!order) return false;
+    if ((order.paymentStatus || '').toUpperCase() === 'PAID') return false;
+    const method = (order.paymentMethod || '').toUpperCase();
+    if (method === 'NET_TERMS') return false;
+    if (method === 'COD') {
+      return (order.status || '').toUpperCase() === 'COMPLETED';
+    }
+    return true; // VNPAY / MOMO / CK giữ luồng hiện tại
+  }
+
+  markPaidButtonLabel(order: Order | null): string {
+    const method = (order?.paymentMethod || '').toUpperCase();
+    if (method === 'COD') return 'Xác nhận đã nhận tiền COD';
+    return 'Xác nhận đã nhận tiền (CK/QR trước giao)';
   }
 
   private patchSelectedOrderFromResponse(updated: Order): void {
