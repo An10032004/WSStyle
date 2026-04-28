@@ -1,5 +1,6 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.constant.StorefrontValidationMessages;
 import com.fashionstore.core.dto.request.B2BRegistrationFormRequest;
 import com.fashionstore.core.model.B2BRegistrationForm;
 import com.fashionstore.core.model.User;
@@ -86,31 +87,84 @@ public class B2BRegistrationFormService {
         }
     }
 
+    /**
+     * Đồng bộ với {@code b2b-register.ts} (required, min/max, taxCode validator).
+     */
     private void validateFormPayload(String formDataJson) {
         if (formDataJson == null || formDataJson.isBlank()) {
-            throw new IllegalArgumentException("Thiếu dữ liệu form.");
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_FORM_INVALID_JSON);
         }
+        JsonNode node;
         try {
-            JsonNode node = objectMapper.readTree(formDataJson);
-            String[] keys = {"companyName", "taxCode", "address", "businessType"};
-            for (String k : keys) {
-                if (!node.has(k) || node.get(k).asText("").isBlank()) {
-                    throw new IllegalArgumentException("Thiếu hoặc trống trường bắt buộc: " + k);
-                }
-            }
-            String tax = node.get("taxCode").asText("").trim().replace("-", "");
-            if (!tax.matches("\\d{10}|\\d{13}")) {
-                throw new IllegalArgumentException("Mã số thuế phải gồm 10 hoặc 13 chữ số.");
-            }
-        } catch (IllegalArgumentException e) {
-            throw e;
+            node = objectMapper.readTree(formDataJson);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Dữ liệu form không hợp lệ.");
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_FORM_INVALID_JSON);
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_FORM_INVALID_JSON);
+        }
+
+        String companyName = node.has("companyName") ? node.get("companyName").asText("").trim() : "";
+        if (companyName.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_COMPANY_REQUIRED);
+        }
+        if (companyName.length() < 2) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_COMPANY_MIN_LENGTH);
+        }
+        if (companyName.length() > 255) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_COMPANY_MAX_LENGTH);
+        }
+
+        String taxRaw = node.has("taxCode") ? node.get("taxCode").asText("") : "";
+        String taxDigits = taxRaw.trim().replaceAll("\\s", "").replace("-", "");
+        if (taxDigits.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_TAX_REQUIRED);
+        }
+        if (!taxDigits.matches("\\d+")) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_TAX_FORMAT);
+        }
+        if (taxDigits.length() != 10 && taxDigits.length() != 13) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_TAX_LENGTH);
+        }
+
+        String address = node.has("address") ? node.get("address").asText("").trim() : "";
+        if (address.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_ADDRESS_REQUIRED);
+        }
+        if (address.length() < 5) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_ADDRESS_MIN_LENGTH);
+        }
+        if (address.length() > 500) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_ADDRESS_MAX_LENGTH);
+        }
+
+        String businessType = node.has("businessType") ? node.get("businessType").asText("").trim() : "";
+        if (businessType.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_BUSINESS_TYPE_REQUIRED);
+        }
+        if (businessType.length() < 2) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_BUSINESS_TYPE_MIN_LENGTH);
+        }
+        if (businessType.length() > 200) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_BUSINESS_TYPE_MAX_LENGTH);
+        }
+
+        if (node.has("description") && !node.get("description").isNull()) {
+            String desc = node.get("description").asText("").trim();
+            if (desc.length() > 2000) {
+                throw new IllegalArgumentException(StorefrontValidationMessages.B2B_DESCRIPTION_MAX_LENGTH);
+            }
         }
     }
 
     @Transactional
     public B2BRegistrationForm createForm(B2BRegistrationFormRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_MISSING_PAYLOAD);
+        }
+        if (request.getUserId() == null) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_MISSING_USER_ID);
+        }
         validateFormPayload(request.getFormData());
 
         User user = userService.getUserById(request.getUserId());
@@ -139,6 +193,10 @@ public class B2BRegistrationFormService {
 
     @Transactional
     public B2BRegistrationForm updateForm(Integer id, B2BRegistrationFormRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.B2B_UPDATE_MISSING_PAYLOAD);
+        }
+        validateFormPayload(request.getFormData());
         B2BRegistrationForm form = getFormById(id);
         form.setFormData(request.getFormData());
         User user = userService.getUserById(form.getUser().getId());

@@ -41,8 +41,14 @@ public class B2BRegistrationFormController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<B2BRegistrationForm>> updateForm(@PathVariable Integer id, @RequestBody B2BRegistrationFormRequest request) {
-        return ResponseEntity.ok(new ApiResponse<>(true, "Form updated successfully", b2bRegistrationFormService.updateForm(id, request)));
+    public ResponseEntity<ApiResponse<B2BRegistrationForm>> updateForm(
+            @PathVariable Integer id, @RequestBody B2BRegistrationFormRequest request) {
+        try {
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "Form updated successfully", b2bRegistrationFormService.updateForm(id, request)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")

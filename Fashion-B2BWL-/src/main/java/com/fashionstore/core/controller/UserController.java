@@ -50,8 +50,13 @@ public class UserController {
     public ResponseEntity<ApiResponse<User>> updateShippingAddress(
             @PathVariable Integer id,
             @RequestBody ShippingAddressJsonRequest request) {
-        String json = request != null ? request.getShippingAddressJson() : null;
-        return ResponseEntity.ok(new ApiResponse<>(true, "Shipping address updated", userService.updateShippingAddressJson(id, json)));
+        try {
+            String json = request != null ? request.getShippingAddressJson() : null;
+            User updated = userService.updateShippingAddressJson(id, json);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Địa chỉ đã được lưu.", updated));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")

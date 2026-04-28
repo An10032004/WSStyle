@@ -10,4 +10,9 @@ public class InvalidEmailException extends RuntimeException {
     public InvalidEmailException() {
         super(AuthMessages.INVALID_EMAIL);
     }
+
+    /** Ví dụ: email trống / sai định dạng — đồng bộ văn bản với form đăng ký client. */
+    public InvalidEmailException(String message) {
+        super(message != null && !message.isBlank() ? message : AuthMessages.INVALID_EMAIL);
+    }
 }

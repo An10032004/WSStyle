@@ -1,5 +1,6 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.constant.StorefrontValidationMessages;
 import com.fashionstore.core.model.PasswordResetToken;
 import com.fashionstore.core.model.User;
 import com.fashionstore.core.repository.PasswordResetTokenRepository;
@@ -88,20 +89,20 @@ public class PasswordResetService {
     @Transactional
     public void completeReset(String token, String newPassword) {
         if (token == null || token.isBlank()) {
-            throw new RuntimeException("Token không hợp lệ");
+            throw new RuntimeException(StorefrontValidationMessages.RESET_LINK_INVALID);
         }
         if (newPassword == null || newPassword.length() < 6) {
-            throw new RuntimeException("Mật khẩu mới cần ít nhất 6 ký tự");
+            throw new RuntimeException(StorefrontValidationMessages.RESET_PASSWORD_MIN_LENGTH);
         }
         PasswordResetToken row = tokenRepository.findByToken(token.trim())
-                .orElseThrow(() -> new RuntimeException("Liên kết không hợp lệ hoặc đã hết hạn"));
+                .orElseThrow(() -> new RuntimeException(StorefrontValidationMessages.RESET_LINK_INVALID));
         if (!row.isUsable()) {
-            throw new RuntimeException("Liên kết không hợp lệ hoặc đã hết hạn");
+            throw new RuntimeException(StorefrontValidationMessages.RESET_LINK_INVALID);
         }
         User user = userRepository.findById(row.getUserId())
-                .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại"));
+                .orElseThrow(() -> new RuntimeException(StorefrontValidationMessages.RESET_LINK_INVALID));
         if (!user.isLoginAllowed()) {
-            throw new RuntimeException("Tài khoản không thể đặt lại mật khẩu");
+            throw new RuntimeException(StorefrontValidationMessages.RESET_ACCOUNT_BLOCKED);
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);

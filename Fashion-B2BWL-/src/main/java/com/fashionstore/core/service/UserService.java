@@ -1,6 +1,7 @@
 package com.fashionstore.core.service;
 
 import com.fashionstore.core.constant.AuthMessages;
+import com.fashionstore.core.constant.StorefrontValidationMessages;
 import com.fashionstore.core.dto.auth.LoginAttemptResult;
 import com.fashionstore.core.dto.request.LoginRequest;
 import com.fashionstore.core.dto.request.RegisterRequest;
@@ -24,11 +25,18 @@ import java.util.Optional;
 
 import java.util.List;
 import java.time.Instant;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserService {
+
+    /** Gần với {@code Validators.email} của Angular (đăng ký storefront). */
+    private static final Pattern REGISTER_EMAIL_FORMAT =
+            Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    /** Đồng bộ {@code register.ts}: pattern /^0[0-9]{9}$/ */
+    private static final Pattern VIETNAM_PHONE_10 = Pattern.compile("^0[0-9]{9}$");
 
     private final UserRepository userRepository;
     private final CustomerGroupService customerGroupService;
@@ -152,21 +160,56 @@ public class UserService {
 
     @Transactional
     public User register(RegisterRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_MISSING_BODY);
+        }
+
         String email = request.getEmail() == null ? "" : request.getEmail().trim();
         if (email.isEmpty()) {
-            throw new InvalidEmailException();
+            throw new InvalidEmailException(StorefrontValidationMessages.REGISTER_EMAIL_REQUIRED);
+        }
+        if (!REGISTER_EMAIL_FORMAT.matcher(email).matches()) {
+            throw new InvalidEmailException(StorefrontValidationMessages.REGISTER_EMAIL_FORMAT);
         }
         if (userRepository.findByEmail(email).isPresent()) {
             throw new InvalidEmailException();
+        }
+
+        String fullName = request.getFullName() == null ? "" : request.getFullName().trim();
+        if (fullName.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_FULL_NAME_REQUIRED);
+        }
+
+        String password = request.getPassword() == null ? "" : request.getPassword();
+        if (password.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PASSWORD_REQUIRED);
+        }
+        if (password.length() < 6) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PASSWORD_MIN_LENGTH);
+        }
+
+        String phone = request.getPhone() == null ? "" : request.getPhone().trim();
+        if (phone.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_REQUIRED);
+        }
+        if (!VIETNAM_PHONE_10.matcher(phone).matches()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_FORMAT);
+        }
+        if (password.equals(email) || phone.length() > 0 && password.contains(phone)) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PASSWORD_WEAK);
+        }
+
+        if (userRepository.findByPhone(phone).isPresent()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_DUPLICATE);
         }
 
         // Đăng ký tài khoản mua lẻ: APPROVED để mua hàng ngay. Trạng thái PENDING cho hồ sơ đại lý
         // chỉ gán khi gửi form /become-a-partner (B2BRegistrationFormService.createForm).
         User user = User.builder()
                 .email(email)
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .fullName(request.getFullName())
-                .phone(request.getPhone())
+                .passwordHash(passwordEncoder.encode(password))
+                .fullName(fullName)
+                .phone(phone)
                 .role("RETAIL") // Default role for storefront users
                 .registrationStatus("APPROVED")
                 .companyName(request.getCompanyName())
@@ -254,9 +297,46 @@ public class UserService {
 
     @Transactional
     public User updateShippingAddressJson(Integer userId, String shippingAddressJson) {
+        validateShippingAddressJson(shippingAddressJson);
         User user = getUserById(userId);
         user.setShippingAddressJson(shippingAddressJson);
         return userRepository.save(user);
+    }
+
+    /**
+     * Đồng bộ cấu trúc JSON với {@code vn-address-form} (province/ward + addressDetail + fullLine).
+     */
+    private void validateShippingAddressJson(String json) {
+        if (json == null || json.isBlank()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.SHIPPING_ADDRESS_INCOMPLETE);
+        }
+        JsonNode o;
+        try {
+            o = objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.SHIPPING_ADDRESS_JSON_INVALID);
+        }
+        if (!o.isObject()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.SHIPPING_ADDRESS_JSON_INVALID);
+        }
+        String[] required = {
+                "provinceCode",
+                "provinceName",
+                "districtCode",
+                "districtName",
+                "wardCode",
+                "wardName",
+                "addressDetail",
+        };
+        for (String k : required) {
+            if (!o.has(k) || o.get(k).asText("").isBlank()) {
+                throw new IllegalArgumentException(StorefrontValidationMessages.SHIPPING_ADDRESS_INCOMPLETE);
+            }
+        }
+        String detail = o.get("addressDetail").asText("").trim();
+        if (detail.length() > 500) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.SHIPPING_ADDRESS_DETAIL_MAX);
+        }
     }
 
     private static AccountStatus parseAccountStatusOrDefault(String raw) {
