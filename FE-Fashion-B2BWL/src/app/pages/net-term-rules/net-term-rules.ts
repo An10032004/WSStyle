@@ -208,14 +208,21 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   onSubmit(): void {
     this.syncTargeting();
 
-    // Priority Uniqueness Check
-    const priority = this.formData.priority || 0;
+    const validationError = this.validateNetTermForm();
+    if (validationError) {
+      this.alerts.open(validationError, { appearance: 'error' }).subscribe();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    // Priority duplicate: chỉ báo khi bấm Lưu.
+    const priority = Number(this.formData.priority || 0);
     const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
     if (duplicate) {
-      this.alerts.open(`Độ ưu tiên ${priority} đã được sử dụng bởi quy tắc "${duplicate.name}". Vui lòng chọn số khác.`, { 
+      this.alerts.open(`Mức độ ưu tiên đã tồn tại (đang dùng bởi "${duplicate.name}").`, {
         appearance: 'error',
-        label: 'Trùng độ ưu tiên'
       }).subscribe();
+      this.cdr.detectChanges();
       return;
     }
 
@@ -231,6 +238,29 @@ export class NetTermRulesComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  private validateNetTermForm(): string | null {
+    const name = String(this.formData.name || '').trim();
+    if (!name) return 'Vui lòng nhập tên quy tắc.';
+    this.formData.name = name;
+
+    const priority = Number(this.formData.priority);
+    if (!Number.isFinite(priority) || priority < 0) {
+      return 'Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).';
+    }
+    this.formData.priority = priority;
+
+    const days = Number(this.formData.netTermDays);
+    if (!Number.isFinite(days) || days <= 0) {
+      return 'Số ngày công nợ phải lớn hơn 0.';
+    }
+    if (days > 365) {
+      return 'Số ngày công nợ không hợp lệ (tối đa 365 ngày).';
+    }
+    this.formData.netTermDays = days;
+
+    return null;
+  }
 
   isNetTermGroupSelected(g: any): boolean {
     return this.selectedGroupIds.some(x => x.id === g.id);

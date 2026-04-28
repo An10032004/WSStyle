@@ -378,6 +378,23 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
     this.formData.applyProductType = 'ALL';
     this.formData.applyProductValue = '{}';
 
+    const validationError = this.validateShippingRuleForm();
+    if (validationError) {
+      this.alerts.open(validationError, { appearance: 'error' }).subscribe();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const priority = Number(this.formData.priority || 0);
+    const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
+    if (duplicate) {
+      this.alerts.open(`Mức độ ưu tiên đã tồn tại (đang dùng bởi "${duplicate.name}").`, {
+        appearance: 'error',
+      }).subscribe();
+      this.cdr.detectChanges();
+      return;
+    }
+
     const action = this.editingId ? this.api.updateShippingRule(this.editingId, this.formData) : this.api.createShippingRule(this.formData);
     action.subscribe(() => { 
       const msg = this.editingId 
@@ -393,6 +410,49 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
   cancel(): void { 
     this.showForm = false; 
     this.cdr.detectChanges();
+  }
+
+  private validateShippingRuleForm(): string | null {
+    const name = String(this.formData.name || '').trim();
+    if (!name) return 'Vui lòng nhập tên quy tắc.';
+    this.formData.name = name;
+
+    const priority = Number(this.formData.priority);
+    if (!Number.isFinite(priority) || priority < 0) {
+      return 'Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).';
+    }
+    this.formData.priority = priority;
+
+    if (!Array.isArray(this.rateRangesList) || this.rateRangesList.length === 0) {
+      return 'Phải có ít nhất một khoảng phí hợp lệ.';
+    }
+
+    const sorted = [...this.rateRangesList]
+      .map(r => ({ min: Number(r.min), max: Number(r.max), rate: Number(r.rate) }))
+      .sort((a, b) => a.min - b.min);
+
+    for (const r of sorted) {
+      if (!Number.isFinite(r.min) || !Number.isFinite(r.max) || !Number.isFinite(r.rate)) {
+        return 'Cấu hình khoảng phí không hợp lệ.';
+      }
+      if (r.min < 0 || r.max < 0) {
+        return 'Khoảng giá không hợp lý: giá trị không được âm.';
+      }
+      if (r.max < r.min) {
+        return "Khoảng giá không hợp lý: mốc 'đến' phải >= mốc 'từ'.";
+      }
+      if (r.rate < 0) {
+        return 'Khoảng giá không hợp lý: phí vận chuyển không được âm.';
+      }
+    }
+
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].min <= sorted[i - 1].max) {
+        return 'Khoảng giá không hợp lý: các khoảng bị chồng lấn.';
+      }
+    }
+
+    return null;
   }
 
   isShippingGroupSelected(g: CustomerGroup): boolean {

@@ -420,7 +420,9 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     };
 
     this.api.checkRuleConflicts('PRICING', target).subscribe(res => {
-      this.conflicts = res;
+      // Không hiển thị cảnh báo trùng mức ưu tiên ở panel warning.
+      // Quy tắc này chỉ chặn bằng lỗi khi bấm Lưu (onSubmit).
+      this.conflicts = (res || []).filter(msg => !/priority|ưu tiên/i.test(String(msg)));
       this.cdr.detectChanges();
     });
   }
@@ -439,6 +441,20 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    const ruleName = String(this.formData.name || '').trim();
+    if (!ruleName) {
+      this.alerts.open('Vui lòng nhập tên quy tắc.', { appearance: 'error' }).subscribe();
+      return;
+    }
+    this.formData.name = ruleName;
+
+    const priorityNum = Number(this.formData.priority);
+    if (!Number.isFinite(priorityNum) || priorityNum < 0) {
+      this.alerts.open('Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).', { appearance: 'error' }).subscribe();
+      return;
+    }
+    this.formData.priority = priorityNum;
+
     // 1. Handle Group selection to JSON
     if (this.formData.applyCustomerType === 'GROUP') {
       this.formData.applyCustomerValue = JSON.stringify({ groupIds: this.selectedCustomerGroups.map(g => g.id) });
@@ -462,19 +478,53 @@ export class PricingRulesComponent implements OnInit, OnDestroy {
     if (this.formData.ruleType === 'B2B_PRICE') {
       this.formData.discountType = this.b2bDiscountType;
       this.formData.discountValue = this.b2bDiscountValue;
+      const discountNum = Number(this.b2bDiscountValue);
+      if (!Number.isFinite(discountNum) || discountNum <= 0) {
+        this.alerts.open('Vui lòng nhập % giảm/giá trị giảm cụ thể lớn hơn 0.', { appearance: 'error' }).subscribe();
+        return;
+      }
+      if (this.b2bDiscountType === 'PERCENTAGE' && discountNum > 100) {
+        this.alerts.open('Giảm theo % phải trong khoảng 0 - 100.', { appearance: 'error' }).subscribe();
+        return;
+      }
+      this.formData.discountValue = discountNum;
       this.formData.actionConfig = JSON.stringify({
         discountType: this.b2bDiscountType,
-        discountValue: this.b2bDiscountValue
+        discountValue: discountNum
       });
+    } else if (this.formData.ruleType === 'QUANTITY_BREAK') {
+      let parsed: any = {};
+      try {
+        parsed = this.formData.actionConfig ? JSON.parse(this.formData.actionConfig) : {};
+      } catch {
+        parsed = {};
+      }
+      const brackets = Array.isArray(parsed?.brackets) ? parsed.brackets : [];
+      if (!brackets.length) {
+        this.alerts.open('Giảm giá theo số lượng phải có ít nhất 1 mức giảm.', { appearance: 'error' }).subscribe();
+        return;
+      }
+      const invalid = brackets.some((b: any) => {
+        const min = Number(b?.min);
+        const max = b?.max == null ? null : Number(b.max);
+        const discount = Number(b?.discount);
+        if (!Number.isFinite(min) || min < 1) return true;
+        if (max != null && (!Number.isFinite(max) || max < min)) return true;
+        if (!Number.isFinite(discount) || discount <= 0 || discount > 100) return true;
+        return false;
+      });
+      if (invalid) {
+        this.alerts.open('Các mức giảm theo số lượng chưa hợp lệ (min/max/% giảm).', { appearance: 'error' }).subscribe();
+        return;
+      }
     }
 
-    // 3. Priority Uniqueness Check
+    // Priority duplicate: không hiện cảnh báo BLOCKED trên form, chỉ báo lỗi khi bấm Lưu.
     const priority = this.formData.priority || 0;
     const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
     if (duplicate) {
-      this.alerts.open(`Độ ưu tiên ${priority} đã được sử dụng bởi quy tắc "${duplicate.name}". Vui lòng chọn số khác.`, { 
+      this.alerts.open(`Mức độ ưu tiên đã tồn tại (đang dùng bởi "${duplicate.name}").`, {
         appearance: 'error',
-        label: 'Trùng độ ưu tiên'
       }).subscribe();
       return;
     }

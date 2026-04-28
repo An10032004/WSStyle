@@ -32,9 +32,10 @@ public class NetTermRuleService {
 
     @Transactional
     public NetTermRule createRule(NetTermRuleRequest request) {
+        validateNetTermRuleRequest(request);
         request.setApplyCustomerType("GROUP");
         if (!ruleCoreService.isPriorityUnique("NET_TERM", request.getPriority(), -1)) {
-            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for NET Term Rules.");
+            throw new IllegalArgumentException("Mức độ ưu tiên đã tồn tại.");
         }
         NetTermRule rule = NetTermRule.builder()
                 .name(request.getName())
@@ -50,9 +51,10 @@ public class NetTermRuleService {
 
     @Transactional
     public NetTermRule updateRule(Integer id, NetTermRuleRequest request) {
+        validateNetTermRuleRequest(request);
         request.setApplyCustomerType("GROUP");
         if (!ruleCoreService.isPriorityUnique("NET_TERM", request.getPriority(), id)) {
-            throw new RuntimeException("Priority " + request.getPriority() + " is already taken for NET Term Rules.");
+            throw new IllegalArgumentException("Mức độ ưu tiên đã tồn tại.");
         }
         NetTermRule rule = getRuleById(id);
         rule.setName(request.getName());
@@ -98,5 +100,26 @@ public class NetTermRuleService {
                     .build();
         }
         return NetTermQuoteResponse.builder().eligible(false).build();
+    }
+
+    private void validateNetTermRuleRequest(NetTermRuleRequest request) {
+        String name = request.getName() == null ? "" : request.getName().trim();
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tên quy tắc.");
+        }
+        request.setName(name);
+
+        Integer priority = request.getPriority();
+        if (priority == null || priority < 0) {
+            throw new IllegalArgumentException("Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).");
+        }
+
+        Integer days = request.getNetTermDays();
+        if (days == null || days <= 0) {
+            throw new IllegalArgumentException("Số ngày công nợ phải lớn hơn 0.");
+        }
+        if (days > 365) {
+            throw new IllegalArgumentException("Số ngày công nợ không hợp lệ (tối đa 365 ngày).");
+        }
     }
 }

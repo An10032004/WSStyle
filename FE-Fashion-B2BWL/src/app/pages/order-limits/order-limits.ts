@@ -261,6 +261,23 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    const validationError = this.validateOrderLimitForm();
+    if (validationError) {
+      this.alerts.open(validationError, { appearance: 'error' }).subscribe();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const priority = Number(this.formData.priority || 0);
+    const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
+    if (duplicate) {
+      this.alerts.open(`Mức độ ưu tiên đã tồn tại (đang dùng bởi "${duplicate.name}").`, {
+        appearance: 'error',
+      }).subscribe();
+      this.cdr.detectChanges();
+      return;
+    }
+
     const action = this.editingId ? this.api.updateOrderLimit(this.editingId, this.formData) : this.api.createOrderLimit(this.formData);
     action.subscribe({
       next: () => {
@@ -280,4 +297,86 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void { this.showForm = false; }
+
+  private validateOrderLimitForm(): string | null {
+    const name = String(this.formData.name || '').trim();
+    if (!name) return 'Vui lòng nhập tên quy tắc.';
+    this.formData.name = name;
+
+    const priority = Number(this.formData.priority);
+    if (!Number.isFinite(priority) || priority < 0) {
+      return 'Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).';
+    }
+    this.formData.priority = priority;
+
+    const limitValue = Number(this.formData.limitValue);
+    if (!Number.isFinite(limitValue) || limitValue <= 0) {
+      return 'Ngưỡng giới hạn phải lớn hơn 0.';
+    }
+    this.formData.limitValue = limitValue;
+
+    const pType = String(this.formData.applyProductType || 'ALL').toUpperCase();
+    const pValue = String(this.formData.applyProductValue || '{}');
+    if ((pType === 'CATEGORY' || pType === 'GROUP') && !/categoryIds|categoryId/.test(pValue.replace(/\s+/g, ''))) {
+      return 'Phải chọn đối tượng áp dụng.';
+    }
+    if (pType === 'SPECIFIC' && !/productIds|productId|variantIds|variantId/.test(pValue.replace(/\s+/g, ''))) {
+      return 'Phải chọn đối tượng áp dụng.';
+    }
+
+    const mmError = this.validateMinMaxPair();
+    if (mmError) return mmError;
+
+    return null;
+  }
+
+  private validateMinMaxPair(): string | null {
+    const type = String(this.formData.limitType || '').toUpperCase();
+    const isMin = type.includes('MIN_');
+    const isMax = type.includes('MAX_');
+    if (!isMin && !isMax) return null;
+
+    const currentVal = Number(this.formData.limitValue);
+    const competitors = this.rowData.filter(r => r.id !== this.editingId).filter(r => this.isSameScope(r));
+    for (const r of competitors) {
+      const rt = String(r.limitType || '').toUpperCase();
+      const rv = Number(r.limitValue);
+      if (!Number.isFinite(rv)) continue;
+
+      if (isMin && rt.includes('MAX_') && currentVal > rv) {
+        return 'Ngưỡng tối thiểu không được lớn hơn ngưỡng tối đa.';
+      }
+      if (isMax && rt.includes('MIN_') && currentVal < rv) {
+        return 'Ngưỡng tối đa không được nhỏ hơn ngưỡng tối thiểu.';
+      }
+    }
+    return null;
+  }
+
+  private isSameScope(r: OrderLimit): boolean {
+    const lvlA = String(this.formData.limitLevel || 'PER_ORDER').toUpperCase();
+    const lvlB = String(r.limitLevel || 'PER_ORDER').toUpperCase();
+    const lineA = lvlA === 'PER_PRODUCT' || lvlA === 'PER_VARIANT';
+    const lineB = lvlB === 'PER_PRODUCT' || lvlB === 'PER_VARIANT';
+    const bucketA = lineA ? 'PER_LINE' : lvlA;
+    const bucketB = lineB ? 'PER_LINE' : lvlB;
+    if (bucketA !== bucketB) return false;
+
+    const axisA = String(this.formData.limitType || '').toUpperCase().includes('AMOUNT') || String(this.formData.limitType || '').toUpperCase().includes('VALUE') ? 'AMOUNT' : 'QTY';
+    const rt = String(r.limitType || '').toUpperCase();
+    const axisB = rt.includes('AMOUNT') || rt.includes('VALUE') ? 'AMOUNT' : 'QTY';
+    if (axisA !== axisB) return false;
+
+    const cTypeA = String(this.formData.applyCustomerType || 'ALL').toUpperCase();
+    const cTypeB = String(r.applyCustomerType || 'ALL').toUpperCase();
+    const pTypeA = String(this.formData.applyProductType || 'ALL').toUpperCase();
+    const pTypeB = String(r.applyProductType || 'ALL').toUpperCase();
+    if (cTypeA !== cTypeB || pTypeA !== pTypeB) return false;
+
+    const cvA = String(this.formData.applyCustomerValue || '{}').replace(/\s+/g, '');
+    const cvB = String(r.applyCustomerValue || '{}').replace(/\s+/g, '');
+    const pvA = String(this.formData.applyProductValue || '{}').replace(/\s+/g, '');
+    const pvB = String(r.applyProductValue || '{}').replace(/\s+/g, '');
+    return cvA === cvB && pvA === pvB;
+  }
 }

@@ -192,6 +192,7 @@ public class ShippingRuleService {
 
     @Transactional
     public ShippingRule createRule(ShippingRuleRequest request) {
+        validateShippingRuleRequest(request);
         ShippingRule rule = ShippingRule.builder()
                 .name(request.getName())
                 .priority(request.getPriority())
@@ -210,6 +211,7 @@ public class ShippingRuleService {
 
     @Transactional
     public ShippingRule updateRule(Integer id, ShippingRuleRequest request) {
+        validateShippingRuleRequest(request);
         ShippingRule rule = getRuleById(id);
         rule.setName(request.getName());
         rule.setPriority(request.getPriority());
@@ -228,5 +230,65 @@ public class ShippingRuleService {
     @Transactional
     public void deleteRule(Integer id) {
         shippingRuleRepository.deleteById(id);
+    }
+
+    private void validateShippingRuleRequest(ShippingRuleRequest request) {
+        String name = request.getName() == null ? "" : request.getName().trim();
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tên quy tắc.");
+        }
+        request.setName(name);
+
+        Integer priority = request.getPriority();
+        if (priority == null || priority < 0) {
+            throw new IllegalArgumentException("Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).");
+        }
+
+        String rateRanges = request.getRateRanges();
+        if (rateRanges == null || rateRanges.isBlank()) {
+            throw new IllegalArgumentException("Phải có ít nhất một khoảng phí hợp lệ.");
+        }
+
+        try {
+            JsonNode arr = objectMapper.readTree(rateRanges);
+            if (!arr.isArray() || arr.isEmpty()) {
+                throw new IllegalArgumentException("Phải có ít nhất một khoảng phí hợp lệ.");
+            }
+
+            BigDecimal prevMax = null;
+            for (JsonNode node : arr) {
+                BigDecimal from = readBound(node, "from", "min", null);
+                BigDecimal to = readBound(node, "to", "max", null);
+                if (from == null || to == null) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: thiếu mốc từ/đến.");
+                }
+                if (from.compareTo(BigDecimal.ZERO) < 0 || to.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: giá trị không được âm.");
+                }
+                if (to.compareTo(from) < 0) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: mốc 'đến' phải >= mốc 'từ'.");
+                }
+
+                JsonNode rateNode = node.get("rate");
+                if (rateNode == null || rateNode.isNull()) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: thiếu phí vận chuyển.");
+                }
+                BigDecimal rate = rateNode.isNumber()
+                        ? rateNode.decimalValue()
+                        : new BigDecimal(rateNode.asText().replace(",", "").trim());
+                if (rate.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: phí vận chuyển không được âm.");
+                }
+
+                if (prevMax != null && from.compareTo(prevMax) <= 0) {
+                    throw new IllegalArgumentException("Khoảng giá không hợp lý: các khoảng bị chồng lấn.");
+                }
+                prevMax = to;
+            }
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Cấu hình khoảng phí không hợp lệ.");
+        }
     }
 }

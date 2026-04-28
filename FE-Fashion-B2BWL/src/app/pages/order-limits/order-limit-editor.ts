@@ -273,7 +273,7 @@ import { SelectedVariantsPreviewComponent } from '../../shared/components/select
 
           <div class="actions-footer">
              <button tuiButton type="button" appearance="secondary" size="l" (click)="cancel.emit()">{{ 'GLOBAL.CANCEL' | transloco }}</button>
-             <button tuiButton type="button" appearance="primary" size="l" [disabled]="hasBlockingConflict()" (click)="save.emit(rule)">{{ 'GLOBAL.SAVE' | transloco }}</button>
+             <button tuiButton type="button" appearance="primary" size="l" (click)="save.emit(rule)">{{ 'GLOBAL.SAVE' | transloco }}</button>
           </div>
         </div>
 
@@ -543,11 +543,6 @@ export class OrderLimitEditorComponent implements OnInit, OnChanges {
 
   private scheduleConflictCheck(): void {
     this.conflictCheck$.next();
-  }
-
-  /** Trùng priority với quy tắc khác — không cho lưu (đồng bộ thông báo BLOCKED phía trên). */
-  hasBlockingConflict(): boolean {
-    return this.conflicts.some(c => c.startsWith('BLOCKED'));
   }
 
   private runConflictCheck(): Observable<string[]> {

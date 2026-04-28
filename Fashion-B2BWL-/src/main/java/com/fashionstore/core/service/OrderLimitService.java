@@ -62,6 +62,7 @@ public class OrderLimitService {
 
     @Transactional
     public OrderLimit createRule(OrderLimitRequest request) {
+        validateOrderLimitRequest(request, null);
         assertUniquePriority(request.getPriority(), null);
         OrderLimit rule = OrderLimit.builder()
                 .name(request.getName())
@@ -84,6 +85,7 @@ public class OrderLimitService {
 
     @Transactional
     public OrderLimit updateRule(Integer id, OrderLimitRequest request) {
+        validateOrderLimitRequest(request, id);
         assertUniquePriority(request.getPriority(), id);
         OrderLimit rule = getRuleById(id);
         rule.setName(request.getName());
@@ -514,5 +516,131 @@ public class OrderLimitService {
                                 + "\". Mỗi quy tắc MOQ/MOV phải có mức ưu tiên khác nhau.");
             }
         }
+    }
+
+    private void validateOrderLimitRequest(OrderLimitRequest request, Integer excludeRuleId) {
+        String name = request.getName() == null ? "" : request.getName().trim();
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tên quy tắc.");
+        }
+        request.setName(name);
+
+        Integer priority = request.getPriority();
+        if (priority == null || priority < 0) {
+            throw new IllegalArgumentException("Vui lòng nhập mức độ ưu tiên hợp lệ (>= 0).");
+        }
+
+        String level = request.getLimitLevel() == null ? "" : request.getLimitLevel().trim();
+        if (level.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn cấp độ giới hạn (MOQ/MOV).");
+        }
+
+        String type = request.getLimitType() == null ? "" : request.getLimitType().trim();
+        if (type.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn loại ngưỡng giới hạn.");
+        }
+
+        BigDecimal limitValue = request.getLimitValue();
+        if (limitValue == null || limitValue.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Ngưỡng giới hạn phải lớn hơn 0.");
+        }
+
+        validateApplyTarget(request);
+        validateMinMaxConsistency(request, excludeRuleId);
+    }
+
+    private void validateApplyTarget(OrderLimitRequest request) {
+        String applyType = request.getApplyProductType() == null ? "ALL" : request.getApplyProductType().trim().toUpperCase();
+        String productValue = request.getApplyProductValue() == null ? "{}" : request.getApplyProductValue();
+        if ("CATEGORY".equals(applyType) || "GROUP".equals(applyType)) {
+            String normalized = productValue.replaceAll("\\s+", "");
+            if (!normalized.contains("categoryIds") && !normalized.contains("categoryId")) {
+                throw new IllegalArgumentException("Phải chọn đối tượng áp dụng.");
+            }
+            return;
+        }
+        if ("SPECIFIC".equals(applyType)) {
+            String normalized = productValue.replaceAll("\\s+", "");
+            boolean hasProducts = normalized.contains("productIds") || normalized.contains("productId");
+            boolean hasVariants = normalized.contains("variantIds") || normalized.contains("variantId");
+            if (!hasProducts && !hasVariants) {
+                throw new IllegalArgumentException("Phải chọn đối tượng áp dụng.");
+            }
+        }
+    }
+
+    private void validateMinMaxConsistency(OrderLimitRequest request, Integer excludeRuleId) {
+        String type = request.getLimitType();
+        if (type == null) {
+            return;
+        }
+
+        boolean isMinQty = isMinQuantityType(type);
+        boolean isMaxQty = isMaxQuantityType(type);
+        boolean isMinAmt = isMinValueType(type);
+        boolean isMaxAmt = isMaxAmountType(type);
+        if (!isMinQty && !isMaxQty && !isMinAmt && !isMaxAmt) {
+            return;
+        }
+
+        for (OrderLimit e : orderLimitRepository.findAll()) {
+            if (excludeRuleId != null && Objects.equals(excludeRuleId, e.getId())) {
+                continue;
+            }
+            if (!sameExclusiveCompetitionBucketForRequest(request, e)) {
+                continue;
+            }
+            if (!sameTargetingForRequest(request, e)) {
+                continue;
+            }
+            BigDecimal ev = e.getLimitValue();
+            if (ev == null) {
+                continue;
+            }
+
+            if ((isMinQty && isMaxQuantityType(e.getLimitType())) || (isMinAmt && isMaxAmountType(e.getLimitType()))) {
+                if (request.getLimitValue().compareTo(ev) > 0) {
+                    throw new IllegalArgumentException("Ngưỡng tối thiểu không được lớn hơn ngưỡng tối đa.");
+                }
+            }
+            if ((isMaxQty && isMinQuantityType(e.getLimitType())) || (isMaxAmt && isMinValueType(e.getLimitType()))) {
+                if (request.getLimitValue().compareTo(ev) < 0) {
+                    throw new IllegalArgumentException("Ngưỡng tối đa không được nhỏ hơn ngưỡng tối thiểu.");
+                }
+            }
+        }
+    }
+
+    private boolean sameExclusiveCompetitionBucketForRequest(OrderLimitRequest req, OrderLimit e) {
+        String reqLevel = req.getLimitLevel() == null ? "PER_ORDER" : req.getLimitLevel();
+        String eLevel = e.getLimitLevel() == null ? "PER_ORDER" : e.getLimitLevel();
+        String l1 = isPerLineLevel(reqLevel) ? "PER_LINE" : reqLevel;
+        String l2 = isPerLineLevel(eLevel) ? "PER_LINE" : eLevel;
+        if (!Objects.equals(l1, l2)) {
+            return false;
+        }
+
+        String t1 = req.getLimitType();
+        String t2 = e.getLimitType();
+        boolean qty1 = isMinQuantityType(t1) || isMaxQuantityType(t1);
+        boolean qty2 = isMinQuantityType(t2) || isMaxQuantityType(t2);
+        boolean amt1 = isMinValueType(t1) || isMaxAmountType(t1);
+        boolean amt2 = isMinValueType(t2) || isMaxAmountType(t2);
+        return (qty1 && qty2) || (amt1 && amt2);
+    }
+
+    private boolean sameTargetingForRequest(OrderLimitRequest req, OrderLimit e) {
+        String c1 = req.getApplyCustomerType() == null ? "ALL" : req.getApplyCustomerType();
+        String c2 = e.getApplyCustomerType() == null ? "ALL" : e.getApplyCustomerType();
+        String p1 = req.getApplyProductType() == null ? "ALL" : req.getApplyProductType();
+        String p2 = e.getApplyProductType() == null ? "ALL" : e.getApplyProductType();
+        String cv1 = req.getApplyCustomerValue() == null ? "{}" : req.getApplyCustomerValue();
+        String cv2 = e.getApplyCustomerValue() == null ? "{}" : e.getApplyCustomerValue();
+        String pv1 = req.getApplyProductValue() == null ? "{}" : req.getApplyProductValue();
+        String pv2 = e.getApplyProductValue() == null ? "{}" : e.getApplyProductValue();
+        return Objects.equals(c1, c2)
+                && Objects.equals(p1, p2)
+                && Objects.equals(cv1.replaceAll("\\s+", ""), cv2.replaceAll("\\s+", ""))
+                && Objects.equals(pv1.replaceAll("\\s+", ""), pv2.replaceAll("\\s+", ""));
     }
 }

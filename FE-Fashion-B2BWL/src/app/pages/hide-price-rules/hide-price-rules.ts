@@ -292,13 +292,20 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
       this.formData.applyProductValue = '{}';
     }
 
-    // Priority Uniqueness Check
-    const priority = this.formData.priority || 0;
+    const validationError = this.validateHidePriceRuleForm();
+    if (validationError) {
+      this.alerts.open(validationError, {
+        appearance: 'error',
+      }).subscribe();
+      return;
+    }
+
+    // Priority duplicate: chỉ báo khi bấm Lưu.
+    const priority = Number(this.formData.priority || 0);
     const duplicate = this.rowData.find(r => r.priority === priority && r.id !== this.editingId);
     if (duplicate) {
-      this.alerts.open(`Độ ưu tiên ${priority} đã được sử dụng bởi quy tắc "${duplicate.name}". Vui lòng chọn số khác.`, { 
+      this.alerts.open('Quy tắc trùng mức độ ưu tiên', {
         appearance: 'error',
-        label: 'Trùng độ ưu tiên'
       }).subscribe();
       return;
     }
@@ -368,5 +375,32 @@ export class HidePriceRulesComponent implements OnInit, OnDestroy {
     this.selectedVariantIds = ev.variantIds;
     this.selectedProducts = this.products.filter(p => ev.productIds.includes(p.id));
     this.cdr.markForCheck();
+  }
+
+  private validateHidePriceRuleForm(): string | null {
+    const name = String(this.formData.name || '').trim();
+    if (!name) {
+      return 'Tên quy tắc không được để trống';
+    }
+    this.formData.name = name;
+
+    const priority = Number(this.formData.priority);
+    if (!Number.isFinite(priority) || priority < 0) {
+      return 'Dữ liệu không hợp lệ';
+    }
+    this.formData.priority = priority;
+
+    const hidePrice = !!this.formData.hidePrice;
+    const hideAddToCart = !!this.formData.hideAddToCart;
+    if (!hidePrice && !hideAddToCart) {
+      return 'Quy tắc phải có ít nhất một hành động ẩn';
+    }
+
+    const cType = String(this.formData.applyCustomerType || '').toUpperCase();
+    if (!['ALL', 'GUEST', 'LOGGED_IN', 'GROUP'].includes(cType)) {
+      return 'Loại đối tượng không hợp lệ';
+    }
+
+    return null;
   }
 }

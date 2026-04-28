@@ -7,7 +7,7 @@ import { TuiNotification } from '@taiga-ui/core';
   standalone: true,
   imports: [CommonModule, TuiNotification],
   template: `
-    <div *ngFor="let msg of conflicts" style="margin-bottom: 12px;">
+    <div *ngFor="let msg of visibleConflicts" style="margin-bottom: 12px;">
       <tui-notification
         [appearance]="getAppearance(msg)"
       >
@@ -19,6 +19,14 @@ import { TuiNotification } from '@taiga-ui/core';
 })
 export class RuleConflictWarningComponent {
   @Input() conflicts: string[] = [];
+
+  get visibleConflicts(): string[] {
+    return (this.conflicts || []).filter(msg => {
+      const m = String(msg || '').toLowerCase();
+      // Không hiển thị các cảnh báo/nhãn chặn liên quan ưu tiên trên FE.
+      return !(m.includes('blocked') || m.includes('priority') || m.includes('ưu tiên'));
+    });
+  }
 
   getAppearance(msg: string): 'warning' | 'error' | 'info' {
     if (msg.startsWith('WARNING:')) return 'warning';
