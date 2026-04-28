@@ -26,7 +26,8 @@ import {
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, User, CustomerGroup } from '../../services/api.service';
+import { ApiService, User, CustomerGroup, Role } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
 import { ActionRendererComponent } from '../../shared/components/action-renderer/action-renderer.component';
@@ -34,6 +35,17 @@ import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 import { adminRegistrationStatusPillClass, escapeHtml } from '../../utils/admin-status-pills';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+/** Đồng bộ backend {@code UserService.REGISTER_EMAIL_FORMAT} */
+const ADMIN_EMAIL_FORMAT = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+/** Form /staff + tài khoản nội bộ tại trang này */
+const STAFF_EMAIL_FORMAT = ADMIN_EMAIL_FORMAT;
+/** Đồng bộ backend {@code UserService.VIETNAM_PHONE_10} / đăng ký storefront */
+const ADMIN_PHONE_VN = /^0[0-9]{9}$/;
+const STAFF_PHONE_VN = ADMIN_PHONE_VN;
+
+/** Vai trò chính nội bộ — đồng bộ {@code UserService.isAllowedInternalPrimaryRole} */
+const INTERNAL_PRIMARY_UPPER = new Set(['ADMIN', 'STAFF', 'ADMINISTRATOR', 'SUPER_ADMIN']);
 
 @Component({
   selector: 'app-users',
@@ -57,6 +69,8 @@ export class UsersComponent implements OnInit, OnDestroy {
   selectedUser: User | null = null;
 
   rowData: User[] = [];
+  /** Tài khoản quản trị / nhân viên (lọc theo vai trò chính nội bộ). */
+  staffAdminRowData: User[] = [];
   customerGroups: CustomerGroup[] = [];
   gridApi!: GridApi;
   columnDefs: ColDef[] = [];
@@ -64,6 +78,11 @@ export class UsersComponent implements OnInit, OnDestroy {
   
   showForm = false;
   editingId: number | null = null;
+  /** Sửa tài khoản admin/staff từ bảng nội bộ: validate & payload giống /staff. */
+  isEditingInternalAccount = false;
+  allRoles: Role[] = [];
+  assignedRoleOptions: string[] = [];
+  currentIsAdmin = false;
   
   formData: any = {
     fullName: '',
@@ -72,7 +91,8 @@ export class UsersComponent implements OnInit, OnDestroy {
     customerGroupId: null,
     registrationStatus: 'APPROVED',
     companyName: '',
-    taxCode: ''
+    taxCode: '',
+    assignedRole: null as string | null
   };
 
   formErrors: Record<string, string> = {};
@@ -88,6 +108,31 @@ export class UsersComponent implements OnInit, OnDestroy {
     return group ? group.name : 'None';
   }
 
+  /** Vai trò hiển thị khi sửa tài khoản nội bộ (vai trò chính + phụ, ví dụ STAFF + WHOLESALE). */
+  get internalFormRoles(): string[] {
+    if (!this.isEditingInternalAccount) return [];
+    const raw = (this.formData as any)?.roles;
+    if (Array.isArray(raw) && raw.length) return raw;
+    return this.formData?.role ? [String(this.formData.role)] : [];
+  }
+
+  /** Khách sỉ như vai trò phụ hoặc chính — hiển thị / gửi nhóm chỉ định. */
+  isInternalWholesaleForm(): boolean {
+    if (!this.isEditingInternalAccount) return false;
+    return this.internalFormRoles.some((r) => String(r).toUpperCase() === 'WHOLESALE');
+  }
+
+  /** Chọn nhóm khách: lưới khách khi WHOLESALE; form nội bộ khi có WHOLESALE trong vai trò. */
+  showCustomerGroupSelector(): boolean {
+    if (this.isEditingInternalAccount) return this.isInternalWholesaleForm();
+    return this.isWholesaleCustomerRole();
+  }
+
+  /** Gợi ý “chỉ wholesale mới chọn nhóm” — chỉ cho luồng khách (không nội bộ). */
+  showRetailCustomerGroupHint(): boolean {
+    return !this.isEditingInternalAccount && !this.isWholesaleCustomerRole();
+  }
+
   private langSub?: Subscription;
 
   constructor(
@@ -96,12 +141,34 @@ export class UsersComponent implements OnInit, OnDestroy {
     private dialogs: TuiDialogService,
     private cdr: ChangeDetectorRef, 
     private transloco: TranslocoService, 
-    private languageService: LanguageService
+    private languageService: LanguageService,
+    private auth: AuthService
   ) {}
 
   ngOnInit(): void {
     this.updateColumnDefs();
     this.loadData();
+    this.api.getRoles().subscribe((roles: Role[]) => {
+      this.allRoles = roles || [];
+      const currentUser = this.auth.currentUserValue;
+      this.currentIsAdmin = false;
+      if (currentUser && currentUser.role) {
+        const myRole = this.allRoles.find(
+          (r) => r.name && r.name.toUpperCase() === (currentUser.role || '').toUpperCase(),
+        );
+        this.currentIsAdmin =
+          !!(myRole && myRole.isAdmin) ||
+          ['ADMIN', 'ADMINISTRATOR', 'SUPER_ADMIN'].includes((currentUser.role || '').toUpperCase());
+      }
+      this.updateAssignedRoleOptions();
+      if (this.isEditingInternalAccount && this.formData?.assignedRole) {
+        const ar = String(this.formData.assignedRole);
+        if (!this.assignedRoleOptions.includes(ar)) {
+          this.assignedRoleOptions = [...this.assignedRoleOptions, ar];
+        }
+      }
+      this.cdr.markForCheck();
+    });
     this.api.getCustomerGroups().subscribe(groups => {
       this.customerGroups = groups;
       this.cdr.detectChanges();
@@ -121,10 +188,9 @@ export class UsersComponent implements OnInit, OnDestroy {
 
 
   loadData(): void {
-    // Fetch all users and compute composite roles (primary + secondary)
     const customerRoles = ['RETAIL', 'WHOLESALE', 'GUEST', 'CUSTOMER'];
     this.api.getUsers().subscribe(data => {
-      const processed = data.map(u => {
+      const processed = data.map((u) => {
         const roles: string[] = [];
         if (u.role) roles.push(u.role);
         if (u.tags) {
@@ -136,15 +202,50 @@ export class UsersComponent implements OnInit, OnDestroy {
                 if (typeof r === 'string' && r && !roles.includes(r)) roles.push(r);
               }
             }
-          } catch (e) { /* ignore tags parse errors */ }
+            if (t && t.assignedRole) {
+              (u as any).assignedRole = t.assignedRole;
+            }
+          } catch (e) { /* ignore */ }
         }
         (u as any).roles = roles;
         return u;
-      }).filter(u => (u as any).roles.some((r: string) => customerRoles.includes(r)));
+      });
 
-      this.rowData = processed;
-      this.cdr.detectChanges();
+      this.staffAdminRowData = processed.filter((u) => this.isInternalPrimaryUser(u));
+      this.rowData = processed.filter(
+        (u) =>
+          !this.isInternalPrimaryUser(u) &&
+          (u as any).roles.some((r: string) => customerRoles.includes(r)),
+      );
+      this.cdr.markForCheck();
     });
+  }
+
+  /** Đồng bộ backend: vai trò chính nội bộ (admin / staff / super-user). */
+  isInternalPrimaryUser(u: User | null | undefined): boolean {
+    const p = (u?.role || '').trim();
+    if (!p) return false;
+    return INTERNAL_PRIMARY_UPPER.has(p.toUpperCase());
+  }
+
+  private updateAssignedRoleOptions(): void {
+    if (!this.allRoles?.length) {
+      this.assignedRoleOptions = [];
+      return;
+    }
+    const primary = (this.formData && this.formData.role)
+      ? String(this.formData.role).toUpperCase()
+      : 'STAFF';
+    let options: Role[] = [];
+    if (primary === 'ADMIN' || primary === 'ADMINISTRATOR' || primary === 'SUPER_ADMIN') {
+      options = this.allRoles.filter((r) => !!r.isAdmin);
+    } else {
+      options = this.allRoles.filter((r) => !r.isAdmin);
+    }
+    if (!this.currentIsAdmin) {
+      options = options.filter((r) => !r.isAdmin);
+    }
+    this.assignedRoleOptions = options.map((r) => r.name);
   }
 
   updateColumnDefs(): void {
@@ -165,8 +266,8 @@ export class UsersComponent implements OnInit, OnDestroy {
         cellRenderer: (params: any) => {
           const roles: string[] = params.data?.roles ?? (params.value ? [params.value] : []);
           return roles.map((r: string, i: number) => {
-            const cls = i === 0 ? 'tui-badge_primary' : 'tui-badge_outline';
-            return `<span class="tui-badge ${cls}" style="margin-right:6px">${this.transloco.translate('ENUMS.' + r)}</span>`;
+            const chip = i === 0 ? 'role-chip role-chip--primary' : 'role-chip role-chip--secondary';
+            return `<span class="${chip}">${this.transloco.translate('ENUMS.' + r)}</span>`;
           }).join(' ');
         }
       },
@@ -278,9 +379,11 @@ export class UsersComponent implements OnInit, OnDestroy {
 
   onAdd(): void {
     this.editingId = null;
+    this.isEditingInternalAccount = false;
     this.formData = {
       email: '', password: '', fullName: '', phone: '', role: 'RETAIL',
-      customerGroupId: null, registrationStatus: 'APPROVED', companyName: '', taxCode: ''
+      customerGroupId: null, registrationStatus: 'APPROVED', companyName: '', taxCode: '',
+      assignedRole: null
     };
     this.showForm = true;
     this.cdr.detectChanges();
@@ -333,14 +436,41 @@ export class UsersComponent implements OnInit, OnDestroy {
 
   onEdit(user: User): void {
     this.editingId = user.id;
-    this.formData = { 
-      ...user, 
+    this.isEditingInternalAccount = this.isInternalPrimaryUser(user);
+
+    let assignedFromTags: string | null = null;
+    if (user.tags) {
+      try {
+        const t = JSON.parse(user.tags);
+        assignedFromTags = t?.assignedRole ?? null;
+      } catch (e) {
+        assignedFromTags = null;
+      }
+    }
+
+    this.formData = {
+      ...user,
       customerGroupId: user.customerGroup?.id || null,
-      password: '' // Don't show password hash
+      password: '',
+      assignedRole: this.isEditingInternalAccount ? (assignedFromTags ?? null) : null,
     };
-    if (this.formData.role !== 'WHOLESALE') {
+    const effRoles: string[] = Array.isArray((user as any).roles)
+      ? [...(user as any).roles]
+      : user.role
+        ? [user.role]
+        : [];
+    const hasWholesale = effRoles.some((r) => String(r).toUpperCase() === 'WHOLESALE');
+    if (!hasWholesale) {
       this.formData.customerGroupId = null;
     }
+
+    if (this.isEditingInternalAccount) {
+      this.updateAssignedRoleOptions();
+      if (assignedFromTags && !this.assignedRoleOptions.includes(assignedFromTags)) {
+        this.assignedRoleOptions = [...this.assignedRoleOptions, assignedFromTags];
+      }
+    }
+
     this.showForm = true;
     this.cdr.detectChanges();
   }
@@ -364,7 +494,84 @@ export class UsersComponent implements OnInit, OnDestroy {
       });
   }
 
+  private findUserInLists(id: number): User | undefined {
+    return this.rowData.find((r) => r.id === id) ?? this.staffAdminRowData.find((r) => r.id === id);
+  }
+
+  private buildInternalStaffFormErrors(): Record<string, string> {
+    const err: Record<string, string> = {};
+    const em = (this.formData.email && String(this.formData.email).trim()) || '';
+    if (!em) {
+      err['email'] = 'Email không được để trống.';
+    } else if (!STAFF_EMAIL_FORMAT.test(em)) {
+      err['email'] = 'Định dạng email chưa đúng.';
+    }
+    const pwd = this.formData.password != null ? String(this.formData.password) : '';
+    if (pwd.length > 0 && pwd.length < 6) {
+      err['password'] = 'Mật khẩu mới tối thiểu 6 ký tự hoặc để trống.';
+    }
+    const fn = (this.formData.fullName && String(this.formData.fullName).trim()) || '';
+    if (!fn) {
+      err['fullName'] = 'Họ và tên không được để trống.';
+    }
+    const ph = (this.formData.phone && String(this.formData.phone).trim()) || '';
+    if (!ph) {
+      err['phone'] = 'SĐT không được để trống.';
+    } else if (!STAFF_PHONE_VN.test(ph)) {
+      err['phone'] = 'SĐT phải có 10 chữ số và bắt đầu bằng số 0.';
+    }
+    const ar = this.formData.assignedRole;
+    if (ar == null || ar === '' || (typeof ar === 'string' && !ar.trim())) {
+      err['assignedRole'] = 'Phải chọn quyền hệ thống (gán quyền) cho tài khoản nội bộ.';
+    }
+    return err;
+  }
+
   onSubmit(): void {
+    if (this.isEditingInternalAccount && this.editingId) {
+      this.clearFormErrors();
+      const validation = this.buildInternalStaffFormErrors();
+      if (Object.keys(validation).length) {
+        this.formErrors = validation;
+        this.alerts.open('Vui lòng kiểm tra các trường trên form (tài khoản nội bộ).', { appearance: 'warning' }).subscribe();
+        this.cdr.markForCheck();
+        return;
+      }
+      const payload: any = { ...this.formData };
+      payload.staffModule = true;
+      payload.phone = (this.formData.phone && String(this.formData.phone).trim()) || '';
+      if (this.isInternalWholesaleForm()) {
+        payload.customerGroupId = this.formData.customerGroupId ?? null;
+      } else {
+        payload.customerGroupId = null;
+      }
+
+      let tagsObj: any = {};
+      if (payload.tags) {
+        try { tagsObj = JSON.parse(payload.tags) || {}; } catch (e) { tagsObj = {}; }
+      }
+      if (payload.assignedRole) {
+        tagsObj.assignedRole = payload.assignedRole;
+      } else if (tagsObj.assignedRole) {
+        delete tagsObj.assignedRole;
+      }
+      payload.tags = Object.keys(tagsObj).length ? JSON.stringify(tagsObj) : null;
+      if (payload.password === '' || payload.password == null) {
+        delete payload.password;
+      }
+
+      this.api.updateUser(this.editingId, payload).subscribe({
+        next: () => {
+          this.alerts.open(this.transloco.translate('GLOBAL.UPDATE_SUCCESS'), { appearance: 'success' }).subscribe();
+          this.showForm = false;
+          this.isEditingInternalAccount = false;
+          this.loadData();
+        },
+        error: (err) => this.handleApiError(err),
+      });
+      return;
+    }
+
     // Prevent Users page from assigning permission roles when creating a new user,
     // but preserve existing assignedRole when editing other fields (e.g., customer group).
     const payload: any = { ...this.formData };
@@ -386,31 +593,51 @@ export class UsersComponent implements OnInit, OnDestroy {
       // Editing existing user: ensure tags is preserved (don't remove assignedRole)
       // If tags missing for any reason, try to keep the original tags from rowData
       if (payload.tags === undefined || payload.tags === null) {
-        const original = this.rowData.find(r => r.id === this.editingId);
+        const original = this.editingId != null ? this.findUserInLists(this.editingId) : undefined;
         if (original) payload.tags = (original as any).tags ?? null;
       }
     }
 
-    const action = this.editingId
-      ? this.api.updateUser(this.editingId, payload)
-      : this.api.createUser(payload);
     this.clearFormErrors();
-    // Client-side required checks for new user
+    const missing: string[] = [];
+
+    // Thêm mới: email + họ tên (+ SĐT dưới đây chung thêm/sửa)
     if (!this.editingId) {
-      const missing: string[] = [];
+      const em = (this.formData.email && String(this.formData.email).trim()) || '';
+      if (!em) {
+        this.formErrors['email'] = 'Email không được để trống.';
+        missing.push('Email');
+      } else if (!ADMIN_EMAIL_FORMAT.test(em)) {
+        this.formErrors['email'] = 'Định dạng email chưa đúng.';
+        missing.push('Email');
+      }
       if (!this.formData.fullName || !String(this.formData.fullName).trim()) {
         this.formErrors['fullName'] = 'Họ tên không được để trống';
         missing.push('Họ tên');
       }
-      if (!this.formData.phone || !String(this.formData.phone).trim()) {
-        this.formErrors['phone'] = 'Số điện thoại không được để trống';
-        missing.push('Số điện thoại');
-      }
-      if (missing.length) {
-        this.alerts.open(`Vui lòng nhập: ${missing.join(', ')}`, { appearance: 'warning' }).subscribe();
-        return;
-      }
     }
+
+    // Thêm + sửa: SĐT VN 10 số bắt đầu 0 (đồng bộ backend)
+    const ph = (this.formData.phone && String(this.formData.phone).trim()) || '';
+    if (!ph) {
+      this.formErrors['phone'] = 'SĐT không được để trống.';
+      missing.push('Số điện thoại');
+    } else if (!ADMIN_PHONE_VN.test(ph)) {
+      this.formErrors['phone'] = 'SĐT phải có 10 chữ số và bắt đầu bằng số 0.';
+      missing.push('Số điện thoại');
+    }
+
+    if (missing.length) {
+      this.alerts.open(`Vui lòng kiểm tra: ${missing.join(', ')}`, { appearance: 'warning' }).subscribe();
+      this.cdr.markForCheck();
+      return;
+    }
+
+    payload.phone = ph;
+
+    const action = this.editingId
+      ? this.api.updateUser(this.editingId, payload)
+      : this.api.createUser(payload);
 
     action.subscribe({ next: () => {
       const msg = this.editingId ? 'GLOBAL.UPDATE_SUCCESS' : 'GLOBAL.CREATE_SUCCESS';
@@ -420,7 +647,14 @@ export class UsersComponent implements OnInit, OnDestroy {
     }, error: (err) => this.handleApiError(err) });
   }
 
-  cancel(): void { this.showForm = false; }
+  cancel(): void {
+    this.showForm = false;
+    this.isEditingInternalAccount = false;
+  }
+
+  trackByUserId(_index: number, u: User): number {
+    return u.id;
+  }
 
   isWholesaleCustomerRole(): boolean {
     return this.formData?.role === 'WHOLESALE';
@@ -444,6 +678,16 @@ export class UsersComponent implements OnInit, OnDestroy {
     const key = `REGISTRATION_STATUS.${c}`;
     const t = this.transloco.translate(key);
     return t !== key ? t : String(code);
+  }
+
+  /** Cùng style pill như cột trạng thái trên lưới khách. */
+  dealerStatusPillClass(status: string | null | undefined): string {
+    return adminRegistrationStatusPillClass(status);
+  }
+
+  /** Hiển thị nút duyệt hồ sơ đại lý (PENDING) — áp dụng cho nhân viên đăng ký khách sỉ nhưng chỉ nằm ở bảng nội bộ. */
+  showApproveDealer(user: User): boolean {
+    return (user.registrationStatus || '').toUpperCase() === 'PENDING';
   }
 
   /** Một dòng địa chỉ / tỉnh cho lưới admin (parse JSON hồ sơ). */

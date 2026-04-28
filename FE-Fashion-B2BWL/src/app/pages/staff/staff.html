@@ -56,15 +56,31 @@
         <label tuiLabel>
           {{ 'MEMBER.EMAIL' | transloco }}
           <tui-textfield>
-            <input tuiTextfield type="email" [(ngModel)]="formData.email" />
+            <input tuiTextfield type="email" autocomplete="email" [(ngModel)]="formData.email" />
           </tui-textfield>
+          <div *ngIf="formErrors['email']" class="field-error">{{ formErrors['email'] }}</div>
         </label>
 
         <label tuiLabel *ngIf="!editingId">
           {{ 'MEMBER.PASSWORD' | transloco }}
           <tui-textfield>
-            <input tuiTextfield type="password" [(ngModel)]="formData.password" />
+            <input tuiTextfield type="password" [(ngModel)]="formData.password" autocomplete="new-password" />
           </tui-textfield>
+          <div *ngIf="formErrors['password']" class="field-error">{{ formErrors['password'] }}</div>
+        </label>
+
+        <label tuiLabel *ngIf="editingId">
+          {{ 'MEMBER.PASSWORD' | transloco }}
+          <tui-textfield>
+            <input
+              tuiTextfield
+              type="password"
+              [(ngModel)]="formData.password"
+              placeholder="Để trống nếu không đổi"
+              autocomplete="new-password"
+            />
+          </tui-textfield>
+          <div *ngIf="formErrors['password']" class="field-error">{{ formErrors['password'] }}</div>
         </label>
 
         <label tuiLabel>
@@ -72,13 +88,22 @@
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.fullName" />
           </tui-textfield>
+          <div *ngIf="formErrors['fullName']" class="field-error">{{ formErrors['fullName'] }}</div>
         </label>
 
         <label tuiLabel>
           {{ 'MEMBER.PHONE' | transloco }}
           <tui-textfield>
-            <input tuiTextfield [(ngModel)]="formData.phone" />
+            <input
+              tuiTextfield
+              type="tel"
+              inputmode="numeric"
+              maxlength="10"
+              autocomplete="tel"
+              [(ngModel)]="formData.phone"
+            />
           </tui-textfield>
+          <div *ngIf="formErrors['phone']" class="field-error">{{ formErrors['phone'] }}</div>
         </label>
 
         <div class="role-field">
@@ -116,7 +141,7 @@
         </div>
 
         <label tuiLabel>
-          {{ 'MEMBER.ASSIGNED_ROLE' | transloco }}
+          {{ 'MEMBER.ASSIGNED_ROLE' | transloco }} <span class="required-mark">*</span>
           <tui-select [(ngModel)]="formData.assignedRole">
             <tui-data-list-wrapper
               *tuiDataList
@@ -127,6 +152,7 @@
               {{ 'ENUMS.' + item | transloco }}
             </ng-template>
           </tui-select>
+          <div *ngIf="formErrors['assignedRole']" class="field-error">{{ formErrors['assignedRole'] }}</div>
         </label>
 
         <!-- customer group removed from staff form -->

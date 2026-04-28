@@ -1,5 +1,15 @@
 @use '../../shared/styles/admin-page' as *;
 
+.required-mark {
+  color: var(--tui-status-error);
+}
+
+.field-error {
+  font-size: 0.9rem;
+  color: var(--tui-status-warning);
+  margin-top: 6px;
+}
+
 .staff-page > .grid-wrapper {
   margin: 0;
 }

@@ -1,5 +1,6 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.constant.CouponValidationMessages;
 import com.fashionstore.core.model.Coupon;
 import com.fashionstore.core.repository.CouponRepository;
 import com.fashionstore.core.repository.OrderRepository;
@@ -39,6 +40,10 @@ public class CouponService {
         return n;
     }
 
+    /**
+     * Cửa sổ hiệu lực theo lịch: khoảng thời gian đóng {@code [startDate, endDate]} — hai cận đều được tính
+     * (đúng phút bắt đầu / kết thúc). Một phía {@code null} = không giới hạn ở phía đó.
+     */
     public boolean isWithinSchedule(Coupon c) {
         LocalDateTime now = LocalDateTime.now();
         if (c.getStartDate() != null && now.isBefore(c.getStartDate())) {
@@ -48,6 +53,85 @@ public class CouponService {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Validate payload admin (thêm/sửa). {@code existingCouponId} = id bản ghi khi sửa (trừ trùng mã).
+     */
+    public void validateAdminPayload(Coupon c, Integer existingCouponId) {
+        if (c == null) {
+            throw new IllegalArgumentException("Thiếu dữ liệu coupon.");
+        }
+        String code = c.getCode() == null ? "" : c.getCode().trim();
+        if (code.isEmpty()) {
+            throw new IllegalArgumentException(CouponValidationMessages.CODE_REQUIRED);
+        }
+        if (code.length() > 100) {
+            throw new IllegalArgumentException(CouponValidationMessages.CODE_TOO_LONG);
+        }
+        couponRepository.findByCodeIgnoreCase(code).ifPresent(other -> {
+            if (existingCouponId == null || !other.getId().equals(existingCouponId)) {
+                throw new IllegalArgumentException(CouponValidationMessages.CODE_DUPLICATE);
+            }
+        });
+
+        String dt = c.getDiscountType();
+        if (dt == null || dt.isBlank()) {
+            throw new IllegalArgumentException(CouponValidationMessages.DISCOUNT_TYPE_REQUIRED);
+        }
+        String discountType = dt.trim().toUpperCase();
+        if (!"PERCENTAGE".equals(discountType) && !"FIXED_AMOUNT".equals(discountType)) {
+            throw new IllegalArgumentException(CouponValidationMessages.DISCOUNT_TYPE_REQUIRED);
+        }
+
+        if (c.getDiscountValue() == null) {
+            throw new IllegalArgumentException(CouponValidationMessages.DISCOUNT_VALUE_REQUIRED);
+        }
+        BigDecimal dv = c.getDiscountValue();
+        if (dv.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(CouponValidationMessages.DISCOUNT_VALUE_REQUIRED);
+        }
+        if ("PERCENTAGE".equals(discountType) && dv.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException(CouponValidationMessages.DISCOUNT_PERCENT_MAX);
+        }
+
+        String st = c.getStatus();
+        if (st == null || st.isBlank()) {
+            throw new IllegalArgumentException(CouponValidationMessages.STATUS_INVALID);
+        }
+        String status = st.trim().toUpperCase();
+        if (!"ACTIVE".equals(status) && !"INACTIVE".equals(status)) {
+            throw new IllegalArgumentException(CouponValidationMessages.STATUS_INVALID);
+        }
+
+        LocalDateTime start = c.getStartDate();
+        LocalDateTime end = c.getEndDate();
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new IllegalArgumentException(CouponValidationMessages.DATE_RANGE_INVALID);
+        }
+
+        if (c.getMinimumPriorOrders() != null && c.getMinimumPriorOrders() < 0) {
+            throw new IllegalArgumentException(CouponValidationMessages.MIN_PRIOR_ORDERS_NEGATIVE);
+        }
+        if (c.getPriority() != null && c.getPriority() < 0) {
+            throw new IllegalArgumentException(CouponValidationMessages.PRIORITY_NEGATIVE);
+        }
+    }
+
+    /** Chuẩn hóa chuỗi trước khi lưu (mã, loại giảm, trạng thái). */
+    public void normalizeAdminCouponForSave(Coupon c) {
+        if (c.getCode() != null) {
+            c.setCode(c.getCode().trim());
+        }
+        if (c.getDiscountType() != null) {
+            c.setDiscountType(c.getDiscountType().trim().toUpperCase());
+        }
+        if (c.getStatus() != null) {
+            c.setStatus(c.getStatus().trim().toUpperCase());
+        }
+        if (c.getMinimumPriorOrders() == null) {
+            c.setMinimumPriorOrders(0);
+        }
     }
 
     public void assertPriorOrdersEligible(Coupon coupon, Integer userId) {

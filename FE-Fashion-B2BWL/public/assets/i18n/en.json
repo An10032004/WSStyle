@@ -220,6 +220,7 @@
     "ROLE": "Account Role",
     "GROUP": "Assigned Group",
     "GROUP_WHOLESALE_ONLY": "Customer group can only be assigned to wholesale (B2B) accounts for pricing.",
+    "GROUP_PRICING_HINT": "choose to apply your price list",
     "STATUS": "Registration Status",
     "COMPANY": "Company Name",
     "TAX_CODE": "Tax Code",

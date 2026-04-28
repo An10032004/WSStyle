@@ -10,21 +10,44 @@
 
   <div *ngIf="showForm" class="form-panel">
     <h4>{{ editingId ? ('COMMON.EDIT' | transloco) : ('COMMON.ADD' | transloco) }}</h4>
+    <p *ngIf="isEditingInternalAccount" class="form-panel__hint">
+      Tài khoản nội bộ: không đổi email và vai trò hệ thống tại đây. Chỉ cập nhật họ tên, SĐT, mật khẩu (tùy chọn) và quyền gán.
+    </p>
     
     <div class="form-grid">
       <label tuiLabel class="form-field">
         {{ 'MEMBER.EMAIL' | transloco }}
         <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.email" />
+          <input
+            tuiTextfield
+            type="email"
+            autocomplete="email"
+            [(ngModel)]="formData.email"
+            [readOnly]="isEditingInternalAccount"
+          />
         </tui-textfield>
         <div *ngIf="formErrors['email']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['email'] }}</div>
       </label>
 
-      <label tuiLabel class="form-field">
+      <label tuiLabel class="form-field" *ngIf="!isEditingInternalAccount">
         {{ 'MEMBER.PASSWORD' | transloco }}
         <tui-textfield>
           <input tuiTextfield type="password" [(ngModel)]="formData.password" [placeholder]="editingId ? 'Để trống nếu không đổi' : ''" />
         </tui-textfield>
+      </label>
+
+      <label tuiLabel class="form-field" *ngIf="isEditingInternalAccount">
+        {{ 'MEMBER.PASSWORD' | transloco }}
+        <tui-textfield>
+          <input
+            tuiTextfield
+            type="password"
+            [(ngModel)]="formData.password"
+            placeholder="Để trống nếu không đổi"
+            autocomplete="new-password"
+          />
+        </tui-textfield>
+        <div *ngIf="formErrors['password']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['password'] }}</div>
       </label>
 
       <label tuiLabel class="form-field">
@@ -38,12 +61,31 @@
       <label tuiLabel class="form-field">
         {{ 'MEMBER.PHONE' | transloco }}
         <tui-textfield>
-          <input tuiTextfield [(ngModel)]="formData.phone" />
+          <input
+            tuiTextfield
+            type="tel"
+            inputmode="numeric"
+            maxlength="10"
+            autocomplete="tel"
+            [(ngModel)]="formData.phone"
+          />
         </tui-textfield>
         <div *ngIf="formErrors['phone']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['phone'] }}</div>
       </label>
 
-      <div class="form-field full-width choice-field">
+      <div *ngIf="isEditingInternalAccount" class="form-field full-width internal-account-roles">
+        <div class="choice-field__label">Vai trò tài khoản</div>
+        <p class="internal-account-roles__hint">Vai trò chính và vai trò khách (nếu có) — chỉ xem; không đổi tại đây.</p>
+        <div class="internal-roles-badges">
+          <tui-badge
+            *ngFor="let r of internalFormRoles; let i = index"
+            size="s"
+            [appearance]="i === 0 ? 'primary' : 'neutral'"
+          >{{ 'ENUMS.' + r | transloco }}</tui-badge>
+        </div>
+      </div>
+
+      <div *ngIf="!isEditingInternalAccount" class="form-field full-width choice-field">
         <div class="choice-field__label">{{ 'MEMBER.ROLE' | transloco }} (Phân quyền hệ thống)</div>
         <div class="radio-group-modern">
           <label *ngFor="let r of roleOptions" class="modern-radio">
@@ -62,33 +104,51 @@
         </div>
       </div>
 
-      <label tuiLabel class="form-field full-width" *ngIf="isWholesaleCustomerRole(); else customerGroupRetailHint">
-        <span class="group-label-highlight">{{ 'MEMBER.GROUP' | transloco }} (Ưu tiên lựa chọn để áp dụng bảng giá)</span>
+      <label tuiLabel class="form-field full-width" *ngIf="isEditingInternalAccount">
+        {{ 'MEMBER.ASSIGNED_ROLE' | transloco }} <span class="required-mark">*</span>
+        <tui-select [(ngModel)]="formData.assignedRole">
+          <tui-data-list-wrapper
+            *tuiDataList
+            [items]="assignedRoleOptions"
+            [itemContent]="assignedRoleItem"
+          />
+          <ng-template #assignedRoleItem let-item>
+            {{ 'ENUMS.' + item | transloco }}
+          </ng-template>
+        </tui-select>
+        <div *ngIf="formErrors['assignedRole']" class="field-error-txt">{{ formErrors['assignedRole'] }}</div>
+      </label>
+
+      <label tuiLabel class="form-field full-width" *ngIf="showCustomerGroupSelector()">
+        <span class="group-label-highlight">
+          {{ 'MEMBER.GROUP' | transloco }}
+          <ng-container *ngIf="isEditingInternalAccount"> (khách sỉ)</ng-container>
+          <ng-container *ngIf="!isEditingInternalAccount"> ({{ 'MEMBER.GROUP_PRICING_HINT' | transloco }})</ng-container>
+        </span>
         <tui-select [(ngModel)]="formData.customerGroupId" [valueContent]="selectedGroupNameTemplate">
-          <tui-data-list-wrapper 
-            *tuiDataList 
-            [items]="customerGroups" 
+          <tui-data-list-wrapper
+            *tuiDataList
+            [items]="customerGroups"
             [itemContent]="dropdownItem"
             (itemClick)="formData.customerGroupId = $event.id"
           ></tui-data-list-wrapper>
-          
+
           <ng-template #selectedGroupNameTemplate>
             {{ selectedGroupName }}
           </ng-template>
-          
+
           <ng-template #dropdownItem let-item>
             {{ item.name }}
           </ng-template>
         </tui-select>
       </label>
-      <ng-template #customerGroupRetailHint>
-        <div class="form-field full-width customer-group-retail-block">
-          <div class="choice-field__label">{{ 'MEMBER.GROUP' | transloco }}</div>
-          <p class="customer-group-retail-hint">{{ 'MEMBER.GROUP_WHOLESALE_ONLY' | transloco }}</p>
-        </div>
-      </ng-template>
 
-      <div class="form-field full-width choice-field">
+      <div *ngIf="showRetailCustomerGroupHint()" class="form-field full-width customer-group-retail-block">
+        <div class="choice-field__label">{{ 'MEMBER.GROUP' | transloco }}</div>
+        <p class="customer-group-retail-hint">{{ 'MEMBER.GROUP_WHOLESALE_ONLY' | transloco }}</p>
+      </div>
+
+      <div *ngIf="!isEditingInternalAccount" class="form-field full-width choice-field">
         <div class="choice-field__label">{{ 'MEMBER.STATUS' | transloco }}</div>
         <p class="status-dealer-hint">{{ 'MEMBER.STATUS_DEALER_HINT' | transloco }}</p>
         <div class="radio-group-modern">
@@ -107,14 +167,14 @@
         </div>
       </div>
 
-      <label tuiLabel class="form-field">
+      <label *ngIf="!isEditingInternalAccount" tuiLabel class="form-field">
         {{ 'MEMBER.COMPANY' | transloco }}
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.companyName" />
         </tui-textfield>
       </label>
 
-      <label tuiLabel class="form-field">
+      <label *ngIf="!isEditingInternalAccount" tuiLabel class="form-field">
         {{ 'MEMBER.TAX_CODE' | transloco }}
         <tui-textfield>
           <input tuiTextfield [(ngModel)]="formData.taxCode" />
@@ -128,7 +188,72 @@
     </div>
   </div>
 
-  <div *ngIf="!showForm" class="grid-wrapper">
+  <div *ngIf="!showForm" class="user-mgmt-landing">
+    <section class="staff-admin-section" aria-label="Tài khoản quản trị và nhân viên">
+      <h3 class="section-title">Quản trị &amp; nhân viên hệ thống</h3>
+      <p class="section-desc">
+        Danh sách tài khoản theo vai trò nội bộ. Nếu nhân viên đăng ký làm khách sỉ (chờ duyệt), nhóm khách, trạng thái và nút duyệt hiển thị ở bảng này — không chỉ ở lưới khách phía dưới.
+      </p>
+      <div *ngIf="!staffAdminRowData.length" class="empty-hint">Chưa có tài khoản nội bộ.</div>
+      <div *ngIf="staffAdminRowData.length" class="table-scroll">
+        <table class="user-mgmt-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Email</th>
+              <th>{{ 'MEMBER.NAME' | transloco }}</th>
+              <th>{{ 'MEMBER.ROLE' | transloco }}</th>
+              <th>{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}</th>
+              <th>{{ 'MEMBER.GROUP' | transloco }}</th>
+              <th>{{ 'MEMBER.STATUS' | transloco }}</th>
+              <th>{{ 'MEMBER.PHONE' | transloco }}</th>
+              <th>{{ 'COMMON.ACTIONS' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of staffAdminRowData; trackBy: trackByUserId">
+              <td>{{ u.id }}</td>
+              <td>{{ u.email }}</td>
+              <td>{{ u.fullName }}</td>
+              <td>
+                <ng-container *ngFor="let r of ($any(u).roles || []); let i = index">
+                  <tui-badge size="s" [appearance]="i === 0 ? 'primary' : 'neutral'">{{ 'ENUMS.' + r | transloco }}</tui-badge>
+                  <span *ngIf="i < (($any(u).roles || []).length) - 1">&nbsp;</span>
+                </ng-container>
+              </td>
+              <td>
+                <span *ngIf="$any(u).assignedRole">{{ 'ENUMS.' + $any(u).assignedRole | transloco }}</span>
+                <span *ngIf="!$any(u).assignedRole" class="muted">—</span>
+              </td>
+              <td>{{ u.customerGroup?.name || '—' }}</td>
+              <td>
+                <span [class]="dealerStatusPillClass(u.registrationStatus)">{{ registrationStatusLabel(u.registrationStatus) }}</span>
+              </td>
+              <td>{{ u.phone }}</td>
+              <td class="actions-cell">
+                <button tuiButton type="button" size="s" appearance="flat" (click)="onView(u)">{{ 'PRODUCT.VIEW' | transloco }}</button>
+                <button
+                  *ngIf="showApproveDealer(u)"
+                  tuiButton
+                  type="button"
+                  size="s"
+                  appearance="primary"
+                  (click)="approveDealerApplication(u)"
+                >
+                  {{ 'MEMBER.APPROVE_DEALER' | transloco }}
+                </button>
+                <button tuiButton type="button" size="s" appearance="secondary" (click)="onEdit(u)">{{ 'PRODUCT.EDIT' | transloco }}</button>
+                <button tuiButton type="button" size="s" appearance="outline" (click)="onDelete(u)">{{ 'PRODUCT.DELETE' | transloco }}</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="customer-users-section" aria-label="Khách hàng">
+      <h3 class="section-title">Khách hàng (lẻ / sỉ / tài khoản tạm)</h3>
+    <div class="grid-wrapper">
     <ag-grid-angular
       class="ag-theme-alpine"
       [rowData]="rowData"
@@ -141,6 +266,8 @@
       (gridReady)="onGridReady($event)"
       [animateRows]="true"
     ></ag-grid-angular>
+    </div>
+    </section>
   </div>
 </div>
 
@@ -216,13 +343,17 @@
       <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
       <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
     </div>
+    <div class="detail-row" *ngIf="$any(selectedUser).assignedRole">
+      <span class="label">{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}:</span>
+      <span class="value">{{ 'ENUMS.' + $any(selectedUser).assignedRole | transloco }}</span>
+    </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
       <span class="value">{{ selectedUser.customerGroup?.name || 'None' }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.STATUS' | transloco }}:</span>
-      <span class="value">{{ selectedUser.registrationStatus }}</span>
+      <span class="value">{{ registrationStatusLabel(selectedUser.registrationStatus) }}</span>
     </div>
     <div class="detail-row">
       <span class="label">{{ 'MEMBER.COMPANY' | transloco }}:</span>

@@ -4,6 +4,124 @@
   margin: 0;
 }
 
+.user-mgmt-landing {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--tui-text-primary);
+}
+
+.section-desc {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--tui-text-secondary);
+  max-width: 48rem;
+}
+
+.empty-hint {
+  margin: 0;
+  padding: 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--tui-text-secondary);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--tui-radius-l, 12px);
+  border: 1px solid var(--tui-border-normal);
+}
+
+.user-mgmt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th,
+  td {
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--tui-border-normal);
+    vertical-align: middle;
+  }
+
+  th {
+    font-weight: 700;
+    background: var(--tui-background-neutral-1, rgba(0, 0, 0, 0.04));
+  }
+
+  tbody tr:hover {
+    background: var(--tui-background-neutral-1, rgba(0, 0, 0, 0.02));
+  }
+
+  .actions-cell {
+    white-space: nowrap;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .muted {
+    color: var(--tui-text-tertiary);
+  }
+
+  tui-badge {
+    margin-right: 0.25rem;
+    vertical-align: middle;
+    font-weight: 600;
+  }
+
+  /* neutral + size s: đảm bảo chữ đậm, dễ đọc trong ô bảng */
+  td tui-badge[size='s'] {
+    font-size: 12px;
+  }
+}
+
+.form-panel__hint {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--tui-text-secondary);
+  max-width: 44rem;
+}
+
+.internal-role-readonly {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+  color: var(--tui-text-primary);
+}
+
+.internal-account-roles__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--tui-text-secondary);
+}
+
+.internal-roles-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.field-error-txt {
+  color: var(--tui-status-warning);
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+.required-mark {
+  color: var(--tui-status-error);
+}
+
 .form-panel h3 {
   margin: 0 0 1rem;
   font-size: 1.05rem;

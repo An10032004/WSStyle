@@ -38,6 +38,12 @@
   margin-top: 8px;
 }
 
+.coupon-field-error {
+  font-size: 0.9rem;
+  color: var(--tui-status-warning);
+  margin-top: 6px;
+}
+
 .coupon-dialog-actions {
   margin-top: 28px;
   display: flex;

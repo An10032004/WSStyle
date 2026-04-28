@@ -1,5 +1,6 @@
 package com.fashionstore.core.service;
 
+import com.fashionstore.core.constant.AdminStaffValidationMessages;
 import com.fashionstore.core.constant.AuthMessages;
 import com.fashionstore.core.constant.StorefrontValidationMessages;
 import com.fashionstore.core.dto.auth.LoginAttemptResult;
@@ -58,21 +59,169 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 
+    /**
+     * SĐT VN 10 số bắt đầu 0 — đồng bộ đăng ký storefront; {@code excludeUserId} dùng khi sửa user (trừ chính mình khi trùng SĐT).
+     */
+    private String requireValidAdminPhone(String phoneRaw, Integer excludeUserId) {
+        String phone = phoneRaw == null ? "" : phoneRaw.trim();
+        if (phone.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_REQUIRED);
+        }
+        if (!VIETNAM_PHONE_10.matcher(phone).matches()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_FORMAT);
+        }
+        userRepository.findByPhone(phone).ifPresent(u -> {
+            if (excludeUserId == null || !u.getId().equals(excludeUserId)) {
+                throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PHONE_DUPLICATE);
+            }
+        });
+        return phone;
+    }
+
+    private boolean hasNonEmptyAssignedRoleInTags(String tagsJson) {
+        if (tagsJson == null || tagsJson.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(tagsJson);
+            if (!root.isObject() || !root.has("assignedRole") || root.get("assignedRole").isNull()) {
+                return false;
+            }
+            String ar = root.get("assignedRole").asText("").trim();
+            return !ar.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Vai trò hệ thống nội bộ (admin / nhân viên / super-user). Đồng bộ seed {@code Administrator}
+     * và màn hình /staff, /users.
+     */
+    private static boolean isAllowedInternalPrimaryRole(String roleRaw) {
+        if (roleRaw == null || roleRaw.isBlank()) {
+            return false;
+        }
+        String u = roleRaw.trim().toUpperCase();
+        return "ADMIN".equals(u)
+                || "STAFF".equals(u)
+                || "ADMINISTRATOR".equals(u)
+                || "SUPER_ADMIN".equals(u);
+    }
+
+    private static boolean isInternalUser(User user) {
+        return user.getRole() != null && isAllowedInternalPrimaryRole(user.getRole());
+    }
+
+    private boolean shouldApplyStaffValidationOnCreate(UserRequest request) {
+        if (Boolean.TRUE.equals(request.getStaffModule())) {
+            return true;
+        }
+        if (request.getRole() == null) {
+            return false;
+        }
+        return isAllowedInternalPrimaryRole(request.getRole());
+    }
+
+    private boolean shouldApplyStaffValidationOnUpdate(UserRequest request, User existing) {
+        if (Boolean.TRUE.equals(request.getStaffModule())) {
+            return true;
+        }
+        if (isInternalUser(existing)) {
+            return true;
+        }
+        if (request.getRole() == null) {
+            return false;
+        }
+        return isAllowedInternalPrimaryRole(request.getRole());
+    }
+
+    /** Quản lý nhân viên — tạo: mật khẩu tối thiểu 6 ký tự, quyền gán trong tags.assignedRole, vai trò nội bộ. */
+    private void assertStaffModuleCreate(UserRequest request) {
+        String fn = request.getFullName() == null ? "" : request.getFullName().trim();
+        if (fn.isEmpty()) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.FULL_NAME_REQUIRED);
+        }
+        request.setFullName(fn);
+        String pwd = request.getPassword() != null ? request.getPassword() : "";
+        if (pwd.length() < 6) {
+            throw new IllegalArgumentException(
+                    pwd.isEmpty()
+                            ? AdminStaffValidationMessages.PASSWORD_REQUIRED
+                            : StorefrontValidationMessages.REGISTER_PASSWORD_MIN_LENGTH);
+        }
+        String roleRaw = request.getRole() == null ? "" : request.getRole().trim();
+        if (!isAllowedInternalPrimaryRole(roleRaw)) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.PRIMARY_ROLE_STAFF_ONLY);
+        }
+        request.setRole(roleRaw);
+        if (!hasNonEmptyAssignedRoleInTags(request.getTags())) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.ASSIGNED_ROLE_REQUIRED);
+        }
+    }
+
+    /** Quản lý nhân viên — sửa: email hợp lệ, mật khẩu nếu đổi cũng tối thiểu 6 ký tự, assignedRole bắt buộc. */
+    private void assertStaffModuleUpdate(Integer id, UserRequest request) {
+        String fn = request.getFullName() == null ? "" : request.getFullName().trim();
+        if (fn.isEmpty()) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.FULL_NAME_REQUIRED);
+        }
+        request.setFullName(fn);
+        String em = request.getEmail() == null ? "" : request.getEmail().trim();
+        if (em.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_EMAIL_REQUIRED);
+        }
+        if (!REGISTER_EMAIL_FORMAT.matcher(em).matches()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_EMAIL_FORMAT);
+        }
+        request.setEmail(em);
+        userRepository.findByEmailIgnoreCase(em).ifPresent(u -> {
+            if (!u.getId().equals(id)) {
+                throw new IllegalArgumentException("Email này đã được sử dụng.");
+            }
+        });
+        String pwd = request.getPassword() != null ? request.getPassword() : "";
+        if (!pwd.isEmpty() && pwd.length() < 6) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_PASSWORD_MIN_LENGTH);
+        }
+        String roleRaw = request.getRole() == null ? "" : request.getRole().trim();
+        if (!isAllowedInternalPrimaryRole(roleRaw)) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.PRIMARY_ROLE_STAFF_ONLY);
+        }
+        request.setRole(roleRaw);
+        if (!hasNonEmptyAssignedRoleInTags(request.getTags())) {
+            throw new IllegalArgumentException(AdminStaffValidationMessages.ASSIGNED_ROLE_REQUIRED);
+        }
+    }
+
     @Transactional
     public User createUser(UserRequest request) {
-        if (request.getEmail() != null && userRepository.findByEmail(request.getEmail().trim()).isPresent()) {
-            throw new RuntimeException("Email already exists");
+        if (shouldApplyStaffValidationOnCreate(request)) {
+            assertStaffModuleCreate(request);
         }
+        String email = request.getEmail() == null ? "" : request.getEmail().trim();
+        if (email.isEmpty()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_EMAIL_REQUIRED);
+        }
+        if (!REGISTER_EMAIL_FORMAT.matcher(email).matches()) {
+            throw new IllegalArgumentException(StorefrontValidationMessages.REGISTER_EMAIL_FORMAT);
+        }
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("Email này đã được đăng ký.");
+        }
+        String phone = requireValidAdminPhone(request.getPhone(), null);
         CustomerGroup group = null;
         if (request.getCustomerGroupId() != null) {
             group = customerGroupService.getGroupById(request.getCustomerGroupId());
         }
 
+        String rawPassword = request.getPassword() != null ? request.getPassword() : "";
+
         User user = User.builder()
-                .email(request.getEmail() != null ? request.getEmail().trim() : null)
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .email(email)
+                .passwordHash(passwordEncoder.encode(rawPassword))
                 .fullName(request.getFullName())
-                .phone(request.getPhone())
+                .phone(phone)
                 .role(request.getRole() != null ? request.getRole() : "RETAIL")
                 .customerGroup(group)
                 .tags(request.getTags())
@@ -123,6 +272,9 @@ public class UserService {
     @Transactional
     public User updateUser(Integer id, UserRequest request) {
         User user = getUserById(id);
+        if (shouldApplyStaffValidationOnUpdate(request, user)) {
+            assertStaffModuleUpdate(id, request);
+        }
         String oldRegistrationStatus = user.getRegistrationStatus();
 
         if (request.getEmail() != null)
@@ -131,7 +283,7 @@ public class UserService {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
         user.setFullName(request.getFullName());
-        user.setPhone(request.getPhone());
+        user.setPhone(requireValidAdminPhone(request.getPhone(), id));
         user.setRole(request.getRole());
 
         if (request.getCustomerGroupId() != null) {

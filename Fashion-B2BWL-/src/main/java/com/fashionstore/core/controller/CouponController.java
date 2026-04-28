@@ -26,22 +26,20 @@ public class CouponController {
 
     @PostMapping
     public Coupon create(@RequestBody Coupon coupon) {
+        couponService.validateAdminPayload(coupon, null);
+        couponService.normalizeAdminCouponForSave(coupon);
         return repository.save(coupon);
     }
 
     @PutMapping("/{id}")
     public Coupon update(@PathVariable Integer id, @RequestBody Coupon updatedCoupon) {
+        couponService.validateAdminPayload(updatedCoupon, id);
+        couponService.normalizeAdminCouponForSave(updatedCoupon);
         return repository.findById(id).map(coupon -> {
             coupon.setCode(updatedCoupon.getCode());
-            if (updatedCoupon.getDiscountType() != null) {
-                coupon.setDiscountType(updatedCoupon.getDiscountType());
-            }
-            if (updatedCoupon.getDiscountValue() != null) {
-                coupon.setDiscountValue(updatedCoupon.getDiscountValue());
-            }
-            if (updatedCoupon.getStatus() != null) {
-                coupon.setStatus(updatedCoupon.getStatus());
-            }
+            coupon.setDiscountType(updatedCoupon.getDiscountType());
+            coupon.setDiscountValue(updatedCoupon.getDiscountValue());
+            coupon.setStatus(updatedCoupon.getStatus());
             coupon.setStartDate(updatedCoupon.getStartDate());
             coupon.setEndDate(updatedCoupon.getEndDate());
             coupon.setMinimumPriorOrders(updatedCoupon.getMinimumPriorOrders());

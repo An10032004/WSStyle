@@ -1,12 +1,13 @@
 import { Component, ChangeDetectionStrategy, inject, signal, TemplateRef, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { TranslocoModule } from '@jsverse/transloco';
-import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel, TuiDataList } from '@taiga-ui/core';
+import { TuiIcon, TuiButton, TuiDialogService, TuiTextfield, TuiLabel, TuiDataList, TuiAlertService } from '@taiga-ui/core';
 import { TUI_CONFIRM, TuiDataListWrapper, TuiMultiSelect, TuiRadio } from '@taiga-ui/kit';
 import { TuiComboBoxModule, TuiTextfieldControllerModule, TuiSelectModule } from '@taiga-ui/legacy';
 import { ApiService, Coupon, Category, Product, CustomerGroup } from '../../services/api.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observer } from 'rxjs';
 import { RuleConflictWarningComponent } from '../../shared/components/rule-conflict-warning/rule-conflict-warning';
 import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 
@@ -31,8 +32,9 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
             <label tuiLabel class="coupon-field">
               Mã coupon
               <tui-textfield>
-                <input tuiTextfield [(ngModel)]="newCoupon.code" autocomplete="off" />
+                <input tuiTextfield [(ngModel)]="newCoupon.code" autocomplete="off" maxlength="100" />
               </tui-textfield>
+              <div *ngIf="formErrors['code']" class="coupon-field-error">{{ formErrors['code'] }}</div>
             </label>
 
             <div class="coupon-field">
@@ -77,6 +79,7 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
                 <input tuiTextfield type="number" inputmode="decimal" step="any" [(ngModel)]="newCoupon.discountValue" />
               </tui-textfield>
               <div class="coupon-field-hint">% nếu PERCENTAGE; số tiền ₫ nếu FIXED_AMOUNT</div>
+              <div *ngIf="formErrors['discountValue']" class="coupon-field-error">{{ formErrors['discountValue'] }}</div>
             </label>
 
             <label tuiLabel class="coupon-field coupon-field-span2">
@@ -87,13 +90,21 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
               <div class="coupon-field-hint">
                 0 = không kiểm tra. Từ 1 trở lên = khách phải có ít nhất chừng đó đơn hợp lệ (không tính đơn hủy / từ chối) mới thấy và áp dụng được mã.
               </div>
+              <div *ngIf="formErrors['minimumPriorOrders']" class="coupon-field-error">{{ formErrors['minimumPriorOrders'] }}</div>
             </label>
+
+            <div class="coupon-field coupon-field-span2">
+              <div class="coupon-field-hint" style="margin-top:0">
+                <strong>Thời gian hiệu lực:</strong> nếu nhập đủ «Bắt đầu» và «Kết thúc», mã áp dụng từ đúng thời điểm bắt đầu đến hết thời điểm kết thúc (hai mốc đều được tính). Chỉ điền một bên hoặc để trống cả hai = không giới hạn phía tương ứng.
+              </div>
+            </div>
 
             <label tuiLabel class="coupon-field">
               Bắt đầu
               <tui-textfield>
                 <input tuiTextfield type="datetime-local" [(ngModel)]="newCoupon.startDate" />
               </tui-textfield>
+              <div *ngIf="formErrors['startDate']" class="coupon-field-error">{{ formErrors['startDate'] }}</div>
             </label>
 
             <label tuiLabel class="coupon-field">
@@ -101,12 +112,13 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
               <tui-textfield>
                 <input tuiTextfield type="datetime-local" [(ngModel)]="newCoupon.endDate" />
               </tui-textfield>
+              <div *ngIf="formErrors['endDate']" class="coupon-field-error">{{ formErrors['endDate'] }}</div>
             </label>
           </div>
 
           <div class="coupon-dialog-actions">
             <button tuiButton type="button" size="m" appearance="flat" (click)="observer.complete()">Cancel</button>
-            <button tuiButton type="button" size="m" (click)="observer.next(true); observer.complete()">Save Coupon</button>
+            <button tuiButton type="button" size="m" (click)="onSaveCouponDialog(observer)">Save Coupon</button>
           </div>
         </div>
       </ng-template>
@@ -166,7 +178,11 @@ import { adminLifecycleStatusPillClass } from '../../utils/admin-status-pills';
 export class CouponsComponent {
   private readonly api = inject(ApiService);
   private readonly dialogs = inject(TuiDialogService);
+  private readonly alerts = inject(TuiAlertService);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  /** Lỗi validate form (key = trường) — đồng bộ thông điệp với backend khi có thể */
+  formErrors: Record<string, string> = {};
 
   readonly coupons = signal<Coupon[]>([]);
   readonly categories = signal<Category[]>([]);
@@ -216,6 +232,7 @@ export class CouponsComponent {
 
   showAddDialog() {
     this.editingId = null;
+    this.formErrors = {};
     this.newCoupon = {
       code: '',
       discountType: 'PERCENTAGE',
@@ -237,6 +254,7 @@ export class CouponsComponent {
 
   showEditDialog(item: Coupon) {
     this.editingId = item.id;
+    this.formErrors = {};
     this.newCoupon = {
       code: item.code,
       discountType: item.discountType,
@@ -294,6 +312,63 @@ export class CouponsComponent {
     return n ?? 0;
   }
 
+  /** Validate client trước khi gọi API (thêm/sửa). */
+  private buildCouponFormErrors(): Record<string, string> {
+    const err: Record<string, string> = {};
+    const raw = this.newCoupon;
+
+    const code = (raw.code && String(raw.code).trim()) || '';
+    if (!code) {
+      err['code'] = 'Mã coupon không được để trống.';
+    } else if (code.length > 100) {
+      err['code'] = 'Mã coupon tối đa 100 ký tự.';
+    }
+
+    const dv = this.coerceOptionalNumber(raw.discountValue);
+    if (dv === undefined || dv <= 0) {
+      err['discountValue'] = 'Giá trị giảm phải lớn hơn 0.';
+    } else if (raw.discountType === 'PERCENTAGE' && dv > 100) {
+      err['discountValue'] = 'Phần trăm giảm không được vượt quá 100.';
+    }
+
+    const minP = this.coerceOptionalNumber(raw.minimumPriorOrders);
+    if (minP !== undefined && (minP < 0 || !Number.isInteger(minP))) {
+      err['minimumPriorOrders'] =
+        minP < 0 ? 'Số đơn tối thiểu không được âm.' : 'Số đơn tối thiểu phải là số nguyên.';
+    }
+
+    const startS = raw.startDate != null && String(raw.startDate).trim() ? String(raw.startDate).trim() : '';
+    const endS = raw.endDate != null && String(raw.endDate).trim() ? String(raw.endDate).trim() : '';
+    if (startS && endS) {
+      const tStart = new Date(startS).getTime();
+      const tEnd = new Date(endS).getTime();
+      if (!Number.isNaN(tStart) && !Number.isNaN(tEnd) && tStart > tEnd) {
+        const msg = 'Thời gian bắt đầu phải trước hoặc bằng thời gian kết thúc.';
+        err['startDate'] = msg;
+        err['endDate'] = msg;
+      }
+    }
+
+    const pr = this.coerceOptionalNumber(raw.priority);
+    if (pr !== undefined && pr < 0) {
+      err['priority'] = 'Mức ưu tiên không được âm.';
+    }
+
+    return err;
+  }
+
+  onSaveCouponDialog(observer: Observer<boolean>): void {
+    this.formErrors = this.buildCouponFormErrors();
+    if (Object.keys(this.formErrors).length > 0) {
+      this.alerts.open('Vui lòng sửa các lỗi trên form.', { appearance: 'warning' }).subscribe();
+      this.cdr.markForCheck();
+      return;
+    }
+    observer.next(true);
+    observer.complete();
+    void this.saveCoupon();
+  }
+
   /** Chuẩn hóa số + gửi `null` rõ ràng cho ô tùy chọn (JSON bỏ `undefined` → backend không nhận được giá trị mới). */
   private buildCouponPayload(): Partial<Coupon> {
     const raw = this.newCoupon;
@@ -328,13 +403,29 @@ export class CouponsComponent {
   }
 
   async saveCoupon() {
-    const body = this.buildCouponPayload();
-    if (this.editingId != null) {
-      await firstValueFrom(this.api.updateCoupon(this.editingId, body));
-    } else {
-      await firstValueFrom(this.api.createCoupon(body));
+    try {
+      const body = this.buildCouponPayload();
+      if (this.editingId != null) {
+        await firstValueFrom(this.api.updateCoupon(this.editingId, body));
+      } else {
+        await firstValueFrom(this.api.createCoupon(body));
+      }
+      await this.refresh();
+      this.formErrors = {};
+    } catch (e) {
+      let msg = 'Không lưu được coupon.';
+      if (e instanceof HttpErrorResponse) {
+        const b = e.error;
+        if (b && typeof b === 'object' && typeof b.message === 'string' && b.message) {
+          msg = b.message;
+        } else if (typeof b === 'string' && b) {
+          msg = b;
+        }
+      } else if (e instanceof Error && e.message) {
+        msg = e.message;
+      }
+      this.alerts.open(msg, { appearance: 'error' }).subscribe();
     }
-    await this.refresh();
     this.cdr.markForCheck();
   }
 

@@ -22,6 +22,12 @@
   /* Taiga UI Overrides */
   --tui-primary: var(--primary);
   --tui-primary-hover: var(--primary-dark);
+  /**
+   * Chữ phụ / gợi ý: slate (hơi xanh) thay xám trung tính lạnh (~rgb 149 ≈ #959595).
+   * Đồng bộ với --text-muted; tertiary nhạt hơn một bậc để vẫn phân tầng.
+   */
+  --tui-text-secondary: #64748b;
+  --tui-text-tertiary: #94a3b8;
 }
 
 html,
@@ -127,6 +133,34 @@ table {
   --ag-font-size: 14px;
   border: 1px solid #f1f5f9 !important;
   box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+/**
+ * Chip vai trò trong ô AG Grid (Quản lý người dùng / Staff).
+ * Trước đây dùng class giả tui-badge_outline → tương phản kém; chip tùy chỉnh đọc rõ trên nền trắng.
+ */
+.ag-theme-alpine .role-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  margin-right: 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+
+.ag-theme-alpine .role-chip--primary {
+  background: linear-gradient(130deg, rgba(0, 133, 88, 0.18) 0%, rgba(0, 184, 127, 0.12) 100%);
+  color: #004d33;
+  border: 1px solid rgba(0, 133, 88, 0.45);
+}
+
+.ag-theme-alpine .role-chip--secondary {
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #94a3b8;
 }
 
 .ag-header-cell-label {

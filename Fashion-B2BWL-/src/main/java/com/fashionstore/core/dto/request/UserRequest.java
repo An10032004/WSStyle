@@ -16,4 +16,10 @@ public class UserRequest {
     private String taxCode;
     /** ACTIVE | SUSPENDED — quản trị tạm ngừng tài khoản */
     private String accountStatus;
+
+    /**
+     * Nếu {@code true}: áp dụng quy tắc màn Quản lý nhân viên (FE /staff) —
+     * họ tên, mật khẩu (khi tạo), quyền gán (assignedRole trong {@code tags}), vai trò ADMIN|STAFF.
+     */
+    private Boolean staffModule;
 }

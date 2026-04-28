@@ -222,6 +222,7 @@
     "ROLE": "Vai trò tài khoản",
     "GROUP": "Nhóm chỉ định",
     "GROUP_WHOLESALE_ONLY": "Chỉ tài khoản khách sỉ (B2B) mới được gán nhóm khách hàng để áp dụng bảng giá.",
+    "GROUP_PRICING_HINT": "Ưu tiên lựa chọn để áp dụng bảng giá",
     "STATUS": "Trạng thái đăng ký",
     "COMPANY": "Tên công ty",
     "TAX_CODE": "Mã số thuế",

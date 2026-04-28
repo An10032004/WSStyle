@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
 import { 
@@ -34,6 +35,10 @@ import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+/** Đồng bộ backend UserService (email / SĐT VN) */
+const STAFF_EMAIL_FORMAT = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const STAFF_PHONE_VN = /^0[0-9]{9}$/;
+
 @Component({
   selector: 'app-staff',
   standalone: true,
@@ -61,6 +66,8 @@ export class StaffComponent implements OnInit, OnDestroy {
   
   showForm = false;
   editingId: number | null = null;
+
+  formErrors: Record<string, string> = {};
   
   formData: any = {
     email: '',
@@ -177,8 +184,8 @@ export class StaffComponent implements OnInit, OnDestroy {
         cellRenderer: (params: any) => {
           const roles: string[] = params.data?.roles ?? (params.value ? [params.value] : []);
           return roles.map((r: string, i: number) => {
-            const cls = i === 0 ? 'tui-badge_primary' : 'tui-badge_outline';
-            return `<span class="tui-badge ${cls}" style="margin-right:6px">${this.transloco.translate('ENUMS.' + r)}</span>`;
+            const chip = i === 0 ? 'role-chip role-chip--primary' : 'role-chip role-chip--secondary';
+            return `<span class="${chip}">${this.transloco.translate('ENUMS.' + r)}</span>`;
           }).join(' ');
         }
       },
@@ -258,6 +265,7 @@ export class StaffComponent implements OnInit, OnDestroy {
 
   onAdd(): void {
     this.editingId = null;
+    this.formErrors = {};
     this.formData = {
       email: '', password: '', fullName: '', phone: '', role: 'STAFF',
       assignedRole: null,
@@ -269,6 +277,7 @@ export class StaffComponent implements OnInit, OnDestroy {
 
   onEdit(user: User): void {
     this.editingId = user.id;
+    this.formErrors = {};
     // read assignedRole from tags if present
     let assignedFromTags: string | null = null;
     if (user.tags) {
@@ -317,26 +326,101 @@ export class StaffComponent implements OnInit, OnDestroy {
       });
   }
 
+  private clearFormErrors(): void {
+    this.formErrors = {};
+  }
+
+  private buildStaffFormErrors(): Record<string, string> {
+    const err: Record<string, string> = {};
+    const em = (this.formData.email && String(this.formData.email).trim()) || '';
+    if (!em) {
+      err['email'] = 'Email không được để trống.';
+    } else if (!STAFF_EMAIL_FORMAT.test(em)) {
+      err['email'] = 'Định dạng email chưa đúng.';
+    }
+
+    const pwd = this.formData.password != null ? String(this.formData.password) : '';
+    if (!this.editingId) {
+      if (!pwd || pwd.length < 6) {
+        err['password'] = pwd ? 'Mật khẩu tối thiểu 6 ký tự.' : 'Mật khẩu không được để trống (tối thiểu 6 ký tự).';
+      }
+    } else if (pwd.length > 0 && pwd.length < 6) {
+      err['password'] = 'Mật khẩu mới tối thiểu 6 ký tự hoặc để trống.';
+    }
+
+    const fn = (this.formData.fullName && String(this.formData.fullName).trim()) || '';
+    if (!fn) {
+      err['fullName'] = 'Họ và tên không được để trống.';
+    }
+
+    const ph = (this.formData.phone && String(this.formData.phone).trim()) || '';
+    if (!ph) {
+      err['phone'] = 'SĐT không được để trống.';
+    } else if (!STAFF_PHONE_VN.test(ph)) {
+      err['phone'] = 'SĐT phải có 10 chữ số và bắt đầu bằng số 0.';
+    }
+
+    const ar = this.formData.assignedRole;
+    if (ar == null || ar === '' || (typeof ar === 'string' && !ar.trim())) {
+      err['assignedRole'] = 'Phải chọn quyền hệ thống (gán quyền) cho nhân viên.';
+    }
+
+    return err;
+  }
+
+  private handleApiError(err: unknown): void {
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      const msg =
+        body && typeof body === 'object' && typeof (body as any).message === 'string'
+          ? (body as any).message
+          : typeof body === 'string'
+            ? body
+            : err.message;
+      this.alerts.open(msg || 'Có lỗi khi lưu.', { appearance: 'error' }).subscribe();
+      return;
+    }
+    this.alerts.open('Có lỗi khi lưu.', { appearance: 'error' }).subscribe();
+  }
+
   onSubmit(): void {
+    this.clearFormErrors();
+    const validation = this.buildStaffFormErrors();
+    if (Object.keys(validation).length) {
+      this.formErrors = validation;
+      this.alerts.open('Vui lòng kiểm tra các trường trên form.', { appearance: 'warning' }).subscribe();
+      this.cdr.markForCheck();
+      return;
+    }
+
     // Merge assignedRole into tags JSON so primary `role` is not overwritten
     const payload: any = { ...this.formData };
-    // Start with existing tags if editing
+    payload.staffModule = true;
+    payload.phone = (this.formData.phone && String(this.formData.phone).trim()) || '';
+
     let tagsObj: any = {};
     if (this.editingId && payload.tags) {
       try { tagsObj = JSON.parse(payload.tags) || {}; } catch (e) { tagsObj = {}; }
     }
-    if (payload.assignedRole) tagsObj.assignedRole = payload.assignedRole; else if (tagsObj.assignedRole) delete tagsObj.assignedRole;
+    if (payload.assignedRole) {
+      tagsObj.assignedRole = payload.assignedRole;
+    } else if (tagsObj.assignedRole) {
+      delete tagsObj.assignedRole;
+    }
     payload.tags = Object.keys(tagsObj).length ? JSON.stringify(tagsObj) : null;
 
     const action = this.editingId
       ? this.api.updateUser(this.editingId, payload)
       : this.api.createUser(payload);
 
-    action.subscribe(() => {
-      const msg = this.editingId ? 'GLOBAL.UPDATE_SUCCESS' : 'GLOBAL.CREATE_SUCCESS';
-      this.alerts.open(this.transloco.translate(msg), { appearance: 'success' }).subscribe();
-      this.showForm = false;
-      this.loadData();
+    action.subscribe({
+      next: () => {
+        const msg = this.editingId ? 'GLOBAL.UPDATE_SUCCESS' : 'GLOBAL.CREATE_SUCCESS';
+        this.alerts.open(this.transloco.translate(msg), { appearance: 'success' }).subscribe();
+        this.showForm = false;
+        this.loadData();
+      },
+      error: (e) => this.handleApiError(e),
     });
   }
 
