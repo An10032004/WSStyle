@@ -288,14 +288,6 @@ export class CheckoutComponent implements OnInit {
 
   onSubmit() {
     if (this.checkoutForm.invalid || this.isPlacingOrder) return;
-    const currentUser = this.auth.currentUserValue;
-    if (!currentUser?.id) {
-      this.alerts.open('Vui lòng đăng nhập để đặt hàng.', {
-        label: 'Yêu cầu đăng nhập',
-        appearance: 'warning',
-      }).subscribe();
-      return;
-    }
     combineLatest([
       this.isBlockedByDebt$,
       this.selectionHasHiddenPrice$,
@@ -365,14 +357,6 @@ export class CheckoutComponent implements OnInit {
         const formValue = this.checkoutForm.value;
         const currentItems = this.cartService.cartItems.filter(i => i.selected);
         const user = this.auth.currentUserValue;
-        if (!user?.id) {
-          this.alerts.open('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', {
-            label: 'Không thể đặt hàng',
-            appearance: 'error',
-          }).subscribe();
-          this.isPlacingOrder = false;
-          return;
-        }
         if (currentItems.length === 0) {
           this.alerts.open(
             'Không có sản phẩm hợp lệ để đặt hàng. Vui lòng chọn lại sản phẩm có đủ biến thể.',
@@ -414,7 +398,7 @@ export class CheckoutComponent implements OnInit {
                   ? String(this.lastAddressPayload.provinceCode)
                   : snap.provinceCode || undefined;
               const request: OrderRequest = {
-                userId: user.id,
+                userId: user?.id,
                 orderType: 'RETAIL',
                 paymentMethod: formValue.paymentMethod,
                 fullName: formValue.fullName,
@@ -454,7 +438,7 @@ export class CheckoutComponent implements OnInit {
                       label: 'Secure Checkout',
                     }).subscribe();
                   } else {
-                    this.onPaymentComplete();
+                    this.onPaymentComplete(false, formValue.phone);
                   }
                 },
                 error: (err) => {
@@ -484,7 +468,7 @@ export class CheckoutComponent implements OnInit {
     });
   }
 
-  onPaymentComplete(isPaidNotify: boolean = false) {
+  onPaymentComplete(isPaidNotify: boolean = false, guestPhone?: string) {
     const message = isPaidNotify 
       ? 'Chúng tôi đã nhận được thông báo chuyển khoản của bạn. Vui lòng chờ nhân viên kiểm tra nhé!'
       : 'Đơn hàng của bạn đã được ghi nhận. Bạn có thể thanh toán sau trong trang Lịch sử đơn hàng.';
@@ -496,6 +480,10 @@ export class CheckoutComponent implements OnInit {
     }).subscribe();
     
     this.cartService.clearSelected();
+    if (!this.auth.currentUserValue?.id && guestPhone) {
+      this.router.navigate(['/guest-orders'], { queryParams: { phone: guestPhone } });
+      return;
+    }
     this.router.navigate(['/storefront']);
   }
 
@@ -507,7 +495,8 @@ export class CheckoutComponent implements OnInit {
     
     this.apiService.updatePaymentStatus(this.currentOrder.id, 'AWAITING_CONFIRMATION').subscribe({
       next: () => {
-        this.onPaymentComplete(true);
+        const phone = this.checkoutForm.get('phone')?.value || '';
+        this.onPaymentComplete(true, phone);
         observer.complete();
       },
       error: () => {

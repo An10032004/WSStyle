@@ -17,6 +17,16 @@
       <!-- Checkout Form Section -->
       <div class="checkout-main">
         <h1 class="checkout-title">Thông tin thanh toán</h1>
+        <p
+          *ngIf="!(user$ | async)?.id"
+          style="margin: 0 0 16px; font-size: 13px; color: #334155; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 10px 12px;"
+        >
+          Bạn đang đặt hàng không cần đăng nhập (mua nhanh). Để chống spam, mỗi số điện thoại chỉ tạo 1 đơn đang mở tại một thời điểm.
+          Theo dõi đơn tại
+          <a routerLink="/guest-orders" style="font-weight: 700; color: #1d4ed8;">Tra cứu đơn guest</a>.
+          <a routerLink="/login" style="font-weight: 700; color: #1d4ed8; margin-left: 8px;">Đăng nhập</a>
+          để nhận thêm ưu đãi.
+        </p>
         
         <form [formGroup]="checkoutForm" (ngSubmit)="onSubmit()">
           

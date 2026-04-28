@@ -188,6 +188,16 @@ ModuleRegistry.registerModules([AllCommunityModule]);
           <button
             tuiButton
             size="m"
+            appearance="outline"
+            *ngIf="canShowVerifyGuestPhoneButton(selectedOrder)"
+            [disabled]="orderActionBusy"
+            (click)="verifyGuestPhone(selectedOrder!.id)"
+          >
+            Xác nhận SĐT khách guest
+          </button>
+          <button
+            tuiButton
+            size="m"
             appearance="primary"
             *ngIf="canShowMarkPaidButton(selectedOrder)"
             [disabled]="orderActionBusy"
@@ -492,6 +502,36 @@ export class OrdersComponent implements OnInit, OnDestroy {
       error: () => {
         this.orderActionBusy = false;
         this.alerts.open('Cập nhật thất bại. Vui lòng thử lại.', { appearance: 'error' }).subscribe();
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  canShowVerifyGuestPhoneButton(order: Order | null): boolean {
+    if (!order) return false;
+    const role = (order.user?.role || '').toUpperCase();
+    if (role !== 'GUEST') return false;
+    return !String(order.note || '').includes('[PHONE_VERIFIED]');
+  }
+
+  verifyGuestPhone(id: number): void {
+    this.orderActionBusy = true;
+    this.cdr.markForCheck();
+    this.api.verifyGuestPhone(id).subscribe({
+      next: (updated) => {
+        this.orderActionBusy = false;
+        this.alerts.open('Đã xác nhận số điện thoại khách guest.', { appearance: 'success' }).subscribe();
+        this.loadData();
+        if (this.selectedOrder?.id === id) {
+          this.patchSelectedOrderFromResponse(updated);
+          this.selectedOrder.note = updated.note;
+        }
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.orderActionBusy = false;
+        const msg = e?.error?.message || e?.message || 'Xác nhận SĐT thất bại.';
+        this.alerts.open(String(msg), { appearance: 'error' }).subscribe();
         this.cdr.markForCheck();
       },
     });

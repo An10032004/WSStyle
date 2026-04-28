@@ -186,6 +186,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/checkout/checkout').then(m => m.CheckoutComponent)
   },
   {
+    path: 'guest-orders',
+    loadComponent: () => import('./pages/guest-orders/guest-orders').then(m => m.GuestOrdersComponent)
+  },
+  {
     path: 'quick-order',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/quick-order-form/quick-order-form').then(m => m.QuickOrderFormComponent)

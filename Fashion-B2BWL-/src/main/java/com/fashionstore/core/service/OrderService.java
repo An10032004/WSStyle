@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,8 @@ public class OrderService {
 
     /** Đồng bộ đăng ký / thanh toán storefront: 10 chữ số bắt đầu bằng 0. */
     private static final Pattern CHECKOUT_PHONE_VN = Pattern.compile("^0[0-9]{9}$");
+    private static final String GUEST_EMAIL_SUFFIX = "@guest.local";
+    private static final String GUEST_PHONE_VERIFIED_TAG = "[PHONE_VERIFIED]";
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -60,7 +63,7 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(OrderRequest request) {
-        if (request == null || request.getUserId() == null) {
+        if (request == null) {
             throw new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO);
         }
 
@@ -74,8 +77,17 @@ public class OrderService {
             throw new IllegalArgumentException(OrderValidationMessages.INVALID_PHONE);
         }
 
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO));
+        User user;
+        if (request.getUserId() != null) {
+            user = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException(OrderValidationMessages.MISSING_USER_INFO));
+        } else {
+            user = resolveOrCreateGuestUser(fullName, phoneRaw);
+            long openGuestOrders = orderRepository.countGuestOpenOrdersByPhone(phoneRaw);
+            if (openGuestOrders > 0) {
+                throw new IllegalArgumentException("Số điện thoại này đang có đơn chưa hoàn tất. Vui lòng chờ admin xác nhận đơn trước khi đặt tiếp.");
+            }
+        }
 
         if (hasOverdueDebt(user.getId())) {
             throw new IllegalArgumentException(OrderValidationMessages.OVERDUE_DEBT);
@@ -227,6 +239,22 @@ public class OrderService {
         return saved;
     }
 
+    private User resolveOrCreateGuestUser(String fullName, String phone) {
+        String guestEmail = "guest_" + phone + GUEST_EMAIL_SUFFIX;
+        return userRepository.findByEmailIgnoreCase(guestEmail).orElseGet(() -> {
+            User guest = User.builder()
+                    .email(guestEmail)
+                    .passwordHash(new BCryptPasswordEncoder().encode("guest-" + phone))
+                    .fullName(fullName)
+                    .phone(phone)
+                    .role("GUEST")
+                    .registrationStatus("APPROVED")
+                    .active(true)
+                    .build();
+            return userRepository.save(guest);
+        });
+    }
+
     private Order requireOrderWithItems(Integer id) {
         return orderRepository.findByIdWithItemVariants(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -293,6 +321,15 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 
+    @Transactional(readOnly = true)
+    public List<Order> getGuestOrdersByPhone(String phone) {
+        String normalized = normalizePhone(phone);
+        if (!CHECKOUT_PHONE_VN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException(OrderValidationMessages.INVALID_PHONE);
+        }
+        return orderRepository.findGuestOrdersByPhone(normalized);
+    }
+
     @Transactional
     public Order updateOrderStatus(Integer id, String status) {
         if (status == null || status.isBlank()) {
@@ -315,6 +352,26 @@ public class OrderService {
             deductStock(order);
         }
         return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order guestCancelOrder(Integer id, String phone) {
+        Order order = requireGuestOrder(id, phone);
+        String status = order.getStatus() == null ? "" : order.getStatus().trim().toUpperCase();
+        if (!"PENDING".equals(status) && !"PROCESSING".equals(status)) {
+            throw new RuntimeException("Đơn này không còn ở trạng thái cho phép hủy.");
+        }
+        return updateOrderStatus(id, "CANCELLED");
+    }
+
+    @Transactional
+    public Order guestMarkReceived(Integer id, String phone) {
+        Order order = requireGuestOrder(id, phone);
+        String status = order.getStatus() == null ? "" : order.getStatus().trim().toUpperCase();
+        if (!"PROCESSING".equals(status) && !"SHIPPED".equals(status)) {
+            throw new RuntimeException("Đơn chưa ở trạng thái giao hàng để xác nhận đã nhận.");
+        }
+        return updateOrderStatus(id, "COMPLETED");
     }
 
     @Transactional
@@ -430,6 +487,65 @@ public class OrderService {
         order.setPaymentStatus("REFUNDED");
         order.setPaidAmount(BigDecimal.ZERO);
         return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order confirmRefundReceivedByGuest(Integer orderId, String phone) {
+        Order order = requireGuestOrder(orderId, phone);
+        String st = order.getStatus() != null ? order.getStatus().trim().toUpperCase() : "";
+        if (!"CANCELLED".equals(st) && !"REJECTED".equals(st)) {
+            throw new RuntimeException("Chỉ áp dụng khi đơn đã hủy hoặc từ chối.");
+        }
+        if (order.getRefundProcessedAt() == null) {
+            throw new RuntimeException("Shop chưa đánh dấu đã hoàn tiền. Vui lòng liên hệ shop.");
+        }
+        if (order.getRefundConfirmedByCustomerAt() != null) {
+            throw new RuntimeException("Bạn đã xác nhận nhận hoàn tiền rồi.");
+        }
+        order.setRefundConfirmedByCustomerAt(LocalDateTime.now());
+        order.setPaymentStatus("REFUNDED");
+        order.setPaidAmount(BigDecimal.ZERO);
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order verifyGuestPhoneByAdmin(Integer orderId) {
+        Order order = requireOrderWithItems(orderId);
+        String role = order.getUser() != null && order.getUser().getRole() != null
+                ? order.getUser().getRole().trim().toUpperCase()
+                : "";
+        if (!"GUEST".equals(role)) {
+            throw new RuntimeException("Chỉ áp dụng xác nhận SĐT cho đơn guest.");
+        }
+        String note = order.getNote() == null ? "" : order.getNote();
+        if (!note.contains(GUEST_PHONE_VERIFIED_TAG)) {
+            String updated = note.isBlank() ? GUEST_PHONE_VERIFIED_TAG : (note + "\n" + GUEST_PHONE_VERIFIED_TAG);
+            order.setNote(updated);
+        }
+        return orderRepository.save(order);
+    }
+
+    private Order requireGuestOrder(Integer orderId, String phone) {
+        Order order = requireOrderWithItems(orderId);
+        String normalizedPhone = normalizePhone(phone);
+        if (!CHECKOUT_PHONE_VN.matcher(normalizedPhone).matches()) {
+            throw new IllegalArgumentException(OrderValidationMessages.INVALID_PHONE);
+        }
+        String role = order.getUser() != null && order.getUser().getRole() != null
+                ? order.getUser().getRole().trim().toUpperCase()
+                : "";
+        if (!"GUEST".equals(role)) {
+            throw new RuntimeException("Đơn này không thuộc khách mua nhanh.");
+        }
+        String orderPhone = normalizePhone(order.getPhone());
+        if (!normalizedPhone.equals(orderPhone)) {
+            throw new RuntimeException("Số điện thoại không khớp với đơn hàng.");
+        }
+        return order;
+    }
+
+    private String normalizePhone(String phone) {
+        return phone == null ? "" : phone.trim();
     }
 
     @Transactional(readOnly = true)

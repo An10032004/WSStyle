@@ -70,4 +70,24 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
           AND o.status NOT IN :excluded
         """)
     long countPriorOrdersExcludingStatuses(@Param("userId") Integer userId, @Param("excluded") List<String> excluded);
+
+    @Query("""
+        SELECT COUNT(o) FROM Order o
+        WHERE UPPER(TRIM(o.phone)) = UPPER(TRIM(:phone))
+          AND UPPER(COALESCE(o.user.role, '')) = 'GUEST'
+          AND UPPER(COALESCE(o.status, '')) NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
+        """)
+    long countGuestOpenOrdersByPhone(@Param("phone") String phone);
+
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.items i
+        LEFT JOIN FETCH i.productVariant pv
+        LEFT JOIN FETCH pv.product
+        LEFT JOIN FETCH o.user u
+        WHERE UPPER(TRIM(o.phone)) = UPPER(TRIM(:phone))
+          AND UPPER(COALESCE(u.role, '')) = 'GUEST'
+        ORDER BY o.createdAt DESC
+        """)
+    List<Order> findGuestOrdersByPhone(@Param("phone") String phone);
 }

@@ -927,6 +927,10 @@ export class ApiService {
     return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders/user/${userId}`).pipe(map(r => r.data));
   }
 
+  getGuestOrdersByPhone(phone: string): Observable<Order[]> {
+    return this.http.get<ApiResponse<Order[]>>(`${this.base}/orders/guest`, { params: { phone } }).pipe(map(r => r.data));
+  }
+
   getDebtSummary(userId: number): Observable<DebtSummary> {
     return this.http.get<ApiResponse<DebtSummary>>(`${this.base}/orders/user/${userId}/debt-summary`).pipe(map(r => r.data));
   }
@@ -967,6 +971,14 @@ export class ApiService {
     return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/status?status=${status}`, {}).pipe(map(r => r.data));
   }
 
+  cancelGuestOrder(id: number, phone: string): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/guest/cancel?phone=${encodeURIComponent(phone)}`, {}).pipe(map(r => r.data));
+  }
+
+  markGuestOrderReceived(id: number, phone: string): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/guest/received?phone=${encodeURIComponent(phone)}`, {}).pipe(map(r => r.data));
+  }
+
   updatePaymentStatus(id: number, status: string): Observable<Order> {
     return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/payment-status?paymentStatus=${status}`, {}).pipe(map(r => r.data));
   }
@@ -975,9 +987,19 @@ export class ApiService {
     return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/refund-processed`, {}).pipe(map(r => r.data));
   }
 
+  verifyGuestPhone(id: number): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(`${this.base}/orders/${id}/verify-guest-phone`, {}).pipe(map(r => r.data));
+  }
+
   confirmRefundReceived(orderId: number, userId: number): Observable<Order> {
     return this.http
       .patch<ApiResponse<Order>>(`${this.base}/orders/${orderId}/confirm-refund-received?userId=${userId}`, {})
+      .pipe(map(r => r.data));
+  }
+
+  confirmGuestRefundReceived(orderId: number, phone: string): Observable<Order> {
+    return this.http
+      .patch<ApiResponse<Order>>(`${this.base}/orders/${orderId}/guest/confirm-refund?phone=${encodeURIComponent(phone)}`, {})
       .pipe(map(r => r.data));
   }
 

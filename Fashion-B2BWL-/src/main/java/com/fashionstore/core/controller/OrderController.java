@@ -47,6 +47,11 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.getOrdersByUserId(userId)));
     }
 
+    @GetMapping("/guest")
+    public ResponseEntity<ApiResponse<List<Order>>> getOrdersByGuestPhone(@RequestParam String phone) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getGuestOrdersByPhone(phone)));
+    }
+
     @GetMapping("/user/{userId}/debt-summary")
     public ResponseEntity<ApiResponse<DebtSummaryResponse>> getDebtSummary(@PathVariable("userId") Integer userId) {
         return ResponseEntity.ok(ApiResponse.success(orderService.getDebtSummary(userId)));
@@ -78,6 +83,16 @@ public class OrderController {
         return ApiResponse.success(orderService.updateOrderStatus(id, status));
     }
 
+    @PatchMapping("/{id}/guest/cancel")
+    public ApiResponse<Order> cancelGuestOrder(@PathVariable Integer id, @RequestParam String phone) {
+        return ApiResponse.success(orderService.guestCancelOrder(id, phone));
+    }
+
+    @PatchMapping("/{id}/guest/received")
+    public ApiResponse<Order> markGuestOrderReceived(@PathVariable Integer id, @RequestParam String phone) {
+        return ApiResponse.success(orderService.guestMarkReceived(id, phone));
+    }
+
     @PatchMapping("/{id}/payment-status")
     public ApiResponse<Order> updatePaymentStatus(@PathVariable Integer id, @RequestParam String paymentStatus) {
         return ApiResponse.success(orderService.updatePaymentStatus(id, paymentStatus));
@@ -89,11 +104,23 @@ public class OrderController {
         return ApiResponse.success(orderService.markRefundProcessed(id));
     }
 
+    @PatchMapping("/{id}/verify-guest-phone")
+    public ApiResponse<Order> verifyGuestPhone(@PathVariable Integer id) {
+        return ApiResponse.success(orderService.verifyGuestPhoneByAdmin(id));
+    }
+
     /** Khách: xác nhận đã nhận tiền hoàn trả (userId phải trùng chủ đơn). */
     @PatchMapping("/{id}/confirm-refund-received")
     public ApiResponse<Order> confirmRefundReceived(
             @PathVariable Integer id,
             @RequestParam Integer userId) {
         return ApiResponse.success(orderService.confirmRefundReceivedByCustomer(id, userId));
+    }
+
+    @PatchMapping("/{id}/guest/confirm-refund")
+    public ApiResponse<Order> confirmRefundReceivedByGuest(
+            @PathVariable Integer id,
+            @RequestParam String phone) {
+        return ApiResponse.success(orderService.confirmRefundReceivedByGuest(id, phone));
     }
 }
