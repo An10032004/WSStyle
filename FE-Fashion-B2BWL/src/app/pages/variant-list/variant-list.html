@@ -154,20 +154,59 @@
                     </span>
                   </div>
                   <div class="attr-row__palette" *ngIf="row.displayAs === 'swatch'">
-                    <p class="attr-row__palette-title">{{ 'VARIANT.SWATCH_PALETTE_TITLE' | transloco }}</p>
-                    <p class="attr-row__palette-hint">{{ 'VARIANT.SWATCH_PALETTE_HINT' | transloco }}</p>
-                    <div class="attr-row__palette-swatches" role="list">
+                    <div class="attr-row__palette-head">
+                      <p class="attr-row__palette-title">{{ 'VARIANT.SWATCH_PALETTE_TITLE' | transloco }}</p>
                       <button
+                        tuiButton
                         type="button"
-                        class="attr-row__palette-dot"
-                        *ngFor="let s of presetColorSwatches"
-                        role="listitem"
-                        [title]="s.label"
-                        [attr.aria-label]="s.label"
-                        [class.attr-row__palette-dot--light]="presetSwatchIsLight(s.label)"
-                        [style.background-color]="presetSwatchHex(s.label)"
-                        (click)="appendPresetColorToRow(row, s.label)"
-                      ></button>
+                        appearance="flat"
+                        size="s"
+                        class="attr-row__palette-toggle"
+                        (click)="togglePalettePanel(row)"
+                      >
+                        {{ row.paletteExpanded ? 'Thu gọn' : 'Mở bảng màu' }}
+                      </button>
+                    </div>
+                    <p class="attr-row__palette-hint">{{ 'VARIANT.SWATCH_PALETTE_HINT' | transloco }}</p>
+                    <div class="attr-row__palette-animated" [class.attr-row__palette-animated--open]="row.paletteExpanded">
+                      <div class="attr-row__palette-custom">
+                        <label class="attr-row__palette-custom-label">Color picker + mã màu</label>
+                        <div class="attr-row__palette-custom-controls">
+                          <div class="attr-row__picker-shell">
+                            <input
+                              type="color"
+                              class="attr-row__palette-picker"
+                              [(ngModel)]="row.customSwatchHex"
+                              (ngModelChange)="onCustomSwatchPickerChange(row)"
+                            />
+                          </div>
+                          <tui-textfield class="attr-row__palette-code">
+                            <input tuiTextfield [(ngModel)]="row.customSwatchCodeInput" placeholder="#70B2B1" />
+                          </tui-textfield>
+                          <button
+                            tuiButton
+                            type="button"
+                            appearance="outline"
+                            size="s"
+                            (click)="appendCustomColorToRow(row)"
+                          >
+                            Thêm màu tùy ý
+                          </button>
+                        </div>
+                      </div>
+                      <div class="attr-row__palette-swatches" role="list">
+                        <button
+                          type="button"
+                          class="attr-row__palette-dot"
+                          *ngFor="let s of presetColorSwatches"
+                          role="listitem"
+                          [title]="s.label"
+                          [attr.aria-label]="s.label"
+                          [class.attr-row__palette-dot--light]="presetSwatchIsLight(s.label)"
+                          [style.background-color]="presetSwatchHex(s.label)"
+                          (click)="appendPresetColorToRow(row, s.label)"
+                        ></button>
+                      </div>
                     </div>
                   </div>
                 </div>

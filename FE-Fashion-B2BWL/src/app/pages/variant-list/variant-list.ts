@@ -32,6 +32,12 @@ export interface VariantAttributeRow {
   tagInput: string;
   /** Cách hiển thị trên PDP: ô màu tròn hoặc nút chữ. */
   displayAs: VariantDimUi;
+  /** Màu tùy ý từ color picker (swatch). */
+  customSwatchHex: string;
+  /** Input mã màu riêng (UI chuẩn hơn so với nhập chung ở ô giá trị). */
+  customSwatchCodeInput: string;
+  /** Thu gọn/mở rộng panel màu gợi ý để tránh chiếm diện tích. */
+  paletteExpanded: boolean;
 }
 
 /** Một dòng trong bảng tổ hợp sau khi Generate hoặc load từ DB. */
@@ -75,7 +81,7 @@ export interface CombinationTableRow {
 })
 export class VariantListComponent implements OnInit, OnDestroy {
   private static readonly MAX_COMBINATION_ROWS = 1000;
-  private static readonly ATTR_VALUE_ALLOWED_REGEX = /^[\p{L}\p{N}\s._-]+$/u;
+  private static readonly ATTR_VALUE_ALLOWED_REGEX = /^[\p{L}\p{N}\s._#\/()+,-]+$/u;
   /** Màu gợi ý khi chiều dùng ô màu trên PDP (bấm để thêm chip). */
   readonly presetColorSwatches = PRESET_COLOR_SWATCHES;
   rowData: ProductVariant[] = [];
@@ -532,6 +538,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
       values: [],
       tagInput: '',
       displayAs: idx === 0 ? 'swatch' : 'buttons',
+      customSwatchHex: '#2563eb',
+      customSwatchCodeInput: '#2563EB',
+      paletteExpanded: false,
     });
     this.cdr.markForCheck();
   }
@@ -566,6 +575,33 @@ export class VariantListComponent implements OnInit, OnDestroy {
     const t = (label || '').trim();
     if (!t || row.values.includes(t)) return;
     row.values.push(t);
+    this.cdr.markForCheck();
+  }
+
+  appendCustomColorToRow(row: VariantAttributeRow): void {
+    const normalized = this.normalizeHexColorLabel(row.customSwatchCodeInput || row.customSwatchHex);
+    if (!normalized) {
+      this.alerts.open('Mã màu không hợp lệ', { appearance: 'warning' }).subscribe();
+      return;
+    }
+    if (!row.values.includes(normalized)) {
+      row.values.push(normalized);
+    }
+    row.customSwatchHex = normalized;
+    row.customSwatchCodeInput = normalized;
+    this.cdr.markForCheck();
+  }
+
+  togglePalettePanel(row: VariantAttributeRow): void {
+    row.paletteExpanded = !row.paletteExpanded;
+    this.cdr.markForCheck();
+  }
+
+  onCustomSwatchPickerChange(row: VariantAttributeRow): void {
+    const normalized = this.normalizeHexColorLabel(row.customSwatchHex);
+    if (!normalized) return;
+    row.customSwatchHex = normalized;
+    row.customSwatchCodeInput = normalized;
     this.cdr.markForCheck();
   }
 
@@ -672,6 +708,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: [],
         tagInput: '',
         displayAs: i === 0 ? 'swatch' : 'buttons',
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
     }
     return serializeVariantDimensionSlotsJson(
@@ -702,6 +741,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: [],
         tagInput: '',
         displayAs: slotsParsed[0].ui,
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
       return rows;
     }
@@ -711,6 +753,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: colors,
         tagInput: '',
         displayAs: slotsParsed[0].ui,
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
     }
     if (sizes.length || variants.some((v) => (v.size ?? '').trim())) {
@@ -719,6 +764,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: sizes,
         tagInput: '',
         displayAs: slotsParsed[1].ui,
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
     }
     if (weights.length || variants.some((v) => (v.weight ?? '').trim())) {
@@ -727,6 +775,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: weights,
         tagInput: '',
         displayAs: slotsParsed[2].ui,
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
     }
     if (rows.length === 0) {
@@ -735,6 +786,9 @@ export class VariantListComponent implements OnInit, OnDestroy {
         values: [],
         tagInput: '',
         displayAs: slotsParsed[0].ui,
+        customSwatchHex: '#2563eb',
+        customSwatchCodeInput: '#2563EB',
+        paletteExpanded: false,
       });
     }
     return rows.slice(0, 3);
@@ -1109,6 +1163,16 @@ export class VariantListComponent implements OnInit, OnDestroy {
     }
 
     return null;
+  }
+
+  private normalizeHexColorLabel(input: string | null | undefined): string | null {
+    const raw = String(input || '').trim();
+    if (!raw) return null;
+    const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+    if (!/^#([0-9a-f]{6})$/i.test(withHash)) {
+      return null;
+    }
+    return withHash.toUpperCase();
   }
 
   /** Mở cùng form tổ hợp theo sản phẩm cha (từ một dòng biến thể). */

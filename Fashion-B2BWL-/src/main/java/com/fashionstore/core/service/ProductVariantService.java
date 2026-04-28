@@ -22,7 +22,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 @Transactional
 public class ProductVariantService {
     private static final Pattern ATTR_VALUE_ALLOWED_PATTERN =
-            Pattern.compile("^[\\p{L}\\p{N}\\s._-]+$");
+            Pattern.compile("^[\\p{L}\\p{N}\\s._/()+,-]+$");
+    private static final Pattern HEX_COLOR_PATTERN =
+            Pattern.compile("^#([0-9a-fA-F]{6})$");
 
     private final ProductVariantRepository productVariantRepository;
     private final ProductRepository productRepository;
@@ -185,6 +187,12 @@ public class ProductVariantService {
     private void validateAttributeValue(String value) {
         String normalized = trimToNull(value);
         if (normalized == null) return;
+        if (normalized.startsWith("#")) {
+            if (!HEX_COLOR_PATTERN.matcher(normalized).matches()) {
+                throw new IllegalArgumentException("Giá trị thuộc tính không hợp lệ: \"" + normalized + "\"");
+            }
+            return;
+        }
         if (!ATTR_VALUE_ALLOWED_PATTERN.matcher(normalized).matches()) {
             throw new IllegalArgumentException("Giá trị thuộc tính không hợp lệ: \"" + normalized + "\"");
         }
