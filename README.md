@@ -338,11 +338,20 @@ Hệ thống được thiết kế với cấu trúc dữ liệu quan hệ chặ
 
 ---
 
-**Tại sao không có Khóa ngoại (FK) cho Rules?**
-Khác với các giao dịch thông thường, các quy tắc trong hệ thống B2B yêu cầu tính linh động cực cao (Dynamic Scoping):
-- **Phạm vi đa dạng (Scope)**: Một quy tắc có thể áp dụng cho **Toàn bộ** danh mục, một **Nhóm** khách hàng, hoặc một danh sách các **ID cụ thể**.
-- **Lưu trữ linh hoạt**: Thay vì tạo bảng trung gian cứng nhắc, các tiêu chí áp dụng được lưu dưới dạng **JSON hoặc Text** (trường `apply_product_value`, `apply_customer_value`). 
-- **Rule Engine xử lý**: Logic khớp quy tắc (Matching) được thực hiện bởi **Core Engine (Java)** tại thời điểm Runtime. Điều này cho phép hệ thống xử lý hàng nghìn sản phẩm mà không bị ràng buộc bởi hàng triệu dòng dữ liệu liên kết trong DB, đồng thời dễ dàng mở rộng các tiêu chí mới (như theo Tag, theo Brand) mà không cần thay đổi cấu trúc bảng.
+**Tại sao không có Khóa ngoại (FK) cho một số bảng?**
+
+Trong hệ thống này, một số quan hệ không được nối cứng bằng FK trong Database vì các lý do tối ưu và nghiệp vụ sau:
+
+1. **Hệ thống Quy tắc (Rules)**:
+    - **Phạm vi đa dạng (Scope)**: Một quy tắc có thể áp dụng cho **Toàn bộ** danh mục, một **Nhóm** khách hàng, hoặc một danh sách các **ID cụ thể**.
+    - **Lưu trữ linh hoạt**: Các tiêu chí áp dụng được lưu dưới dạng **JSON hoặc Text** thay vì bảng trung gian.
+    - **Rule Engine xử lý**: Logic khớp quy tắc (Matching) được thực hiện bởi **Core Engine (Java)** tại Runtime để đảm bảo tính linh hoạt tối đa.
+
+2. **Vai trò người dùng (app_roles)**:
+    - **Tối ưu hiệu năng**: Bảng `users` lưu vai trò dưới dạng **String** (ví dụ: "ADMIN", "STAFF") thay vì lưu ID. Điều này giúp hệ thống kiểm tra quyền cực nhanh (Stateless) mà không cần JOIN SQL mỗi lần xác thực người dùng.
+
+3. **Mã giảm giá (coupons)**:
+    - **Lưu vết lịch sử (Audit Trail)**: Đơn hàng (`orders`) lưu mã giảm giá bằng **chữ** (`coupon_code`). Điều này đảm bảo khi một mã Coupon bị xóa hoặc thay đổi trong tương lai, dữ liệu đơn hàng cũ vẫn hiển thị chính xác mã mà khách đã sử dụng tại thời điểm đặt hàng.
 
 ---
 

@@ -1,0 +1,191 @@
+@startuml WSStyle_ERD_Clean
+
+' --- Cấu hình giao diện rộng rãi & tách bạch ---
+skinparam linetype polyline
+skinparam nodesep 120
+skinparam ranksep 150
+skinparam shadowing false
+skinparam class {
+    BackgroundColor White
+    BorderColor #263238
+    ArrowColor #37474F
+    AttributeFontSize 11
+}
+
+' --- Định nghĩa các thực thể ---
+
+entity "app_roles" as Role {
+    * id : INT <<PK>>
+    --
+    name : VARCHAR(50)
+    permissions_json : JSON
+}
+
+entity "customer_groups" as CustomerGroup {
+    * id : INT <<PK>>
+    --
+    shop_id : INT
+    name : VARCHAR(255)
+    default_discount_rate : DECIMAL
+}
+
+entity "users" as User {
+    * id : INT <<PK>>
+    --
+    customer_group_id : INT <<FK>>
+    email : VARCHAR(255)
+    role : VARCHAR(20)
+    account_status : VARCHAR(20)
+    active : TINYINT
+}
+
+entity "password_reset_tokens" as PRT {
+    * id : BIGINT <<PK>>
+    --
+    user_id : INT <<FK>>
+    token : VARCHAR(128)
+}
+
+entity "b2b_registration_forms" as B2BReg {
+    * id : INT <<PK>>
+    --
+    user_id : INT <<FK>>
+    form_data : TEXT
+}
+
+entity "categories" as Category {
+    * id : INT <<PK>>
+    --
+    parent_id : INT <<FK>>
+    name : VARCHAR(255)
+}
+
+entity "products" as Product {
+    * id : INT <<PK>>
+    --
+    category_id : INT <<FK>>
+    product_code : VARCHAR(128)
+    name : VARCHAR(512)
+    base_price : DECIMAL
+}
+
+entity "product_variants" as Variant {
+    * id : INT <<PK>>
+    --
+    product_id : INT <<FK>>
+    sku : VARCHAR(128)
+    stock_quantity : INT
+    price : DECIMAL
+}
+
+entity "product_reviews" as Review {
+    * id : INT <<PK>>
+    --
+    product_id : INT <<FK>>
+    user_id : INT <<FK>>
+    rating : INT
+}
+
+entity "ai_product_sync" as AISync {
+    * id : INT <<PK>>
+    --
+    product_id : INT <<FK>>
+    vector_id : VARCHAR(255)
+}
+
+entity "bundles" as Bundle {
+    * id : BIGINT <<PK>>
+    --
+    name : VARCHAR(255)
+    new_price : DECIMAL
+}
+
+entity "bundle_items" as BundleItem {
+    * id : BIGINT <<PK>>
+    --
+    bundle_id : BIGINT <<FK>>
+    variant_id : BIGINT <<FK>>
+    quantity : INT
+}
+
+entity "coupons" as Coupon {
+    * id : INT <<PK>>
+    --
+    code : VARCHAR(255)
+}
+
+entity "orders" as Order {
+    * id : INT <<PK>>
+    --
+    user_id : INT <<FK>>
+    status : VARCHAR(50)
+    total_amount : DECIMAL
+}
+
+entity "order_items" as OrderItem {
+    * id : INT <<PK>>
+    --
+    order_id : INT <<FK>>
+    variant_id : INT <<FK>>
+    quantity : INT
+    unit_price : DECIMAL
+}
+
+entity "chat_messages" as Chat {
+    * id : INT <<PK>>
+    --
+    sender_id : INT <<FK>>
+    receiver_id : INT <<FK>>
+}
+
+entity "luxe_assistant_sessions" as LuxeSession {
+    * id : BIGINT <<PK>>
+    --
+    user_id : INT <<FK>>
+}
+
+entity "luxe_assistant_turns" as LuxeTurn {
+    * id : BIGINT <<PK>>
+    --
+    session_id : BIGINT <<FK>>
+    role : VARCHAR(20)
+}
+
+' --- Nhóm các bảng Quy tắc (Rules) ---
+entity "pricing_rules" as PricingRule {
+    * id : INT <<PK>>
+    --
+    name : VARCHAR(255)
+}
+entity "shipping_rules" as ShippingRule {}
+entity "order_limits" as OrderLimit {}
+entity "hide_price_rules" as HidePriceRule {}
+entity "tax_display_rules" as TaxRule {}
+entity "net_terms_rules" as NetTermRule {}
+entity "shipping_zones" as ShippingZone {}
+
+' --- Thiết lập quan hệ tách bạch ---
+
+CustomerGroup ||--o{ User : "phân nhóm"
+User ||--o{ PRT : "mã reset"
+User ||--|| B2BReg : "đơn đăng ký"
+
+Category ||--o{ Category : "cha - con"
+Category ||--o{ Product : "phân loại"
+Product ||--o{ Variant : "biến thể"
+Product ||--|| AISync : "đồng bộ AI"
+Product ||--o{ Review : "nhận xét"
+User ||--o{ Review : "viết"
+
+Bundle ||--o{ BundleItem : "gồm có"
+Variant ||--o{ BundleItem : "thuộc gói"
+
+User ||--o{ Order : "đặt hàng"
+Order ||--o{ OrderItem : "chi tiết"
+Variant ||--o{ OrderItem : "mặt hàng"
+
+User ||--o{ Chat : "gửi/nhận"
+User ||--o{ LuxeSession : "tư vấn"
+LuxeSession ||--o{ LuxeTurn : "lượt chat"
+
+@enduml
