@@ -16,7 +16,9 @@ import {
   TuiLabel, 
   TuiDataList,
   TuiAlertService,
-  TuiDialogService
+  TuiDialogService,
+  TuiLoader,
+  TuiIcon
 } from '@taiga-ui/core';
 import { 
   TuiDataListWrapper, 
@@ -26,7 +28,7 @@ import {
 } from '@taiga-ui/kit';
 import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { ApiService, User, CustomerGroup, Role } from '../../services/api.service';
+import { ApiService, User, CustomerGroup, Role, AICustomerInsightResponse } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { Subscription } from 'rxjs';
@@ -53,7 +55,8 @@ const INTERNAL_PRIMARY_UPPER = new Set(['ADMIN', 'STAFF', 'ADMINISTRATOR', 'SUPE
   imports: [
     CommonModule, FormsModule, AgGridAngular, TuiButton, TuiInputNumber, 
     TuiSelectModule, TuiDataList, TuiDataListWrapper, TuiBadge,
-    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield, TuiRadio
+    TuiTextfieldControllerModule, TuiLabel, TranslocoModule, ActionRendererComponent, TuiTextfield, TuiRadio,
+    TuiLoader, TuiIcon
   ],
   templateUrl: './users.html',
   styleUrls: ['./users.scss'],
@@ -67,6 +70,8 @@ export class UsersComponent implements OnInit, OnDestroy {
   @ViewChild('adminDeleteDialog') adminDeleteDialogTemplate!: TemplateRef<any>;
   deleteTargetName: string = '';
   selectedUser: User | null = null;
+  aiInsight: AICustomerInsightResponse | null = null;
+  loadingAi = false;
 
   rowData: User[] = [];
   /** Tài khoản quản trị / nhân viên (lọc theo vai trò chính nội bộ). */
@@ -366,8 +371,27 @@ export class UsersComponent implements OnInit, OnDestroy {
     }
     (user as any).displayRoles = (user as any).roles.map((r: string) => this.transloco.translate('ENUMS.' + r)).join(' / ');
     this.selectedUser = user;
+    this.aiInsight = null;
     this.dialogs.open(this.viewDialogTemplate, { size: 'm', label: this.transloco.translate('MEMBER.USER_DETAIL') })
       .subscribe();
+  }
+
+  fetchAiInsight(): void {
+    if (!this.selectedUser) return;
+    this.loadingAi = true;
+    this.aiInsight = null;
+    this.api.getCustomerInsight(this.selectedUser.id).subscribe({
+      next: (res) => {
+        this.aiInsight = res;
+        this.loadingAi = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.loadingAi = false;
+        this.handleApiError(err);
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   onGridReady(params: GridReadyEvent): void {

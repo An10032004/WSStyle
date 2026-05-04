@@ -148,6 +148,13 @@ export interface AIResponse {
   sessionId?: number | null;
 }
 
+export interface AICustomerInsightResponse {
+  insight: string;
+  sentiment: string;
+  suggestedActions: string[];
+  predictedInterests: string[];
+}
+
 /** Đồng bộ với GET /api/pricing-rules/assistant-hints (gồm rule SPECIFIC theo variantIds). */
 export interface AssistantPricingHints {
   pricingHintProductIds: number[];
@@ -1314,5 +1321,9 @@ export class ApiService {
   }
   deleteBundle(id: number): Observable<void> {
     return this.http.delete<ApiResponse<void>>(`${this.base}/bundles/${id}`).pipe(map(r => r.data));
+  }
+
+  getCustomerInsight(userId: number): Observable<AICustomerInsightResponse> {
+    return this.http.get<AICustomerInsightResponse>(`${this.base}/admin/ai/customers/${userId}/insight`);
   }
 }
