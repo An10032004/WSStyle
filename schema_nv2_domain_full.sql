@@ -9,6 +9,8 @@
 -- MySQL 8.0+ khuyen dung (JSON, CHECK).
 -- =============================================================================
 -- USE fashion_b2bwl;
+CREATE DATABASE if not exists fashion_b2bwl_design;
+USE fashion_b2bwl_design;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
