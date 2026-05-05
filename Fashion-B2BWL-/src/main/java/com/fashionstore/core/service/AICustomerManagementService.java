@@ -40,6 +40,25 @@ public class AICustomerManagementService {
     @Value("${google.ai.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent}")
     private String geminiGenerateUrl;
 
+    private static final String[] GEMINI_ENDPOINT_FALLBACKS = {
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    };
+
+    private List<String> geminiEndpointCandidates() {
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+        String primary = geminiGenerateUrl != null ? geminiGenerateUrl.trim() : "";
+        if (!primary.isEmpty()) {
+            set.add(primary);
+        }
+        for (String u : GEMINI_ENDPOINT_FALLBACKS) {
+            set.add(u);
+        }
+        return new ArrayList<>(set);
+    }
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AICustomerInsightResponse getCustomerInsight(Integer userId) {
@@ -58,30 +77,43 @@ public class AICustomerManagementService {
         String context = buildCustomerContext(user, lastOrders, lastChats);
         String prompt = buildPrompt(context);
 
-        String aiRaw = callGeminiApi(geminiGenerateUrl, apiKey, prompt);
-        JsonNode aiJson = parseAiJson(aiRaw);
-
-        if (aiJson == null) {
-            return AICustomerInsightResponse.builder()
-                    .insight("Hiện tại trợ lý AI không thể phân tích dữ liệu của khách hàng này. Vui lòng thử lại sau.")
-                    .sentiment("NEUTRAL")
-                    .suggestedActions(List.of("Kiểm tra lại thông tin khách hàng thủ công", "Liên hệ khách hàng để tìm hiểu nhu cầu"))
-                    .predictedInterests(List.of("Chưa xác định"))
-                    .build();
+        String cleanKey = (apiKey != null) ? apiKey.trim() : "";
+        String aiRaw = null;
+        for (String urlBase : geminiEndpointCandidates()) {
+            log.debug("Gemini Admin try: {}", urlBase);
+            aiRaw = callGeminiApi(urlBase, cleanKey, prompt);
+            if (aiRaw != null && !aiRaw.startsWith("API_ERROR_")) {
+                break;
+            }
         }
 
-        List<String> actions = new ArrayList<>();
-        aiJson.path("suggestedActions").forEach(n -> actions.add(n.asText()));
+        if (aiRaw == null || aiRaw.startsWith("API_ERROR_")) {
+            log.error("AI Admin failed after fallbacks: {}", aiRaw);
+            throw new RuntimeException("Dịch vụ AI đang bận hoặc quá tải. Vui lòng thử lại sau.");
+        }
 
-        List<String> interests = new ArrayList<>();
-        aiJson.path("predictedInterests").forEach(n -> interests.add(n.asText()));
+        try {
+            JsonNode root = objectMapper.readTree(aiRaw);
+            String text = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+            
+            // Trích xuất JSON từ text nếu AI bọc trong ```json
+            if (text.contains("```json")) {
+                text = text.substring(text.indexOf("```json") + 7);
+                if (text.contains("```")) {
+                    text = text.substring(0, text.indexOf("```"));
+                }
+            } else if (text.contains("```")) {
+                text = text.substring(text.indexOf("```") + 3);
+                if (text.contains("```")) {
+                    text = text.substring(0, text.indexOf("```"));
+                }
+            }
 
-        return AICustomerInsightResponse.builder()
-                .insight(aiJson.path("insight").asText())
-                .sentiment(aiJson.path("sentiment").asText("NEUTRAL"))
-                .suggestedActions(actions)
-                .predictedInterests(interests)
-                .build();
+            return objectMapper.readValue(text.trim(), AICustomerInsightResponse.class);
+        } catch (Exception e) {
+            log.error("Error parsing AI response", e);
+            throw new RuntimeException("Không thể phân tích dữ liệu từ AI.");
+        }
     }
 
     private String buildCustomerContext(User user, List<Order> orders, List<AssistantTurnDTO> chats) {
@@ -144,7 +176,7 @@ public class AICustomerManagementService {
     private String callGeminiApi(String url, String apiKey, String prompt) {
         if (apiKey == null || apiKey.isBlank() || apiKey.startsWith("${")) {
             log.warn("AI API Key is missing.");
-            return null;
+            return "API_ERROR_NO_KEY";
         }
         try {
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
@@ -161,17 +193,17 @@ public class AICustomerManagementService {
                             objectMapper.writeValueAsString(rootNode), StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            
             if (response.statusCode() != 200) {
                 log.error("Gemini Error {}: {}", response.statusCode(), response.body());
-                return null;
+                return "API_ERROR_" + response.statusCode();
             }
-
-            JsonNode resJson = objectMapper.readTree(response.body());
-            return resJson.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+            
+            return response.body();
         } catch (Exception e) {
-            log.error("Gemini execution error", e);
-            return null;
+            log.error("Error calling Gemini API", e);
+            return "API_ERROR_EXCEPTION";
         }
     }
 

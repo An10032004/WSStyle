@@ -388,7 +388,13 @@ export class UsersComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loadingAi = false;
-        this.handleApiError(err);
+        console.error('AI Analysis error:', err);
+        const msg = err?.error?.message || 'Dịch vụ AI đang bận hoặc quá tải. Vui lòng thử lại sau.';
+        this.alerts.open(msg, { 
+          label: 'Lỗi phân tích AI',
+          appearance: 'error',
+          autoClose: 5000 
+        }).subscribe();
         this.cdr.markForCheck();
       }
     });
