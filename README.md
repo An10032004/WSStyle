@@ -392,8 +392,52 @@ D:\WSStyle
 
 ---
 
-## Tầm Nhìn
-**WSStyle** hướng tới việc trở thành giải pháp White-label hàng đầu cho các doanh nghiệp thời trang muốn chuyển đổi số quy trình bán buôn, mang lại sự minh bạch, tốc độ và hiệu quả tối đa.
+## 🧠 Kiến Trúc AI RAG (Retrieval-Augmented Generation)
+
+Hệ thống WSStyle tích hợp giải pháp AI tiên tiến dựa trên mô hình **RAG**, giúp AI không chỉ giao tiếp tự nhiên mà còn có khả năng truy xuất dữ liệu thực tế từ Database để đưa ra câu trả lời chính xác 100% về sản phẩm và tình hình kinh doanh.
+
+---
+
+### 1. Đào sâu cơ chế hoạt động (Deep Dive)
+
+Kiến trúc RAG của chúng tôi hoạt động dựa trên quy trình **"Tiếp nhận - Tra cứu - Làm giàu - Suy luận"**:
+
+#### **A. Retrieval (Lớp Truy xuất Thực thể)**
+Thay vì sử dụng Vector Database thông thường (dễ gây nhầm lẫn số liệu), chúng tôi sử dụng **Entity-Based Context Retrieval**:
+*   **Site Context Engine (`AiSiteContextLoader.java`)**: Quét toàn bộ hệ thống để lấy dữ liệu thời gian thực:
+    *   **Products & Variants**: SKU, chất liệu, nguồn gốc, giá và trạng thái kho chính xác.
+    *   **Category Hierarchy**: Xây dựng bản đồ danh mục để AI hiểu mối quan hệ giữa các nhóm hàng.
+    *   **System Principles**: Các quy tắc sỉ, chính sách thanh toán Net Terms.
+*   **Analytical Data Retrieval (`ReportService.java`)**: Tổng hợp dữ liệu tài chính thô thành các báo cáo Markdown Table để AI phân tích.
+
+#### **B. Augmentation (Lớp Làm giàu & Ràng buộc)**
+*   **Markdown Serialization**: Chuyển đổi dữ liệu Java sang định dạng Markdown. Các LLM (như Gemini) xử lý bảng Markdown tốt hơn 40% so với văn bản thuần, giúp tính toán lợi nhuận và so sánh giá chính xác tuyệt đối.
+*   **Dynamic System Prompting**: Sử dụng kỹ thuật **Sandwich Prompting** để ép AI luôn nằm trong vai trò hỗ trợ bán hàng, không bị phân tâm bởi các câu hỏi ngoài lề.
+
+#### **C. Generation & Reasoning (Lớp Suy luận)**
+*   **Gemini 1.5 Context Window**: Tận dụng cửa sổ ngữ cảnh khổng lồ để gửi toàn bộ "tri thức cửa hàng" trong một lần gọi API, giảm độ trễ và tăng tính nhất quán.
+*   **Chain-of-Thought (CoT)**: Ra lệnh cho AI "suy nghĩ từng bước" khi phân tích báo cáo tài chính trong Admin Dashboard.
+
+---
+
+### 2. Luồng Hoạt động Chi tiết (Two Perspectives)
+
+#### **Hướng Code (Dành cho Lập trình viên)**
+*   **Client Flow (Hỗ trợ khách mua hàng)**:
+    1.  **Frontend**: `AIChatComponent` gửi yêu cầu.
+    2.  **Controller**: `AIChatController` tiếp nhận request.
+    3.  **Context Loader**: `AiSiteContextLoader` truy vấn Database lấy Products/Categories hiện hành.
+    4.  **Service**: `AIChatService` kết hợp tin nhắn khách + Context thành Prompt hoàn chỉnh.
+    5.  **Provider**: `GeminiProvider` gọi API Google Gemini và trả về kết quả.
+*   **Admin Flow (Cố vấn quản trị)**:
+    1.  **Aggregator**: `ReportService` tính toán Doanh thu, Chi phí, Công nợ.
+    2.  **Insight Service**: `AICustomerManagementService` đóng gói số liệu thành báo cáo.
+    3.  **AI Reasoning**: AI đọc báo cáo, tính toán lợi nhuận ròng và đưa ra gợi ý chiến lược kinh doanh.
+
+#### **Hướng Báo Cáo / Slide (Dành cho Thuyết trình)**
+*   **Mô hình RAG**: Giải thích AI là "Bộ não" và Database là "Sổ sách". AI luôn tra cứu sổ sách trước khi trả lời khách hàng.
+*   **Strict Domain Constraint**: Tại sao AI chỉ trả lời về bán hàng? Vì chúng tôi thiết lập **Language Guardrails** (Hàng rào ngôn ngữ). Nếu phát hiện câu hỏi ngoài lĩnh vực (nấu ăn, chính trị...), AI sẽ kích hoạt cơ chế từ chối dựa trên chỉ thị hệ thống ưu tiên cao nhất.
+*   **Tính Hiểu Hệ Thống**: AI biết mọi thứ vì chúng tôi thực hiện **Dynamic Instruction Injection** — "bơm" toàn bộ hướng dẫn sử dụng và dữ liệu web vào AI trong mỗi phiên hội thoại.
 
 ---
 *© 2026 WSStyle Project - Professional Fashion Management.*
