@@ -228,8 +228,8 @@ export class CheckoutComponent implements OnInit {
       }
     }
 
-    this.cartService.syncHidePriceFlagsFromServer().subscribe({ error: () => {} });
-    this.cartService.syncLineAvailabilityFromServer().subscribe({ error: () => {} });
+    this.cartService.syncHidePriceFlagsFromServer().subscribe({ error: () => { } });
+    this.cartService.syncLineAvailabilityFromServer().subscribe({ error: () => { } });
 
     // If cart is empty, go back to storefront
     this.cartService.cart$.subscribe(items => {
@@ -295,60 +295,60 @@ export class CheckoutComponent implements OnInit {
     ])
       .pipe(take(1))
       .subscribe(([blocked, hiddenPrice, unavailable]) => {
-      if (blocked) {
-        this.alerts.open('Bạn đang có công nợ quá hạn. Vui lòng thanh toán các đơn công nợ trước khi đặt đơn mới.', {
-          label: 'Công nợ quá hạn',
-          appearance: 'error',
-        }).subscribe();
-        return;
-      }
-      if (hiddenPrice) {
-        this.alerts
-          .open(
-            'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ hàng và bỏ chọn hoặc xóa các dòng đó.',
-            { label: 'Không thể đặt hàng', appearance: 'warning' },
-          )
-          .subscribe();
-        return;
-      }
-      if (unavailable) {
-        this.alerts
-          .open(
-            'Đơn có sản phẩm hoặc combo đã ngừng bán — không thể đặt hàng. Vui lòng quay lại giỏ hàng và xóa hoặc bỏ chọn các dòng đó.',
-            { label: 'Ngừng bán', appearance: 'warning' },
-          )
-          .subscribe();
-        return;
-      }
-      this.isPlacingOrder = true;
-      this.cartService.validate().pipe(take(1)).subscribe({
-      next: (results) => {
-        const failures = (results || []).filter((r: { success?: boolean }) => r.success === false);
-        if (failures.length > 0) {
-          failures.forEach((f: { message?: string }) => {
-            this.alerts
-              .open(f.message || 'Đơn hàng không đáp ứng quy định giới hạn.', {
-                label: 'Quy định đơn hàng',
-                appearance: 'warning',
-              })
-              .subscribe();
-          });
-          this.isPlacingOrder = false;
+        if (blocked) {
+          this.alerts.open('Bạn đang có công nợ quá hạn. Vui lòng thanh toán các đơn công nợ trước khi đặt đơn mới.', {
+            label: 'Công nợ quá hạn',
+            appearance: 'error',
+          }).subscribe();
           return;
         }
-        this.placeOrderAfterValidation();
-      },
-      error: () => {
-        this.alerts
-          .open('Không kiểm tra được quy định đơn hàng. Vui lòng thử lại.', {
-            label: 'Lỗi',
-            appearance: 'error',
-          })
-          .subscribe();
-        this.isPlacingOrder = false;
-      },
-    });
-    });
+        if (hiddenPrice) {
+          this.alerts
+            .open(
+              'Đơn có sản phẩm liên hệ để có giá — không thể đặt hàng trực tuyến. Vui lòng quay lại giỏ hàng và bỏ chọn hoặc xóa các dòng đó.',
+              { label: 'Không thể đặt hàng', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        if (unavailable) {
+          this.alerts
+            .open(
+              'Đơn có sản phẩm hoặc combo đã ngừng bán — không thể đặt hàng. Vui lòng quay lại giỏ hàng và xóa hoặc bỏ chọn các dòng đó.',
+              { label: 'Ngừng bán', appearance: 'warning' },
+            )
+            .subscribe();
+          return;
+        }
+        this.isPlacingOrder = true;
+        this.cartService.validate().pipe(take(1)).subscribe({
+          next: (results) => {
+            const failures = (results || []).filter((r: { success?: boolean }) => r.success === false);
+            if (failures.length > 0) {
+              failures.forEach((f: { message?: string }) => {
+                this.alerts
+                  .open(f.message || 'Đơn hàng không đáp ứng quy định giới hạn.', {
+                    label: 'Quy định đơn hàng',
+                    appearance: 'warning',
+                  })
+                  .subscribe();
+              });
+              this.isPlacingOrder = false;
+              return;
+            }
+            this.placeOrderAfterValidation();
+          },
+          error: () => {
+            this.alerts
+              .open('Không kiểm tra được quy định đơn hàng. Vui lòng thử lại.', {
+                label: 'Lỗi',
+                appearance: 'error',
+              })
+              .subscribe();
+            this.isPlacingOrder = false;
+          },
+        });
+      });
   }
 
   private placeOrderAfterValidation() {
@@ -425,9 +425,9 @@ export class CheckoutComponent implements OnInit {
                   this.isPlacingOrder = false;
                   this.currentOrder = order;
                   if (formValue.paymentMethod === 'VNPAY') {
-                    const bankId = '970415';
-                    const accountNo = '103877669895';
-                    const accountName = encodeURIComponent('NGUYEN VAN SON');
+                    const bankId = '970422';
+                    const accountNo = '0869986397';
+                    const accountName = encodeURIComponent('DUONG DINH AN');
                     const description = encodeURIComponent(`Thanh toan don hang #${order.id}`);
 
                     this.paymentQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${order.totalAmount}&addInfo=${description}&accountName=${accountName}`;
@@ -469,16 +469,16 @@ export class CheckoutComponent implements OnInit {
   }
 
   onPaymentComplete(isPaidNotify: boolean = false, guestPhone?: string) {
-    const message = isPaidNotify 
+    const message = isPaidNotify
       ? 'Chúng tôi đã nhận được thông báo chuyển khoản của bạn. Vui lòng chờ nhân viên kiểm tra nhé!'
       : 'Đơn hàng của bạn đã được ghi nhận. Bạn có thể thanh toán sau trong trang Lịch sử đơn hàng.';
-    
-    this.alerts.open(message, { 
-      label: 'Đặt hàng thành công', 
+
+    this.alerts.open(message, {
+      label: 'Đặt hàng thành công',
       appearance: 'success',
-      autoClose: 5000 
+      autoClose: 5000
     }).subscribe();
-    
+
     this.cartService.clearSelected();
     if (!this.auth.currentUserValue?.id && guestPhone) {
       this.router.navigate(['/guest-orders'], { queryParams: { phone: guestPhone } });
@@ -492,7 +492,7 @@ export class CheckoutComponent implements OnInit {
       observer.complete();
       return;
     }
-    
+
     this.apiService.updatePaymentStatus(this.currentOrder.id, 'AWAITING_CONFIRMATION').subscribe({
       next: () => {
         const phone = this.checkoutForm.get('phone')?.value || '';
@@ -500,9 +500,9 @@ export class CheckoutComponent implements OnInit {
         observer.complete();
       },
       error: () => {
-        this.alerts.open('Có lỗi xảy ra khi thông báo thanh toán. Vui lòng thử lại sau!', { 
-          label: 'Lỗi', 
-          appearance: 'error' 
+        this.alerts.open('Có lỗi xảy ra khi thông báo thanh toán. Vui lòng thử lại sau!', {
+          label: 'Lỗi',
+          appearance: 'error'
         }).subscribe();
         observer.complete();
       }
