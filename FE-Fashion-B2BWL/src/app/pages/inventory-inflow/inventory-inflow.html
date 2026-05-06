@@ -1,0 +1,139 @@
+<div class="inventory-inflow-page">
+  <div class="page-header">
+    <div class="header-content">
+      <h1 class="page-title">Nhập Hàng Vào Kho</h1>
+      <p class="page-subtitle">Ghi nhận phiếu nhập hàng, cập nhật tồn kho và chi phí nhập hàng tự động.</p>
+    </div>
+    <button
+      tuiButton
+      type="button"
+      appearance="primary"
+      [disabled]="submitting"
+      (click)="submit()"
+    >
+      <tui-loader [showLoader]="submitting" [inheritColor]="true">
+        Hoàn tất nhập hàng
+      </tui-loader>
+    </button>
+  </div>
+
+  <div class="inflow-container">
+    <!-- INFO SECTION -->
+    <div class="info-card card">
+      <h3 class="card-title"><tui-icon icon="@tui.file-text"></tui-icon> Thông tin chung</h3>
+      <div class="info-grid">
+        <div class="form-group">
+          <label tuiLabel>Ngày nhập hàng</label>
+          <tui-textfield>
+            <input tuiTextfield type="date" [(ngModel)]="inflowDate" />
+          </tui-textfield>
+        </div>
+        <div class="form-group">
+          <label tuiLabel>Ghi chú / Mô tả</label>
+          <tui-textfield>
+            <input tuiTextfield [(ngModel)]="description" placeholder="Ví dụ: Nhập từ nhà cung cấp A..." />
+          </tui-textfield>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCT SELECTION -->
+    <div class="selection-card card">
+      <h3 class="card-title"><tui-icon icon="@tui.box"></tui-icon> Chọn sản phẩm nhập</h3>
+      <div class="selection-row">
+        <div class="search-wrap">
+          <label tuiLabel>Tìm kiếm sản phẩm</label>
+          <tui-textfield tuiTextfieldSize="m">
+            <input tuiTextfield type="search" [(ngModel)]="searchQuery" (ngModelChange)="filterProducts()" placeholder="Nhập tên hoặc mã SP..." />
+            <tui-icon tuiTextfieldIcon icon="@tui.search"></tui-icon>
+          </tui-textfield>
+        </div>
+
+        <div class="select-wrap">
+          <label tuiLabel>Danh sách sản phẩm</label>
+          <tui-select
+            class="product-select"
+            [(ngModel)]="selectedProduct"
+            [valueContent]="selectedProductTemplate"
+          >
+            {{ filteredProducts.length > 0 ? 'Chọn sản phẩm trong danh sách...' : 'Không có sản phẩm phù hợp' }}
+            <tui-data-list-wrapper
+              *tuiDataList
+              [items]="filteredProducts"
+              [itemContent]="dropdownItem"
+              (itemClick)="onProductSelected($event)"
+            ></tui-data-list-wrapper>
+
+            <ng-template #selectedProductTemplate let-item>
+              {{ productName(item) }}
+            </ng-template>
+
+            <ng-template #dropdownItem let-item>
+              <div class="dropdown-product-item">
+                <strong>{{ item.name }}</strong>
+                <span class="product-code-hint">{{ item.productCode }}</span>
+              </div>
+            </ng-template>
+          </tui-select>
+        </div>
+      </div>
+    </div>
+
+    <!-- VARIANTS TABLE -->
+    <div class="items-card card" *ngIf="selectedProduct">
+      <h3 class="card-title">Chi tiết biến thể sản phẩm: {{ selectedProduct.name }}</h3>
+      
+      <tui-loader [showLoader]="loading" [overlay]="true">
+        <div class="table-responsive" *ngIf="items.length > 0; else noVariants">
+          <table class="inflow-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Tồn hiện tại</th>
+                <th class="col-qty">Số lượng nhập</th>
+                <th class="col-price">Giá nhập (VNĐ)</th>
+                <th class="col-total">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of items">
+                <td class="sku-cell">{{ item.sku }}</td>
+                <td class="stock-cell">{{ item.currentStock }}</td>
+                <td>
+                  <tui-textfield tuiTextfieldSize="s">
+                    <input tuiTextfield type="number" [(ngModel)]="item.addedQty" min="0" />
+                  </tui-textfield>
+                </td>
+                <td>
+                  <tui-textfield tuiTextfieldSize="s">
+                    <input tuiTextfield type="number" [(ngModel)]="item.costPrice" min="0" />
+                    <span tuiTextfieldPostfix>₫</span>
+                  </tui-textfield>
+                </td>
+                <td class="total-cell">
+                  {{ (item.addedQty * item.costPrice) | number:'1.0-0' }} ₫
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="text-right"><strong>Tổng cộng phiếu nhập:</strong></td>
+                <td class="grand-total">{{ totalAmount | number:'1.0-0' }} ₫</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <ng-template #noVariants>
+          <div class="empty-state">Sản phẩm này chưa có biến thể nào được tạo.</div>
+        </ng-template>
+      </tui-loader>
+    </div>
+
+    <div class="placeholder-card card" *ngIf="!selectedProduct">
+      <div class="empty-state">
+        <tui-icon icon="@tui.search" class="big-icon"></tui-icon>
+        <p>Vui lòng chọn một sản phẩm phía trên để bắt đầu nhập hàng.</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -26,8 +26,8 @@ public class ReportService {
     private final ExpenseService expenseService;
 
     public SalesReportResponse getSalesReport(String startDateStr, String endDateStr) {
-        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
-        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
+        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30), false);
+        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now(), true);
 
         List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
 
@@ -126,8 +126,8 @@ public class ReportService {
     }
 
     public VariantReportResponse getVariantSalesReport(String startDateStr, String endDateStr) {
-        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
-        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
+        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30), false);
+        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now(), true);
 
         List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
 
@@ -167,8 +167,8 @@ public class ReportService {
     }
 
     public VatReportResponse getVatReport(String startDateStr, String endDateStr) {
-        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30));
-        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now());
+        LocalDateTime start = parseDateTime(startDateStr, LocalDateTime.now().minusDays(30), false);
+        LocalDateTime end = parseDateTime(endDateStr, LocalDateTime.now(), true);
 
         List<Order> orders = orderRepository.findByCreatedAtBetweenWithItemsForReport(start, end);
 
@@ -238,10 +238,11 @@ public class ReportService {
         return true;
     }
 
-    private LocalDateTime parseDateTime(String dateStr, LocalDateTime defaultDate) {
+    private LocalDateTime parseDateTime(String dateStr, LocalDateTime defaultDate, boolean isEnd) {
         if (dateStr == null || dateStr.isEmpty()) return defaultDate;
         try {
-            return LocalDateTime.parse(dateStr + "T00:00:00");
+            String time = isEnd ? "T23:59:59" : "T00:00:00";
+            return LocalDateTime.parse(dateStr + time);
         } catch (Exception e) {
             return defaultDate;
         }

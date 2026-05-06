@@ -54,6 +54,14 @@
       {{ 'SIDEBAR.VARIANTS' | transloco }}
     </a>
     <a
+      class="nav-item"
+      routerLink="/admin/inventory/inflow"
+      routerLinkActive="active"
+    >
+      <tui-icon icon="@tui.arrow-down-to-line" />
+      Nhập kho
+    </a>
+    <a
       *ngIf="canSee('bundles')"
       class="nav-item"
       routerLink="/admin/bundles"

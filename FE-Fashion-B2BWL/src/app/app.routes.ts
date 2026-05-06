@@ -39,6 +39,12 @@ export const routes: Routes = [
           import('./pages/variant-list/variant-list').then(m => m.VariantListComponent),
       },
       {
+        path: 'inventory/inflow',
+        data: { module: 'inventory' },
+        loadComponent: () =>
+          import('./pages/inventory-inflow/inventory-inflow').then(m => m.InventoryInflowComponent),
+      },
+      {
         path: 'bundles',
         data: { module: 'bundles' },
         loadComponent: () =>

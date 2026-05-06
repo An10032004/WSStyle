@@ -468,6 +468,18 @@ export interface Expense {
   shopId: number;
 }
 
+export interface InventoryInflowItemRequest {
+  variantId: number;
+  quantity: number;
+  costPrice: number;
+}
+
+export interface InventoryInflowRequest {
+  date: string;
+  description: string;
+  items: InventoryInflowItemRequest[];
+}
+
 export interface VatReport {
   collectedVat: number;
   payableVat: number;
@@ -1087,8 +1099,11 @@ export class ApiService {
     return this.http.get<ApiResponse<VariantReport>>(`${this.base}/reports/variants`, { params: { startDate: startDate || '', endDate: endDate || '' } }).pipe(map(r => r.data));
   }
 
-  getExpenses(): Observable<Expense[]> {
-    return this.http.get<ApiResponse<Expense[]>>(`${this.base}/reports/expenses`).pipe(map(r => r.data));
+  getExpenses(startDate?: string, endDate?: string): Observable<Expense[]> {
+    let params = new HttpParams();
+    if (startDate) params = params.set('startDate', startDate);
+    if (endDate) params = params.set('endDate', endDate);
+    return this.http.get<ApiResponse<Expense[]>>(`${this.base}/reports/expenses`, { params }).pipe(map(r => r.data));
   }
 
   createExpense(body: Partial<Expense>): Observable<Expense> {
@@ -1325,5 +1340,9 @@ export class ApiService {
 
   getCustomerInsight(userId: number): Observable<AICustomerInsightResponse> {
     return this.http.get<AICustomerInsightResponse>(`${this.base}/admin/ai/customers/${userId}/insight`);
+  }
+
+  processInventoryInflow(body: InventoryInflowRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/admin/inventory/inflow`, body);
   }
 }

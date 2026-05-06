@@ -1,0 +1,166 @@
+.inventory-inflow-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0;
+    }
+
+    .page-subtitle {
+      color: #666;
+      margin: 0.25rem 0 0;
+    }
+  }
+
+  .inflow-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f0f0f0;
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #333;
+      
+      tui-icon {
+        color: var(--tui-primary);
+      }
+    }
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 1.5rem;
+  }
+
+  .selection-row {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 1.5rem;
+    align-items: end;
+
+    .search-wrap, .select-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .product-select {
+      width: 100%;
+    }
+  }
+
+  .inflow-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+
+    th {
+      text-align: left;
+      padding: 12px;
+      background: #f8f9fa;
+      color: #555;
+      font-weight: 600;
+      border-bottom: 2px solid #eee;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      vertical-align: middle;
+    }
+
+    .sku-cell {
+      font-family: monospace;
+      font-weight: 600;
+      color: #0066cc;
+    }
+
+    .stock-cell {
+      color: #666;
+    }
+
+    .total-cell {
+      font-weight: 600;
+      color: #333;
+      text-align: right;
+    }
+
+    .col-qty { width: 150px; }
+    .col-price { width: 200px; }
+    .col-total { width: 160px; text-align: right; }
+
+    tfoot {
+      td {
+        padding-top: 20px;
+        border-bottom: none;
+      }
+      .grand-total {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #e63946;
+        text-align: right;
+      }
+    }
+  }
+
+  .empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: #999;
+
+    .big-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+  }
+
+  .dropdown-product-item {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+
+    strong {
+      color: #333;
+    }
+
+    .product-code-hint {
+      font-size: 0.85rem;
+      color: #888;
+    }
+  }
+
+  .text-right {
+    text-align: right;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -22,6 +22,20 @@
         <span class="value">{{ r.totalRevenue | number }}đ</span>
       </div>
     </div>
+    <div class="summary-card expense-card">
+      <div class="icon-box"><tui-icon icon="@tui.trending-down"></tui-icon></div>
+      <div class="data">
+        <span class="label">Tổng chi phí / nhập hàng</span>
+        <span class="value">{{ totalExpenses() | number }}đ</span>
+      </div>
+    </div>
+    <div class="summary-card profit-card">
+      <div class="icon-box"><tui-icon icon="@tui.activity"></tui-icon></div>
+      <div class="data">
+        <span class="label">Lợi nhuận ròng (ước tính)</span>
+        <span class="value" [class.negative]="netProfit() < 0">{{ netProfit() | number }}đ</span>
+      </div>
+    </div>
     <div class="summary-card">
       <div class="icon-box"><tui-icon icon="@tui.shopping-cart"></tui-icon></div>
       <div class="data">
@@ -32,6 +46,27 @@
   </div>
 
   <div class="details-section">
+    <!-- EXPENSES SECTION -->
+    <div class="report-block">
+      <h2 class="tui-text_h6">Chi phí & Nhập hàng</h2>
+      <p class="report-hint">
+        Danh sách các khoản chi phí và phiếu nhập hàng đã ghi nhận trong kỳ. Các phiếu nhập kho tự động được ghi vào mục <strong>INVENTORY</strong>.
+      </p>
+      <div class="grid-wrap">
+        <ag-grid-angular
+          [theme]="theme"
+          [rowData]="expenseRows()"
+          [columnDefs]="expenseColDefs"
+          [defaultColDef]="defaultColDef"
+          [localeText]="localeText"
+          [pagination]="true"
+          [paginationPageSize]="10"
+          [paginationPageSizeSelector]="[10, 20, 50, 100]"
+          [suppressCellFocus]="true"
+          domLayout="autoHeight"
+        />
+      </div>
+    </div>
     <p *ngIf="report() && !dailySalesRows().length" class="report-hint report-hint--muted">
       Trong khoảng ngày đã chọn, <strong>không có ngày nào</strong> có đơn PAID được tính vào doanh thu — bảng theo ngày sẽ ẩn. Thử mở rộng khoảng ngày hoặc kiểm tra trạng thanh toán đơn hàng.
     </p>

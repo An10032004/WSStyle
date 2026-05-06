@@ -33,6 +33,16 @@ export class AdvancedReportsComponent implements OnInit {
   readonly report = signal<SalesReport | null>(null);
   readonly debtRows = signal<DebtOrderReportRow[]>([]);
   readonly variantRows = signal<VariantReportRow[]>([]);
+  readonly expenseRows = signal<any[]>([]);
+
+  readonly totalExpenses = computed(() => {
+    return this.expenseRows().reduce((sum, e) => sum + (e.amount || 0), 0);
+  });
+
+  readonly netProfit = computed(() => {
+    const revenue = this.report()?.totalRevenue || 0;
+    return revenue - this.totalExpenses();
+  });
 
   readonly rangeStart = signal('');
   readonly rangeEnd = signal('');
@@ -77,6 +87,7 @@ export class AdvancedReportsComponent implements OnInit {
   bestSellerColDefs: ColDef[] = [];
   debtColDefs: ColDef[] = [];
   variantColDefs: ColDef[] = [];
+  expenseColDefs: ColDef[] = [];
 
   debtRowClass = (params: RowClassParams<DebtOrderReportRow>): string | undefined => {
     const d = params.data;
@@ -318,6 +329,35 @@ export class AdvancedReportsComponent implements OnInit {
         valueFormatter: (p) => String(p.value ?? 0),
       },
     ];
+
+    this.expenseColDefs = [
+      {
+        field: 'date',
+        headerName: 'Ngày',
+        width: 140,
+        valueFormatter: (p) => this.formatDateCell(p.value as string),
+      },
+      {
+        field: 'category',
+        headerName: 'Loại chi phí',
+        width: 150,
+      },
+      {
+        field: 'amount',
+        headerName: 'Số tiền',
+        width: 160,
+        type: 'numericColumn',
+        valueFormatter: (p) => this.formatVnd(p.value as number),
+      },
+      {
+        field: 'description',
+        headerName: 'Mô tả / Chi tiết nhập hàng',
+        flex: 1,
+        minWidth: 300,
+        wrapText: true,
+        autoHeight: true,
+      },
+    ];
   }
 
   private applyDayRange(days: number): void {
@@ -337,6 +377,8 @@ export class AdvancedReportsComponent implements OnInit {
     this.debtRows.set(debt || []);
     const variants = await firstValueFrom(this.api.getVariantReport(s, e));
     this.variantRows.set(variants?.items || []);
+    const expenses = await firstValueFrom(this.api.getExpenses(s, e));
+    this.expenseRows.set(expenses || []);
   }
 
   setRange(type: '7days' | '30days'): void {
