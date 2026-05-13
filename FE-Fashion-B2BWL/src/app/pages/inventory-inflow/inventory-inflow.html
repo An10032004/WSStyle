@@ -1,139 +1,279 @@
 <div class="inventory-inflow-page">
   <div class="page-header">
     <div class="header-content">
-      <h1 class="page-title">Nhập Hàng Vào Kho</h1>
-      <p class="page-subtitle">Ghi nhận phiếu nhập hàng, cập nhật tồn kho và chi phí nhập hàng tự động.</p>
+      <h1 class="page-title">Nhập hàng vào kho</h1>
+      <p class="page-subtitle">
+        Luồng: <strong>tạo phiếu</strong> (ghi nhận thời điểm tạo) → <strong>kiểm tra hàng</strong> →
+        <strong>xác nhận nhập kho</strong> (cộng tồn + chi phí thống kê theo thời điểm xác nhận).
+      </p>
     </div>
-    <button
-      tuiButton
-      type="button"
-      appearance="primary"
-      [disabled]="submitting"
-      (click)="submit()"
-    >
-      <tui-loader [showLoader]="submitting" [inheritColor]="true">
-        Hoàn tất nhập hàng
-      </tui-loader>
-    </button>
   </div>
 
-  <div class="inflow-container">
-    <!-- INFO SECTION -->
-    <div class="info-card card">
-      <h3 class="card-title"><tui-icon icon="@tui.file-text"></tui-icon> Thông tin chung</h3>
-      <div class="info-grid">
-        <div class="form-group">
-          <label tuiLabel>Ngày nhập hàng</label>
-          <tui-textfield>
-            <input tuiTextfield type="date" [(ngModel)]="inflowDate" />
-          </tui-textfield>
-        </div>
-        <div class="form-group">
-          <label tuiLabel>Ghi chú / Mô tả</label>
-          <tui-textfield>
-            <input tuiTextfield [(ngModel)]="description" placeholder="Ví dụ: Nhập từ nhà cung cấp A..." />
-          </tui-textfield>
+  <nav class="wizard-steps" aria-label="Tiến độ nhập hàng">
+    <div class="wizard-step" [class.active]="step >= 1" [class.done]="step > 1">
+      <span class="step-num">1</span>
+      <small>Tạo phiếu</small>
+    </div>
+    <div class="wizard-connector" [class.done]="step > 1"></div>
+    <div class="wizard-step" [class.active]="step >= 2" [class.done]="step > 2">
+      <span class="step-num">2</span>
+      <small>Kiểm tra</small>
+    </div>
+    <div class="wizard-connector" [class.done]="step > 2"></div>
+    <div class="wizard-step" [class.active]="step >= 3">
+      <span class="step-num">3</span>
+      <small>Hoàn tất</small>
+    </div>
+  </nav>
+
+  <div class="draft-queue-card card" *ngIf="step < 3">
+    <div class="draft-queue-head">
+      <h3 class="card-title"><tui-icon icon="@tui.layers"></tui-icon> Phiếu nháp chờ nhập kho</h3>
+      <button tuiButton type="button" size="s" appearance="secondary" (click)="refreshDraftList()">Làm mới</button>
+    </div>
+    <p class="draft-queue-intro">
+      Phiếu đã tạo được lưu trên server cho đến khi bạn xác nhận nhập kho hoặc hủy. Bạn có thể tạo thêm phiếu mới và xác nhận từng phiếu sau.
+    </p>
+    <tui-loader [showLoader]="draftsLoading" [overlay]="false">
+      <p *ngIf="!pendingDrafts.length" class="draft-empty">Không có phiếu nháp.</p>
+      <ul class="draft-list" *ngIf="pendingDrafts.length">
+        <li *ngFor="let d of pendingDrafts; trackBy: trackByReceiptId" class="draft-row">
+          <div class="draft-meta">
+            <span class="draft-id">#{{ d.id }}</span>
+            <span class="draft-time">{{ formatViDateTime(d.createdAt) }}</span>
+            <span class="draft-total">{{ (d.totalAmount ?? 0) | number: '1.0-0' }} ₫</span>
+          </div>
+          <div class="draft-actions">
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="primary"
+              (click)="resumeDraft(d.id)"
+              [disabled]="openingDraftId !== null"
+            >
+              <tui-loader [showLoader]="openingDraftId === d.id" [inheritColor]="true" [overlay]="false">
+                Tiếp tục / Nhập kho
+              </tui-loader>
+            </button>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="secondary-destructive"
+              (click)="cancelDraftFromList(d.id)"
+              [disabled]="openingDraftId !== null"
+            >
+              Hủy phiếu
+            </button>
+          </div>
+        </li>
+      </ul>
+    </tui-loader>
+  </div>
+
+  <!-- Bước 1: nhập liệu + tạo phiếu nháp -->
+  <ng-container *ngIf="step === 1">
+    <div class="inflow-container">
+      <div class="info-card card">
+        <h3 class="card-title"><tui-icon icon="@tui.file-text"></tui-icon> Thông tin phiếu</h3>
+        <div class="info-grid">
+          <div class="form-group">
+            <label tuiLabel>Ngày chứng từ</label>
+            <tui-textfield>
+              <input tuiTextfield type="date" [(ngModel)]="inflowDate" />
+            </tui-textfield>
+            <span class="field-hint">Khác với «thời điểm tạo phiếu» — thời điểm tạo lấy khi bạn bấm «Tạo phiếu nhập».</span>
+          </div>
+          <div class="form-group">
+            <label tuiLabel>Ghi chú / mô tả</label>
+            <tui-textfield>
+              <input tuiTextfield [(ngModel)]="description" placeholder="VD: Nhập từ nhà cung cấp A…" />
+            </tui-textfield>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- PRODUCT SELECTION -->
-    <div class="selection-card card">
-      <h3 class="card-title"><tui-icon icon="@tui.box"></tui-icon> Chọn sản phẩm nhập</h3>
-      <div class="selection-row">
-        <div class="search-wrap">
-          <label tuiLabel>Tìm kiếm sản phẩm</label>
-          <tui-textfield tuiTextfieldSize="m">
-            <input tuiTextfield type="search" [(ngModel)]="searchQuery" (ngModelChange)="filterProducts()" placeholder="Nhập tên hoặc mã SP..." />
-            <tui-icon tuiTextfieldIcon icon="@tui.search"></tui-icon>
-          </tui-textfield>
+      <div class="selection-card card">
+        <h3 class="card-title"><tui-icon icon="@tui.box"></tui-icon> Chọn sản phẩm</h3>
+        <div class="selection-row">
+          <div class="search-wrap">
+            <label tuiLabel>Tìm kiếm</label>
+            <tui-textfield tuiTextfieldSize="m">
+              <input
+                tuiTextfield
+                type="search"
+                [(ngModel)]="searchQuery"
+                (ngModelChange)="onSearchQueryChange($event)"
+                placeholder="Tên hoặc mã SP…"
+              />
+              <tui-icon tuiTextfieldIcon icon="@tui.search"></tui-icon>
+            </tui-textfield>
+          </div>
+          <div class="select-wrap">
+            <label tuiLabel>Sản phẩm</label>
+            <tui-loader [showLoader]="productsLoading" [overlay]="false" class="select-loader">
+            <tui-select
+              class="product-select"
+              [(ngModel)]="selectedProduct"
+              [valueContent]="selectedProductTemplate"
+            >
+              {{ filteredProducts.length > 0 ? 'Chọn trong danh sách…' : 'Không có SP phù hợp' }}
+              <tui-data-list-wrapper
+                *tuiDataList
+                [items]="filteredProducts"
+                [itemContent]="dropdownItem"
+                (itemClick)="onProductSelected($event)"
+              ></tui-data-list-wrapper>
+              <ng-template #selectedProductTemplate let-item>
+                {{ productName(item) }}
+              </ng-template>
+              <ng-template #dropdownItem let-item>
+                <div class="dropdown-product-item">
+                  <strong>{{ item.name }}</strong>
+                  <span class="product-code-hint">{{ item.productCode }}</span>
+                </div>
+              </ng-template>
+            </tui-select>
+            </tui-loader>
+          </div>
+        </div>
+      </div>
+
+      <div class="items-card card" *ngIf="selectedProduct">
+        <div class="items-card-head">
+          <h3 class="card-title">Biến thể — {{ selectedProduct.name }}</h3>
+          <span class="total-pill">Tạm tính: {{ totalAmount | number: '1.0-0' }} ₫</span>
         </div>
 
-        <div class="select-wrap">
-          <label tuiLabel>Danh sách sản phẩm</label>
-          <tui-select
-            class="product-select"
-            [(ngModel)]="selectedProduct"
-            [valueContent]="selectedProductTemplate"
-          >
-            {{ filteredProducts.length > 0 ? 'Chọn sản phẩm trong danh sách...' : 'Không có sản phẩm phù hợp' }}
-            <tui-data-list-wrapper
-              *tuiDataList
-              [items]="filteredProducts"
-              [itemContent]="dropdownItem"
-              (itemClick)="onProductSelected($event)"
-            ></tui-data-list-wrapper>
-
-            <ng-template #selectedProductTemplate let-item>
-              {{ productName(item) }}
-            </ng-template>
-
-            <ng-template #dropdownItem let-item>
-              <div class="dropdown-product-item">
-                <strong>{{ item.name }}</strong>
-                <span class="product-code-hint">{{ item.productCode }}</span>
+        <tui-loader [showLoader]="loading" [overlay]="false">
+          <div *ngIf="items.length > 0; else noVariants" class="variant-grid">
+            <div class="variant-card" *ngFor="let item of items; trackBy: trackByVariantId">
+              <div class="variant-card__media">
+                <img *ngIf="item.imageUrl" [src]="item.imageUrl" alt="" loading="lazy" />
+                <div *ngIf="!item.imageUrl" class="variant-card__placeholder"><tui-icon icon="@tui.image"></tui-icon></div>
               </div>
-            </ng-template>
-          </tui-select>
-        </div>
-      </div>
-    </div>
-
-    <!-- VARIANTS TABLE -->
-    <div class="items-card card" *ngIf="selectedProduct">
-      <h3 class="card-title">Chi tiết biến thể sản phẩm: {{ selectedProduct.name }}</h3>
-      
-      <tui-loader [showLoader]="loading" [overlay]="true">
-        <div class="table-responsive" *ngIf="items.length > 0; else noVariants">
-          <table class="inflow-table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Tồn hiện tại</th>
-                <th class="col-qty">Số lượng nhập</th>
-                <th class="col-price">Giá nhập (VNĐ)</th>
-                <th class="col-total">Thành tiền</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of items">
-                <td class="sku-cell">{{ item.sku }}</td>
-                <td class="stock-cell">{{ item.currentStock }}</td>
-                <td>
+              <div class="variant-card__body">
+                <div class="variant-card__sku">{{ item.sku }}</div>
+                <div class="variant-card__dims">{{ variantDims(item) }}</div>
+                <div class="variant-card__stock">Tồn hiện tại: <strong>{{ item.currentStock }}</strong></div>
+                <div class="variant-card__inputs">
+                  <label class="mini-label">SL nhập</label>
                   <tui-textfield tuiTextfieldSize="s">
                     <input tuiTextfield type="number" [(ngModel)]="item.addedQty" min="0" />
                   </tui-textfield>
-                </td>
-                <td>
+                  <label class="mini-label">Giá nhập</label>
                   <tui-textfield tuiTextfieldSize="s">
                     <input tuiTextfield type="number" [(ngModel)]="item.costPrice" min="0" />
                     <span tuiTextfieldPostfix>₫</span>
                   </tui-textfield>
-                </td>
-                <td class="total-cell">
-                  {{ (item.addedQty * item.costPrice) | number:'1.0-0' }} ₫
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="4" class="text-right"><strong>Tổng cộng phiếu nhập:</strong></td>
-                <td class="grand-total">{{ totalAmount | number:'1.0-0' }} ₫</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <ng-template #noVariants>
-          <div class="empty-state">Sản phẩm này chưa có biến thể nào được tạo.</div>
-        </ng-template>
-      </tui-loader>
-    </div>
+                </div>
+                <div class="variant-card__line-total">
+                  Thành tiền: <strong>{{ item.addedQty * item.costPrice | number: '1.0-0' }} ₫</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <ng-template #noVariants>
+            <div class="empty-state">Sản phẩm này chưa có biến thể.</div>
+          </ng-template>
+        </tui-loader>
 
-    <div class="placeholder-card card" *ngIf="!selectedProduct">
-      <div class="empty-state">
-        <tui-icon icon="@tui.search" class="big-icon"></tui-icon>
-        <p>Vui lòng chọn một sản phẩm phía trên để bắt đầu nhập hàng.</p>
+        <div class="step1-actions" *ngIf="items.length > 0">
+          <button tuiButton type="button" appearance="primary" [disabled]="submitting" (click)="createDraft()">
+            <tui-loader [showLoader]="submitting" [inheritColor]="true" [overlay]="false">Tạo phiếu nhập</tui-loader>
+          </button>
+        </div>
+      </div>
+
+      <div class="placeholder-card card" *ngIf="!selectedProduct">
+        <div class="empty-state">
+          <tui-icon icon="@tui.search" class="big-icon"></tui-icon>
+          <p>Chọn sản phẩm để nhập số lượng / giá theo từng biến thể.</p>
+        </div>
       </div>
     </div>
-  </div>
+  </ng-container>
+
+  <!-- Bước 2: kiểm tra — chưa cộng tồn -->
+  <ng-container *ngIf="step === 2 && draftReceipt">
+    <div class="inflow-container">
+      <div class="review-card card">
+        <h3 class="card-title"><tui-icon icon="@tui.clipboard-list"></tui-icon> Phiếu #{{ draftReceipt.id }} — kiểm tra hàng</h3>
+
+        <dl class="meta-dl">
+          <div>
+            <dt>Thời điểm tạo phiếu</dt>
+            <dd>{{ formatViDateTime(draftReceipt.createdAt) }}</dd>
+          </div>
+          <div>
+            <dt>Ngày chứng từ</dt>
+            <dd>{{ formatViDate(draftReceipt.documentDate) }}</dd>
+          </div>
+          <div>
+            <dt>Tổng tiền</dt>
+            <dd class="money">{{ draftReceipt.totalAmount | number: '1.0-0' }} ₫</dd>
+          </div>
+        </dl>
+
+        <p class="hint-pill">
+          <tui-icon icon="@tui.info"></tui-icon>
+          Chưa cộng tồn kho. Sau khi bấm «Xác nhận nhập kho», hệ thống cộng tồn và ghi chi phí với
+          <strong>thời điểm xác nhận</strong> (hiển thị ở thống kê).
+        </p>
+
+        <p class="hint-pill hint-pill--muted">
+          <tui-icon icon="@tui.clock"></tui-icon>
+          Bạn có thể đóng trang hoặc tạo phiếu nháp khác; phiếu này vẫn nằm trong «Phiếu nháp chờ nhập kho» cho đến khi xác nhận hoặc hủy.
+        </p>
+
+        <div class="table-responsive">
+          <table class="inflow-table compact">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>SL</th>
+                <th>Giá nhập</th>
+                <th>Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let ln of draftLines; trackBy: trackByReceiptLine">
+                <td class="sku-cell">{{ ln.sku }}</td>
+                <td>{{ ln.quantity }}</td>
+                <td>{{ (ln.costPrice ?? 0) | number: '1.0-0' }} ₫</td>
+                <td class="total-cell">{{ (ln.quantity ?? 0) * (ln.costPrice ?? 0) | number: '1.0-0' }} ₫</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="review-actions">
+          <button tuiButton type="button" appearance="secondary-destructive" (click)="cancelDraft()">Hủy phiếu</button>
+          <button tuiButton type="button" appearance="secondary" (click)="goToNewDraftForm()">
+            Tạo phiếu nháp khác
+          </button>
+          <button tuiButton type="button" appearance="primary" [disabled]="confirming" (click)="confirmPost()">
+            {{ confirming ? 'Đang xử lý…' : 'Xác nhận nhập kho' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Bước 3: hoàn tất -->
+  <ng-container *ngIf="step === 3 && draftReceipt">
+    <div class="inflow-container">
+      <div class="success-card card">
+        <tui-icon icon="@tui.circle-check" class="success-icon"></tui-icon>
+        <h3>Đã nhập kho</h3>
+        <p class="lead">Phiếu <strong>#{{ draftReceipt.id }}</strong></p>
+        <ul class="success-meta">
+          <li><span>Tạo phiếu:</span> {{ formatViDateTime(draftReceipt.createdAt) }}</li>
+          <li><span>Nhập kho (thống kê chi phí):</span> {{ formatViDateTime(draftReceipt.postedAt) }}</li>
+        </ul>
+        <button tuiButton type="button" appearance="primary" (click)="startNew()">Tạo phiếu mới</button>
+      </div>
+    </div>
+  </ng-container>
 </div>

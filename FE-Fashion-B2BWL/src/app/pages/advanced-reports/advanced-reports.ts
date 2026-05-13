@@ -13,7 +13,7 @@ import {
   themeQuartz,
 } from 'ag-grid-community';
 import { AG_GRID_LOCALE_VI } from '../../shared/utils/ag-grid-locale-vi';
-import { ApiService, DebtOrderReportRow, SalesReport, VariantReportRow } from '../../services/api.service';
+import { ApiService, DebtOrderReportRow, Expense, SalesReport, VariantReportRow } from '../../services/api.service';
 import { firstValueFrom } from 'rxjs';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -33,7 +33,7 @@ export class AdvancedReportsComponent implements OnInit {
   readonly report = signal<SalesReport | null>(null);
   readonly debtRows = signal<DebtOrderReportRow[]>([]);
   readonly variantRows = signal<VariantReportRow[]>([]);
-  readonly expenseRows = signal<any[]>([]);
+  readonly expenseRows = signal<Expense[]>([]);
 
   readonly totalExpenses = computed(() => {
     return this.expenseRows().reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -333,9 +333,24 @@ export class AdvancedReportsComponent implements OnInit {
     this.expenseColDefs = [
       {
         field: 'date',
-        headerName: 'Ngày',
-        width: 140,
+        headerName: 'Ngày thống kê',
+        width: 158,
+        headerTooltip: 'Thời điểm ghi nhận chi phí (nhập kho: lúc xác nhận nhập).',
         valueFormatter: (p) => this.formatDateCell(p.value as string),
+      },
+      {
+        field: 'receiptDocumentDate',
+        headerName: 'Ngày chứng từ',
+        width: 132,
+        headerTooltip: 'Ngày trên phiếu nhập kho (chứng từ); chi phí thủ công có thể trống.',
+        valueFormatter: (p) => this.formatYmdToVi(p.value as string | undefined),
+      },
+      {
+        field: 'receiptCreatedAt',
+        headerName: 'Tạo phiếu',
+        width: 168,
+        headerTooltip: 'Thời điểm lưu phiếu nháp (trước khi xác nhận nhập kho).',
+        valueFormatter: (p) => this.formatDateCell(p.value as string | undefined),
       },
       {
         field: 'category',
@@ -355,7 +370,6 @@ export class AdvancedReportsComponent implements OnInit {
         flex: 1,
         minWidth: 300,
         wrapText: true,
-        autoHeight: true,
       },
     ];
   }
@@ -470,6 +484,16 @@ export class AdvancedReportsComponent implements OnInit {
     try {
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return iso;
+      if (iso.includes('T')) {
+        return d.toLocaleString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      }
       return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return iso;

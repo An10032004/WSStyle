@@ -30,6 +30,8 @@ public class ExpenseService {
                 .date(parseDateTime(request.getDate()))
                 .description(request.getDescription())
                 .shopId(request.getShopId() != null ? request.getShopId() : 1L)
+                .receiptDocumentDate(request.getReceiptDocumentDate())
+                .receiptCreatedAt(request.getReceiptCreatedAt())
                 .build();
         return expenseRepository.save(expense);
     }

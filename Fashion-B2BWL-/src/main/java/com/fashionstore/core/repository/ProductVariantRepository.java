@@ -1,5 +1,6 @@
 package com.fashionstore.core.repository;
 
+import com.fashionstore.core.dto.response.InventoryInflowVariantRowResponse;
 import com.fashionstore.core.model.ProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,13 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
      */
     @Query("SELECT pv FROM ProductVariant pv WHERE pv.product.id = :productId")
     List<ProductVariant> findByProductId(@Param("productId") Integer productId);
+
+    /** Chỉ các cột cần cho UI nhập kho — nhẹ hơn trả về entity đầy đủ. */
+    @Query(
+            "SELECT new com.fashionstore.core.dto.response.InventoryInflowVariantRowResponse("
+                    + "v.id, v.sku, v.stockQuantity, v.costPrice, v.imageUrl, v.color, v.size) "
+                    + "FROM ProductVariant v WHERE v.product.id = :productId ORDER BY v.id ASC")
+    List<InventoryInflowVariantRowResponse> findInflowRowsByProductId(@Param("productId") Integer productId);
 
     /** Một query batch cho nhiều sản phẩm — UI admin chọn variant theo trang SP. */
     @Query(

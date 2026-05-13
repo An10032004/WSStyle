@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, throwError, TimeoutError } from 'rxjs';
+import { map, timeout, catchError } from 'rxjs/operators';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -533,6 +533,10 @@ export interface Expense {
   date: string;
   description?: string;
   shopId: number;
+  /** Ngày chứng từ (phiếu nhập kho), yyyy-MM-dd. */
+  receiptDocumentDate?: string | null;
+  /** Thời điểm tạo phiếu nháp (ISO). */
+  receiptCreatedAt?: string | null;
 }
 
 export interface InventoryInflowItemRequest {
@@ -545,6 +549,37 @@ export interface InventoryInflowRequest {
   date: string;
   description: string;
   items: InventoryInflowItemRequest[];
+}
+
+export interface InventoryInflowReceiptLine {
+  lineId?: number;
+  variantId?: number;
+  sku?: string;
+  quantity?: number;
+  costPrice?: number | null;
+}
+
+export interface InventoryInflowReceipt {
+  id: number;
+  status: string;
+  createdAt?: string;
+  postedAt?: string | null;
+  documentDate?: string;
+  description?: string;
+  totalAmount?: number;
+  /** Danh sách phiếu (GET /receipts) có thể không gửi dòng — chỉ có khi GET /receipts/{id}. */
+  lines?: InventoryInflowReceiptLine[];
+}
+
+/** Biến thể tối giản từ GET .../variants-for-inflow (nhanh hơn GET product-variants). */
+export interface InventoryInflowVariantRow {
+  id: number;
+  sku?: string | null;
+  stockQuantity?: number | null;
+  costPrice?: number | null;
+  imageUrl?: string | null;
+  color?: string | null;
+  size?: string | null;
 }
 
 export interface VatReport {
@@ -1494,7 +1529,117 @@ export class ApiService {
       .pipe(map((r) => r.data!));
   }
 
-  processInventoryInflow(body: InventoryInflowRequest): Observable<void> {
-    return this.http.post<void>(`${this.base}/admin/inventory/inflow`, body);
+  createInventoryInflowReceipt(body: InventoryInflowRequest): Observable<InventoryInflowReceipt> {
+    return this.http
+      .post<ApiResponse<InventoryInflowReceipt>>(`${this.base}/admin/inventory/inflow/receipts`, body)
+      .pipe(
+        map((r) => {
+          if (!r?.success || r.data == null) {
+            throw new Error(r?.message || 'Không tạo được phiếu nhập');
+          }
+          return r.data;
+        }),
+      );
+  }
+
+  /** Danh sách phiếu nhập (phân trang). Dùng status=DRAFT cho phiếu nháp chờ xác nhận. */
+  listInventoryInflowReceipts(params: {
+    page?: number;
+    size?: number;
+    shopId?: number;
+    status?: string;
+  }): Observable<SpringPage<InventoryInflowReceipt>> {
+    let hp = new HttpParams();
+    if (params.page != null) {
+      hp = hp.set('page', String(params.page));
+    }
+    if (params.size != null) {
+      hp = hp.set('size', String(params.size));
+    }
+    if (params.shopId != null) {
+      hp = hp.set('shopId', String(params.shopId));
+    }
+    if (params.status?.trim()) {
+      hp = hp.set('status', params.status.trim());
+    }
+    return this.http
+      .get<ApiResponse<SpringPage<InventoryInflowReceipt>>>(
+        `${this.base}/admin/inventory/inflow/receipts`,
+        { params: hp },
+      )
+      .pipe(
+        map((r) => {
+          if (!r?.success || r.data == null) {
+            throw new Error(r?.message || 'Không tải được danh sách phiếu nhập');
+          }
+          return r.data;
+        }),
+      );
+  }
+
+  getInventoryInflowReceipt(id: number): Observable<InventoryInflowReceipt> {
+    return this.http
+      .get<ApiResponse<InventoryInflowReceipt>>(`${this.base}/admin/inventory/inflow/receipts/${id}`)
+      .pipe(
+        map((r) => {
+          if (!r?.success || r.data == null) {
+            throw new Error(r?.message || 'Không tải được phiếu nhập');
+          }
+          return r.data;
+        }),
+      );
+  }
+
+  getInventoryInflowVariantRows(productId: number): Observable<InventoryInflowVariantRow[]> {
+    return this.http
+      .get<ApiResponse<InventoryInflowVariantRow[]>>(
+        `${this.base}/admin/inventory/inflow/products/${productId}/variants-for-inflow`,
+      )
+      .pipe(
+        map((r) => {
+          if (!r?.success || r.data == null) {
+            throw new Error(r?.message || 'Không tải được biến thể');
+          }
+          return r.data;
+        }),
+      );
+  }
+
+  confirmInventoryInflowReceipt(id: number): Observable<InventoryInflowReceipt> {
+    return this.http
+      .post<ApiResponse<InventoryInflowReceipt>>(`${this.base}/admin/inventory/inflow/receipts/${id}/confirm`, {})
+      .pipe(
+        timeout(120_000),
+        map((r) => {
+          if (!r?.success || r.data == null) {
+            throw new Error(r?.message || 'Xác nhận nhập kho thất bại');
+          }
+          return r.data;
+        }),
+        catchError((err: unknown) => {
+          if (err instanceof TimeoutError) {
+            return throwError(
+              () =>
+                new Error(
+                  'Hết thời gian chờ máy chủ khi nhập kho. Kiểm tra kết nối hoặc log backend; có thể giao dịch vẫn đã chạy.',
+                ),
+            );
+          }
+          return throwError(() => err);
+        }),
+      );
+  }
+
+  cancelInventoryInflowReceipt(id: number): Observable<void> {
+    return this.http
+      .delete<ApiResponse<unknown>>(`${this.base}/admin/inventory/inflow/receipts/${id}`)
+      .pipe(
+        map((r) => {
+          if (!r || r.success !== true) {
+            throw new Error(r?.message || 'Không hủy được phiếu');
+          }
+          return undefined;
+        }),
+      );
   }
 }

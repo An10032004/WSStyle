@@ -34,6 +34,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    /** Trạng thái phiếu / nghiệp vụ không cho phép (ví dụ xác nhận phiếu không còn DRAFT). */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     /**
      * Xử lý lỗi validation từ @Valid (400)
      */
