@@ -323,111 +323,165 @@
 
 <ng-template #viewDialog let-observer>
   <div class="view-detail" *ngIf="selectedUser">
-    <div class="detail-row">
-      <span class="label">ID:</span>
-      <span class="value">{{ selectedUser.id }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.EMAIL' | transloco }}:</span>
-      <span class="value">{{ selectedUser.email }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.NAME' | transloco }}:</span>
-      <span class="value">{{ selectedUser.fullName }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.PHONE' | transloco }}:</span>
-      <span class="value">{{ selectedUser.phone }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.ROLE' | transloco }}:</span>
-      <span class="value">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</span>
-    </div>
-    <div class="detail-row" *ngIf="$any(selectedUser).assignedRole">
-      <span class="label">{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}:</span>
-      <span class="value">{{ 'ENUMS.' + $any(selectedUser).assignedRole | transloco }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.GROUP' | transloco }}:</span>
-      <span class="value">{{ selectedUser.customerGroup?.name || 'None' }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.STATUS' | transloco }}:</span>
-      <span class="value">{{ registrationStatusLabel(selectedUser.registrationStatus) }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.COMPANY' | transloco }}:</span>
-      <span class="value">{{ selectedUser.companyName || '—' }}</span>
-    </div>
-    <div class="detail-row">
-      <span class="label">{{ 'MEMBER.TAX_CODE' | transloco }}:</span>
-      <span class="value">{{ selectedUser.taxCode || '—' }}</span>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-card__header">
+          <tui-icon icon="@tui.user" class="detail-card__icon"></tui-icon>
+          <h4>Thông tin cơ bản</h4>
+        </div>
+        <div class="detail-card__content">
+          <div class="detail-item">
+            <span class="label">ID</span>
+            <span class="value">#{{ selectedUser.id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.NAME' | transloco }}</span>
+            <span class="value highlight">{{ selectedUser.fullName }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.EMAIL' | transloco }}</span>
+            <span class="value">{{ selectedUser.email }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.PHONE' | transloco }}</span>
+            <span class="value">{{ selectedUser.phone || '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-card">
+        <div class="detail-card__header">
+          <tui-icon icon="@tui.shield" class="detail-card__icon"></tui-icon>
+          <h4>Tài khoản & Phân quyền</h4>
+        </div>
+        <div class="detail-card__content">
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.ROLE' | transloco }}</span>
+            <span class="value">
+              <tui-badge size="s" appearance="primary">{{ selectedUser.displayRoles || (('ENUMS.' + selectedUser.role) | transloco) }}</tui-badge>
+            </span>
+          </div>
+          <div class="detail-item" *ngIf="$any(selectedUser).assignedRole">
+            <span class="label">{{ 'MEMBER.ASSIGNED_ROLE' | transloco }}</span>
+            <span class="value">{{ 'ENUMS.' + $any(selectedUser).assignedRole | transloco }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.GROUP' | transloco }}</span>
+            <span class="value">{{ selectedUser.customerGroup?.name || 'None' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.STATUS' | transloco }}</span>
+            <span class="value">
+              <span [class]="dealerStatusPillClass(selectedUser.registrationStatus)">
+                {{ registrationStatusLabel(selectedUser.registrationStatus) }}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-card full-width">
+        <div class="detail-card__header">
+          <tui-icon icon="@tui.briefcase" class="detail-card__icon"></tui-icon>
+          <h4>Thông tin doanh nghiệp</h4>
+        </div>
+        <div class="detail-card__content horizontal">
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.COMPANY' | transloco }}</span>
+            <span class="value">{{ selectedUser.companyName || '—' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">{{ 'MEMBER.TAX_CODE' | transloco }}</span>
+            <span class="value">{{ selectedUser.taxCode || '—' }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- AI INTELLIGENCE DASHBOARD -->
     <div class="ai-intelligence-section">
       <div class="ai-intelligence-header">
-        <tui-badge size="s" appearance="accent" class="ai-badge">AI POWERED</tui-badge>
-        <h3 class="ai-title">Luxe Intelligence Dashboard</h3>
+        <div class="ai-title-wrapper">
+          <tui-badge size="s" appearance="accent" class="ai-badge">AI POWERED</tui-badge>
+          <h3 class="ai-title">Luxe Intelligence Dashboard</h3>
+        </div>
         <button 
           tuiButton 
           type="button" 
-          size="s" 
+          size="m" 
           appearance="secondary-accent" 
           (click)="fetchAiInsight()"
         >
           <tui-loader [showLoader]="loadingAi" [inheritColor]="true">
-            {{ aiInsight ? 'Cập nhật phân tích' : 'Phân tích khách hàng' }}
+            <tui-icon icon="@tui.sparkles" class="tui-space_right-2"></tui-icon>
+            {{ aiInsight ? 'Cập nhật phân tích' : 'Bắt đầu phân tích' }}
           </tui-loader>
         </button>
       </div>
 
       <div *ngIf="!aiInsight && !loadingAi" class="ai-placeholder">
-        <tui-icon icon="@tui.zap" class="ai-zap-icon"></tui-icon>
-        <p>Bấm nút trên để AI phân tích hành vi và dự báo về khách hàng này.</p>
+        <div class="ai-zap-wrapper">
+          <tui-icon icon="@tui.zap" class="ai-zap-icon"></tui-icon>
+        </div>
+        <p>Hệ thống AI đã sẵn sàng để phân tích dữ liệu khách hàng này.</p>
+        <span class="ai-hint">Bấm nút phía trên để bắt đầu khám phá hành vi và dự đoán sở thích.</span>
       </div>
 
       <div *ngIf="aiInsight" class="ai-insight-content" [class.ai-insight--loading]="loadingAi">
-        <div class="ai-sentiment-row">
-          <span class="sentiment-label">Cảm xúc dự đoán:</span>
-          <tui-badge 
-            size="m" 
-            [appearance]="aiInsight.sentiment === 'POSITIVE' ? 'success' : (aiInsight.sentiment === 'NEGATIVE' || aiInsight.sentiment === 'ANGRY' ? 'error' : 'neutral')"
-          >
-            {{ aiInsight.sentiment }}
-          </tui-badge>
+        <div class="ai-summary-cards">
+          <div class="ai-summary-card sentiment">
+            <span class="summary-label">Cảm xúc dự đoán</span>
+            <div class="summary-value">
+              <tui-badge 
+                size="l" 
+                [appearance]="aiInsight.sentiment === 'POSITIVE' ? 'success' : (aiInsight.sentiment === 'NEGATIVE' || aiInsight.sentiment === 'ANGRY' ? 'error' : 'neutral')"
+              >
+                {{ aiInsight.sentiment }}
+              </tui-badge>
+            </div>
+          </div>
+          <div class="ai-summary-card engagement">
+            <span class="summary-label">Mức độ tương tác</span>
+            <div class="summary-value">
+              <span class="engagement-text">CAO</span>
+            </div>
+          </div>
         </div>
 
         <div class="ai-narrative">
-          <h4><tui-icon icon="@tui.info" class="ai-tiny-icon"></tui-icon> Phân tích hành vi</h4>
+          <h4><tui-icon icon="@tui.info" class="ai-tiny-icon"></tui-icon> Phân tích chuyên sâu</h4>
           <p>{{ aiInsight.insight }}</p>
         </div>
 
         <div class="ai-columns">
           <div class="ai-col">
-            <h4><tui-icon icon="@tui.heart" class="ai-tiny-icon"></tui-icon> Sở thích dự đoán</h4>
-            <ul>
-              <li *ngFor="let interest of aiInsight.predictedInterests">{{ interest }}</li>
-            </ul>
+            <div class="ai-col__header">
+              <tui-icon icon="@tui.heart" class="ai-tiny-icon"></tui-icon>
+              <h4>Sở thích dự đoán</h4>
+            </div>
+            <div class="ai-tags">
+              <span *ngFor="let interest of aiInsight.predictedInterests" class="ai-tag interest">
+                {{ interest }}
+              </span>
+            </div>
           </div>
           <div class="ai-col">
-            <h4><tui-icon icon="@tui.zap" class="ai-tiny-icon"></tui-icon> Gợi ý hành động</h4>
-            <ul>
-              <li *ngFor="let action of aiInsight.suggestedActions">{{ action }}</li>
+            <div class="ai-col__header">
+              <tui-icon icon="@tui.zap" class="ai-tiny-icon"></tui-icon>
+              <h4>Hành động đề xuất</h4>
+            </div>
+            <ul class="ai-action-list">
+              <li *ngFor="let action of aiInsight.suggestedActions">
+                <tui-icon icon="@tui.check" class="action-icon"></tui-icon>
+                {{ action }}
+              </li>
             </ul>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
-    <button tuiButton size="m" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
+  <div class="dialog-footer">
+    <button tuiButton size="m" appearance="flat" (click)="observer.complete()">{{ 'COMMON.CLOSE' | transloco }}</button>
   </div>
 </ng-template>
-
-<style>
-  .view-detail { padding: 4px; }
-  .detail-row { display: flex; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
-  .detail-row .label { font-weight: 600; width: 200px; color: #666; }
-  .detail-row .value { color: #333; }
-</style>

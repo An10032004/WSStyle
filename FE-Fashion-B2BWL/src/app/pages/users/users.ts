@@ -372,7 +372,7 @@ export class UsersComponent implements OnInit, OnDestroy {
     (user as any).displayRoles = (user as any).roles.map((r: string) => this.transloco.translate('ENUMS.' + r)).join(' / ');
     this.selectedUser = user;
     this.aiInsight = null;
-    this.dialogs.open(this.viewDialogTemplate, { size: 'm', label: this.transloco.translate('MEMBER.USER_DETAIL') })
+    this.dialogs.open(this.viewDialogTemplate, { size: 'l', label: this.transloco.translate('MEMBER.USER_DETAIL') })
       .subscribe();
   }
 
