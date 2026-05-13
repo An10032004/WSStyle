@@ -21,6 +21,30 @@
       </div>
     </div>
 
+    <div class="session-bar">
+      <select
+        class="session-bar__select"
+        [ngModel]="sessionSelectKey"
+        (ngModelChange)="onSessionPick($event)"
+        [disabled]="isLoading || sessionsLoading"
+        title="Lịch sử phiên chat"
+      >
+        <option value="">— Phiên mới —</option>
+        <option *ngFor="let s of sessions" [value]="'' + s.id">
+          {{ s.title || ('#' + s.id) }} · {{ s.updatedAt | date: 'dd/MM HH:mm' }}
+        </option>
+      </select>
+      <button
+        type="button"
+        class="session-bar__new"
+        (click)="newSession()"
+        [disabled]="isLoading"
+        title="Bắt đầu phiên mới"
+      >
+        +
+      </button>
+    </div>
+
     <div class="chat-messages" #scrollContainer>
       <div 
         *ngFor="let m of messages" 
@@ -29,7 +53,16 @@
       >
         <div class="message-bubble">
           <div class="msg-text" [innerHTML]="m.text"></div>
-          
+
+          <div class="wholesale-link-strip" *ngIf="m.wholesaleLinkIntro?.trim() || m.wholesaleProductLinks?.length">
+            <p class="wholesale-link-strip__intro" *ngIf="m.wholesaleLinkIntro?.trim()">{{ m.wholesaleLinkIntro }}</p>
+            <ul class="wholesale-link-strip__list" *ngIf="m.wholesaleProductLinks?.length">
+              <li *ngFor="let w of m.wholesaleProductLinks" class="wholesale-link-strip__item">
+                <a [routerLink]="['/product', w.productId]" class="wholesale-link-strip__name">{{ w.name }}</a>
+              </li>
+            </ul>
+          </div>
+
           <!-- PRODUCT GRID - Compact 2 columns -->
           <div class="ai-product-grid" *ngIf="m.products && m.products.length > 0">
             <div *ngFor="let p of m.products" class="ai-product-card" (click)="viewProduct(p)">

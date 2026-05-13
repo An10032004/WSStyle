@@ -22,4 +22,16 @@ public class AssistantPricingHintsDTO {
 
     @Builder.Default
     private List<Integer> pricingHintCategoryIds = new ArrayList<>();
+
+    /**
+     * Khách có ít nhất một rule QUANTITY_BREAK/B2B_PRICE ACTIVE khớp nhóm khách và {@code applyProductType = ALL}.
+     * Không đẩy toàn kho vào hint id — chỉ để AI/storefront mô tả phạm vi.
+     */
+    private boolean wholesaleCoversAllProducts;
+
+    /**
+     * Tên danh mục (kèm id) từ mọi rule GROUP/CATEGORY khớp khách — thứ tự ổn định theo id danh mục.
+     */
+    @Builder.Default
+    private List<String> wholesaleMatchedGroupCategoryLabels = new ArrayList<>();
 }

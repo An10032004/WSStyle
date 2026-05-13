@@ -148,6 +148,8 @@ export class CartService {
   private assistantHintsSubject = new BehaviorSubject<AssistantPricingHints>({
     pricingHintProductIds: [],
     pricingHintCategoryIds: [],
+    wholesaleCoversAllProducts: false,
+    wholesaleMatchedGroupCategoryLabels: [],
   });
 
   private currentUserId: number | null = null;
@@ -194,11 +196,15 @@ export class CartService {
         this.assistantHintsSubject.next({
           pricingHintProductIds: h.pricingHintProductIds ?? [],
           pricingHintCategoryIds: h.pricingHintCategoryIds ?? [],
+          wholesaleCoversAllProducts: !!h.wholesaleCoversAllProducts,
+          wholesaleMatchedGroupCategoryLabels: h.wholesaleMatchedGroupCategoryLabels ?? [],
         }),
       error: () =>
         this.assistantHintsSubject.next({
           pricingHintProductIds: [],
           pricingHintCategoryIds: [],
+          wholesaleCoversAllProducts: false,
+          wholesaleMatchedGroupCategoryLabels: [],
         }),
     });
   }

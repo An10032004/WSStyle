@@ -84,9 +84,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/orders/orders').then(m => m.OrdersComponent)
       },
       {
-        path: 'ai-sync',
+        path: 'ai-assistant-contexts',
         data: { module: 'ai-sync' },
-        loadComponent: () => import('./pages/ai-sync/ai-sync').then(m => m.AiSyncComponent)
+        loadComponent: () =>
+          import('./pages/ai-assistant-admin/ai-assistant-admin').then((m) => m.AiAssistantAdminComponent),
       },
       {
         path: 'staff',

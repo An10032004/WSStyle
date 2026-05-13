@@ -118,6 +118,54 @@ export interface ProductVariant {
   imageUrls?: string;
   status?: string;
   barcode?: string;
+  /** Tag tìm kiếm / AI (TEXT trên BE). */
+  searchTags?: string | null;
+}
+
+/** Snippet ngữ cảnh quản trị ghép vào prompt Luxe Assistant (storefront). */
+export interface AiAssistantAdminContext {
+  id: number;
+  title: string;
+  body: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AiAssistantAdminContextRequest {
+  title: string;
+  body: string;
+  sortOrder?: number | null;
+  active?: boolean | null;
+}
+
+/** Variant trong picker trang admin AI (đồng bộ GET .../products-for-bulk-tags). */
+export interface AiAssistantVariantPicker {
+  id: number;
+  sku: string;
+  color?: string | null;
+  size?: string | null;
+  imageUrl?: string | null;
+  searchTags?: string | null;
+}
+
+/** Sản phẩm + variant lồng (phân trang server). */
+export interface AiAssistantProductPicker {
+  id: number;
+  productCode: string;
+  name: string;
+  imageUrl?: string | null;
+  variants: AiAssistantVariantPicker[];
+}
+
+/** Trang Spring Data (content, totalElements, …). */
+export interface SpringPage<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
 }
 
 export interface Translation {
@@ -139,6 +187,13 @@ export interface TranslationRequest {
   translatedData?: string;
 }
 
+/** Đồng bộ BE `AssistantWholesaleProductLinkDTO` — link nội bộ (vd. `/product/12`), không URL đầy đủ. */
+export interface AssistantWholesaleProductLink {
+  productId: number;
+  name: string;
+  path: string;
+}
+
 export interface AIResponse {
   message: string;
   products: Product[];
@@ -146,6 +201,14 @@ export interface AIResponse {
   bundles?: AIBundleSummary[];
   /** Phiên lịch sử (BE); gửi lại ở tin tiếp theo. */
   sessionId?: number | null;
+  /** Markdown: biên độ VND, sort DB, bước xếp hạng (product_search). Gửi lại kèm storefrontContext giúp model bám pipeline. */
+  pipelineNotes?: string | null;
+  /** Giới thiệu ngắn cho danh sách link sỉ / vai trò (BE). */
+  wholesaleLinkIntro?: string | null;
+  /** Tên + đường dẫn trong app khi lượt có product_search và ý định giá sỉ / vai trò (BE). */
+  wholesaleProductLinks?: AssistantWholesaleProductLink[];
+  /** Debug markdown: rule QUANTITY_BREAK/B2B khớp khách + hint id (BE). */
+  assistantPricingToolSummary?: string | null;
 }
 
 export interface AICustomerInsightResponse {
@@ -159,6 +222,10 @@ export interface AICustomerInsightResponse {
 export interface AssistantPricingHints {
   pricingHintProductIds: number[];
   pricingHintCategoryIds: number[];
+  /** Rule QB/B2B áp dụng ALL (toàn shop) cho khách — BE tính. */
+  wholesaleCoversAllProducts?: boolean;
+  /** Tên danh mục (kèm id) từ rule GROUP/CATEGORY khớp khách. */
+  wholesaleMatchedGroupCategoryLabels?: string[];
 }
 
 export interface AssistantSessionItem {
@@ -751,6 +818,8 @@ export class ApiService {
             r.data ?? {
               pricingHintProductIds: [],
               pricingHintCategoryIds: [],
+              wholesaleCoversAllProducts: false,
+              wholesaleMatchedGroupCategoryLabels: [],
             },
         ),
       );
@@ -1259,6 +1328,8 @@ export class ApiService {
       /** Cùng logic rule giá với giỏ — BE gộp khi hỏi giá sỉ / product_search. */
       pricingHintProductIds?: number[] | null;
       pricingHintCategoryIds?: number[] | null;
+      /** Gần đây khách đã hỏi sỉ (tin hiện tại có thể không chứa từ khóa). */
+      wholesaleConversationCarryover?: boolean | null;
     }
   ): Observable<AIResponse> {
     const body: Record<string, unknown> = { message };
@@ -1268,6 +1339,9 @@ export class ApiService {
       body['storefrontContext'] = opts.storefrontContext;
     if (opts?.pricingHintProductIds?.length) body['pricingHintProductIds'] = opts.pricingHintProductIds;
     if (opts?.pricingHintCategoryIds?.length) body['pricingHintCategoryIds'] = opts.pricingHintCategoryIds;
+    if (opts?.wholesaleConversationCarryover === true) {
+      body['wholesaleConversationCarryover'] = true;
+    }
     return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/chat`, body).pipe(
       map((res) => {
         if (!res.success || res.data == null) {
@@ -1287,6 +1361,7 @@ export class ApiService {
       sessionId?: number | null;
       pricingHintProductIds?: number[] | null;
       pricingHintCategoryIds?: number[] | null;
+      wholesaleConversationCarryover?: boolean | null;
     }
   ): Observable<AIResponse> {
     const body: Record<string, unknown> = { query };
@@ -1296,6 +1371,9 @@ export class ApiService {
       body['storefrontContext'] = opts.storefrontContext;
     if (opts?.pricingHintProductIds?.length) body['pricingHintProductIds'] = opts.pricingHintProductIds;
     if (opts?.pricingHintCategoryIds?.length) body['pricingHintCategoryIds'] = opts.pricingHintCategoryIds;
+    if (opts?.wholesaleConversationCarryover === true) {
+      body['wholesaleConversationCarryover'] = true;
+    }
     return this.http.post<ApiResponse<AIResponse>>(`${this.base}/ai/search`, body).pipe(
       map((res) => {
         if (!res.success || res.data == null) {
@@ -1340,6 +1418,80 @@ export class ApiService {
 
   getCustomerInsight(userId: number): Observable<AICustomerInsightResponse> {
     return this.http.get<AICustomerInsightResponse>(`${this.base}/admin/ai/customers/${userId}/insight`);
+  }
+
+  listAiAssistantAdminContexts(): Observable<AiAssistantAdminContext[]> {
+    return this.http
+      .get<ApiResponse<AiAssistantAdminContext[]>>(`${this.base}/admin/ai-assistant/contexts`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  getAiAssistantAdminContext(id: number): Observable<AiAssistantAdminContext> {
+    return this.http
+      .get<ApiResponse<AiAssistantAdminContext>>(`${this.base}/admin/ai-assistant/contexts/${id}`)
+      .pipe(map((r) => r.data!));
+  }
+
+  createAiAssistantAdminContext(body: AiAssistantAdminContextRequest): Observable<AiAssistantAdminContext> {
+    return this.http
+      .post<ApiResponse<AiAssistantAdminContext>>(`${this.base}/admin/ai-assistant/contexts`, body)
+      .pipe(map((r) => r.data!));
+  }
+
+  updateAiAssistantAdminContext(
+    id: number,
+    body: AiAssistantAdminContextRequest
+  ): Observable<AiAssistantAdminContext> {
+    return this.http
+      .put<ApiResponse<AiAssistantAdminContext>>(`${this.base}/admin/ai-assistant/contexts/${id}`, body)
+      .pipe(map((r) => r.data!));
+  }
+
+  deleteAiAssistantAdminContext(id: number): Observable<void> {
+    return this.http
+      .delete<ApiResponse<void>>(`${this.base}/admin/ai-assistant/contexts/${id}`)
+      .pipe(map(() => undefined));
+  }
+
+  /** Gán cùng một chuỗi searchTags cho nhiều variant; searchTags rỗng = xóa tag. */
+  bulkVariantSearchTags(variantIds: number[], searchTags: string | null): Observable<{ updated: number }> {
+    return this.http
+      .post<ApiResponse<{ updated: number }>>(`${this.base}/admin/ai-assistant/variants/bulk-search-tags`, {
+        variantIds,
+        searchTags: searchTags ?? '',
+      })
+      .pipe(map((r) => r.data ?? { updated: 0 }));
+  }
+
+  /**
+   * Sản phẩm phân trang + variant (2 query BE); search khớp /api/products/search.
+   */
+  searchAiAssistantProductsForBulkTags(params: {
+    search?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+  }): Observable<SpringPage<AiAssistantProductPicker>> {
+    let hp = new HttpParams();
+    const s = params.search?.trim();
+    if (s) {
+      hp = hp.set('search', s);
+    }
+    if (params.page != null) {
+      hp = hp.set('page', String(params.page));
+    }
+    if (params.size != null) {
+      hp = hp.set('size', String(params.size));
+    }
+    if (params.sortBy) {
+      hp = hp.set('sortBy', params.sortBy);
+    }
+    return this.http
+      .get<ApiResponse<SpringPage<AiAssistantProductPicker>>>(
+        `${this.base}/admin/ai-assistant/products-for-bulk-tags`,
+        { params: hp },
+      )
+      .pipe(map((r) => r.data!));
   }
 
   processInventoryInflow(body: InventoryInflowRequest): Observable<void> {

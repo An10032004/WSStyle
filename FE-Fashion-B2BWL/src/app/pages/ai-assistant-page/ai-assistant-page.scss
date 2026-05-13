@@ -53,6 +53,7 @@
   padding: 20px 18px;
   border-left: 1px solid rgba(15, 23, 42, 0.08);
   overflow: auto;
+  max-height: calc(100vh - 140px);
 }
 
 .col-head {
@@ -195,9 +196,13 @@
   min-height: min(640px, calc(100vh - 280px));
 }
 
-.chat-scroll {
+.chat-scroll-region {
   flex: 1;
-  min-height: 360px;
+  min-height: 280px;
+  max-height: min(520px, calc(100vh - 380px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-inner {
@@ -234,6 +239,46 @@
   color: #0f172a;
   line-height: 1.55;
   font-size: 0.95rem;
+}
+
+.wholesale-link-strip {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.09), rgba(168, 85, 247, 0.06));
+  border: 1px solid rgba(99, 102, 241, 0.25);
+
+  &__intro {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #475569;
+  }
+
+  &__list {
+    margin: 0;
+    padding: 0 0 0 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  &__item {
+    margin-bottom: 8px;
+    line-height: 1.4;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__name {
+    font-weight: 600;
+    color: #4338ca;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 
 .inline-cards {
@@ -322,11 +367,15 @@
   font-style: italic;
 }
 
+.chat-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
 .composer {
   display: flex;
   gap: 12px;
-  padding: 16px 18px;
-  border-top: 1px solid #e2e8f0;
+  padding: 12px 18px 16px;
 
   input {
     flex: 1;

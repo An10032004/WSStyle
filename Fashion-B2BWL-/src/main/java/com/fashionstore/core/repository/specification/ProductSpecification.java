@@ -35,7 +35,14 @@ public class ProductSpecification {
                 Predicate sizeMatch = criteriaBuilder.like(criteriaBuilder.lower(variants.get("size")), searchPattern);
                 Predicate weightMatch = criteriaBuilder.like(criteriaBuilder.lower(variants.get("weight")), searchPattern);
                 Predicate skuMatch = criteriaBuilder.like(criteriaBuilder.lower(variants.get("sku")), searchPattern);
-                predicates.add(criteriaBuilder.or(nameMatch, codeMatch, colorMatch, sizeMatch, weightMatch, skuMatch));
+                Predicate tagMatch =
+                        criteriaBuilder.and(
+                                criteriaBuilder.isNotNull(variants.get("searchTags")),
+                                criteriaBuilder.like(
+                                        criteriaBuilder.lower(variants.get("searchTags")), searchPattern));
+                predicates.add(
+                        criteriaBuilder.or(
+                                nameMatch, codeMatch, colorMatch, sizeMatch, weightMatch, skuMatch, tagMatch));
             }
 
             if (categoryIds != null && !categoryIds.isEmpty()) {

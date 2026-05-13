@@ -402,21 +402,22 @@ Hệ thống WSStyle tích hợp giải pháp AI tiên tiến dựa trên mô h�
 
 Kiến trúc RAG của chúng tôi hoạt động dựa trên quy trình **"Tiếp nhận - Tra cứu - Làm giàu - Suy luận"**:
 
-#### **A. Retrieval (Lớp Truy xuất Thực thể)**
-Thay vì sử dụng Vector Database thông thường (dễ gây nhầm lẫn số liệu), chúng tôi sử dụng **Entity-Based Context Retrieval**:
-*   **Site Context Engine (`AiSiteContextLoader.java`)**: Quét toàn bộ hệ thống để lấy dữ liệu thời gian thực:
-    *   **Products & Variants**: SKU, chất liệu, nguồn gốc, giá và trạng thái kho chính xác.
-    *   **Category Hierarchy**: Xây dựng bản đồ danh mục để AI hiểu mối quan hệ giữa các nhóm hàng.
-    *   **System Principles**: Các quy tắc sỉ, chính sách thanh toán Net Terms.
-*   **Analytical Data Retrieval (`ReportService.java`)**: Tổng hợp dữ liệu tài chính thô thành các báo cáo Markdown Table để AI phân tích.
+#### **A. Markdown Grounding (Lớp Tri thức cấu trúc)**
+Thay vì sử dụng văn bản thuần túy, tri thức nền tảng của hệ thống được cấu trúc hóa thông qua định dạng Markdown:
+*   **Vị trí thực tế:** File `src/main/resources/ai/site-context.md`.
+*   **Cơ chế:** Toàn bộ bản đồ site (Sitemap), URL Mapping và quy tắc nghiệp vụ được trình bày dưới dạng **Markdown Tables** (Bảng dữ liệu). 
+*   **Lợi ích kỹ thuật:** Các mô hình ngôn ngữ lớn (LLM) như Gemini được huấn luyện sâu trên các tài liệu kỹ thuật định dạng Markdown. Việc sử dụng bảng giúp AI phân tách dữ liệu theo hàng/cột một cách rõ ràng, giúp việc truy xuất URL chính xác tuyệt đối và giảm thiểu hiện tượng "ảo giác" (hallucination) khi AI tư vấn lộ trình mua hàng cho khách.
 
-#### **B. Augmentation (Lớp Làm giàu & Ràng buộc)**
-*   **Markdown Serialization**: Chuyển đổi dữ liệu Java sang định dạng Markdown. Các LLM (như Gemini) xử lý bảng Markdown tốt hơn 40% so với văn bản thuần, giúp tính toán lợi nhuận và so sánh giá chính xác tuyệt đối.
-*   **Dynamic System Prompting**: Sử dụng kỹ thuật **Sandwich Prompting** để ép AI luôn nằm trong vai trò hỗ trợ bán hàng, không bị phân tâm bởi các câu hỏi ngoài lề.
+#### **B. Sandwich Prompting (Kỹ thuật điều hướng suy luận)**
+Chúng tôi áp dụng cấu trúc Prompt "bánh kẹp" trong logic xây dựng câu lệnh (`AIProductHelperService.java`):
+*   **Lớp bánh trên (Instruction Layer):** Thiết lập định danh "Luxe Assistant" và nhiệm vụ cốt lõi.
+*   **Phần nhân (Dynamic Data):** Chứa dữ liệu thực tế từ Database (Sản phẩm, danh mục, ngữ cảnh phiên) được "bơm" vào giữa.
+*   **Lớp bánh dưới (Constraint Layer):** Nhắc lại các quy tắc nghiêm ngặt và định dạng đầu ra (JSON Schema). 
+*   **Ý nghĩa:** Việc đặt quy tắc quan trọng ở cuối tận dụng hiệu ứng **Recency Bias** (Ưu tiên thông tin cuối cùng), buộc AI phải tuân thủ kỷ luật về định dạng và phạm vi trả lời ngay trước khi thực hiện sinh văn bản.
 
 #### **C. Generation & Reasoning (Lớp Suy luận)**
-*   **Gemini 1.5 Context Window**: Tận dụng cửa sổ ngữ cảnh khổng lồ để gửi toàn bộ "tri thức cửa hàng" trong một lần gọi API, giảm độ trễ và tăng tính nhất quán.
-*   **Chain-of-Thought (CoT)**: Ra lệnh cho AI "suy nghĩ từng bước" khi phân tích báo cáo tài chính trong Admin Dashboard.
+*   **Structured Output:** AI không trả về văn bản tự do mà trả về **JSON Object**, cho phép hệ thống lập trình hóa các hành động (như tự động hiển thị thẻ sản phẩm hoặc link điều hướng) thay vì chỉ trả về văn bản thô.
+*   **Chain-of-Thought (CoT):** Áp dụng trong Admin Dashboard (`AICustomerManagementService.java`) để AI thực hiện phân tích đa chiều (tâm lý, công nợ, tiềm năng) từ dữ liệu lịch sử giao dịch trước khi đưa ra kết luận.
 
 ---
 

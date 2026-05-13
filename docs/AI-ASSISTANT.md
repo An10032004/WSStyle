@@ -35,7 +35,7 @@ Tài liệu mô tả **cách hệ thống dùng AI hiện tại**, **RAG (kiểu
 |--------|----------------|--------|
 | Mô tả web (route, luồng UX) | `Fashion-B2BWL-/src/main/resources/ai/site-context.md` | Nạp lúc startup (`AiSiteContextLoader`), đưa vào prompt để intent `site_help` trả lời **đúng theo tài liệu** |
 | Danh mục | `CategoryRepository.findAll()` (tối đa 80 dòng `id: tên`) | Giúp model chọn `categoryId` / `categoryIds` trong JSON |
-| Sản phẩm | `ProductSpecification` + `ProductRepository` | Sau `product_search`, server lọc DB (tên/mã, giá, brand, danh mục; có join variant cho màu/size/SKU khi có `search`) |
+| Sản phẩm | `ProductSpecification` + `ProductRepository` | Sau `product_search`, server lọc DB (tên/mã, giá, brand, danh mục; join variant cho màu/size/SKU/**search_tags** khi có `search`) |
 
 **Chưa có:** embedding, pgvector/Pinecone, chunking tự động từ DB.
 
@@ -86,7 +86,11 @@ Response bọc `ApiResponse`:
 
 **Shop — ô “Tìm AI”:** `aiSemanticSearch` → nhận `products` → thường gọi lại `searchProducts` theo `productIds` để đồng bộ giá rule trên lưới.
 
+**Gợi ý rule giá (pricing hints):** FE/backend có thể gửi `pricingHintProductIds` / `pricingHintCategoryIds`. `mergePricingHints` **chỉ** thay đổi thứ tự / ưu tiên danh sách khi câu khách có ý **giá sỉ / B2B** (từ khóa như «giá sỉ», «mua sỉ», …); tìm hàng chung không chèn SP trong phạm vi rule lên đầu nữa.
+
 **Tìm sản phẩm (fallback từ khóa):** nếu truy vấn chính trả 0 dòng, `runProductSearch` thử lại từng từ/cụm rút từ câu với cùng bộ lọc giá/danh mục/thương hiệu.
+
+**Xếp hạng sau DB:** `relevanceScore` dùng tên, mã và chuỗi gộp từ variant (SKU, màu, size, `search_tags`) so với `rankingQuery`, rồi tổng tồn, rồi id — để SP khớp chủ yếu qua tag vẫn được xếp cao hơn SP chỉ trùng từ xa.
 
 ---
 

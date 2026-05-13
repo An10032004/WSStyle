@@ -80,4 +80,11 @@ public class ProductVariant {
 
     @Column(name = "barcode")
     private String barcode;
+
+    /**
+     * Tag tìm kiếm / AI — chuỗi do quản trị nhập (vd. comma-separated: {@code áo,nam,giá-rẻ}).
+     * Dùng trong LIKE search; không ảnh hưởng giá hay tồn.
+     */
+    @Column(name = "search_tags", columnDefinition = "TEXT")
+    private String searchTags;
 }

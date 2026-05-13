@@ -5,7 +5,6 @@ import {
   inject,
   ViewChild,
   ElementRef,
-  AfterViewChecked,
   OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -18,6 +17,7 @@ import {
   AIBundleSummary,
   AssistantSessionItem,
   AssistantTurn,
+  AssistantWholesaleProductLink,
   Product,
   User,
 } from '../../services/api.service';
@@ -25,6 +25,14 @@ import { AuthService } from '../../services/auth.service';
 import { CartService } from '../../services/cart.service';
 import { StorefrontHeaderComponent } from '../../shared/components/storefront-header/storefront-header';
 import { StorefrontFooterComponent } from '../../shared/components/storefront-footer/storefront-footer';
+import {
+  buildWholesaleLinkBlockFromMessage,
+  looksLikeBulkOrDealerIntent,
+  looksLikeWholesaleIntent,
+  resolveWholesaleLinkBlockForAiReply,
+  wholesaleConversationCarryoverExcludingCurrent,
+  WHOLESALE_USER_MESSAGE_WINDOW,
+} from '../../shared/utils/assistant-wholesale-links';
 import { TuiButton, TuiScrollbar } from '@taiga-ui/core';
 
 interface ChatMessage {
@@ -33,6 +41,10 @@ interface ChatMessage {
   time: Date;
   products?: Product[];
   bundles?: AIBundleSummary[];
+  /** Markdown từ BE (product_search); hiển thị trong <details>, đồng thời gửi lại kèm storefrontContext. */
+  pipelineNotes?: string | null;
+  wholesaleLinkIntro?: string | null;
+  wholesaleProductLinks?: AssistantWholesaleProductLink[];
 }
 
 @Component({
@@ -51,7 +63,7 @@ interface ChatMessage {
   styleUrl: './ai-assistant-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
+export class AiAssistantPageComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly cart = inject(CartService);
@@ -66,35 +78,20 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
   sessions: AssistantSessionItem[] = [];
   sessionsLoading = false;
   selectedSessionId: number | null = null;
-  /** Phiên đang gửi tin (BE trả về sessionId sau mỗi lần chat). */
+  /** Phiên đang gửi tin (BE trả sessionId sau mỗi lần chat). */
   currentSessionId: number | null = null;
 
   messages: ChatMessage[] = [];
 
   lastResultProducts: Product[] = [];
 
+  /** Lượt product_search gần nhất — đính kèm prompt kế tiếp để model bám pipeline. */
+  private lastPipelineNotes: string | null = null;
+
   ngOnInit(): void {
     this.resetWelcome();
     this.refreshSessions();
-  }
-
-  private resetWelcome(): void {
-    this.messages = [
-      {
-        text:
-          'Xin chào! Mình là <strong>Luxe Assistant</strong>. Hỏi về sản phẩm (màu, size, giá…); cột bên phải hiển thị ' +
-          '<strong>ảnh, giá và link</strong> khi có kết quả từ kho.',
-        sender: 'ai',
-        time: new Date(),
-      },
-    ];
-  }
-
-  ngAfterViewChecked(): void {
-    const el = this.scrollArea?.nativeElement;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
+    this.scheduleScrollChatToBottom();
   }
 
   refreshSessions(): void {
@@ -120,8 +117,10 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
     this.selectedSessionId = null;
     this.currentSessionId = null;
     this.lastResultProducts = [];
+    this.lastPipelineNotes = null;
     this.resetWelcome();
     this.cdr.markForCheck();
+    this.scheduleScrollChatToBottom();
   }
 
   openSession(sessionId: number): void {
@@ -154,9 +153,11 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
         next: ({ turns, products }) => {
           const byId = new Map(products.map((p) => [p.id, p]));
           this.messages = this.turnsToMessages(turns, byId);
+          this.lastPipelineNotes = null;
           this.syncLastProductsFromMessages();
           this.isLoading = false;
           this.cdr.markForCheck();
+          this.scheduleScrollChatToBottom();
         },
         error: () => {
           this.isLoading = false;
@@ -167,17 +168,44 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
 
   private turnsToMessages(turns: AssistantTurn[], byId: Map<number, Product>): ChatMessage[] {
     const out: ChatMessage[] = [];
+    const recentUser: string[] = [];
     for (const t of turns) {
       if (t.role === 'USER') {
+        recentUser.push(t.content);
+        if (recentUser.length > WHOLESALE_USER_MESSAGE_WINDOW) {
+          recentUser.shift();
+        }
         out.push({ text: t.content, sender: 'user', time: new Date() });
       } else {
         const products = (t.productIds || [])
           .map((id) => byId.get(id))
           .filter((p): p is Product => !!p);
-        out.push({ text: t.content, sender: 'ai', time: new Date(), products });
+        const carry = wholesaleConversationCarryoverExcludingCurrent(recentUser);
+        const lastUser = recentUser.length > 0 ? recentUser[recentUser.length - 1] : '';
+        const block = buildWholesaleLinkBlockFromMessage(lastUser, products, carry);
+        out.push({
+          text: t.content,
+          sender: 'ai',
+          time: new Date(),
+          products,
+          wholesaleLinkIntro: block.intro ?? undefined,
+          wholesaleProductLinks: block.links.length ? block.links : undefined,
+        });
       }
     }
     return out;
+  }
+
+  private resetWelcome(): void {
+    this.messages = [
+      {
+        text:
+          'Xin chào! Mình là <strong>Luxe Assistant</strong>. Hỏi về sản phẩm (màu, size, giá…); cột bên phải hiển thị ' +
+          '<strong>ảnh, giá và link</strong> khi có kết quả từ kho.',
+        sender: 'ai',
+        time: new Date(),
+      },
+    ];
   }
 
   private syncLastProductsFromMessages(): void {
@@ -196,9 +224,16 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
     if (!text || this.isLoading) return;
 
     this.messages.push({ text, sender: 'user', time: new Date() });
+    const userTxts = this.messages.filter((m) => m.sender === 'user').map((m) => m.text);
+    const wholesaleConversationCarryover = wholesaleConversationCarryoverExcludingCurrent(userTxts);
+    const wholesaleEffective =
+      wholesaleConversationCarryover ||
+      looksLikeWholesaleIntent(text) ||
+      looksLikeBulkOrDealerIntent(text);
     this.userInput = '';
     this.isLoading = true;
     this.cdr.markForCheck();
+    this.scheduleScrollChatToBottom();
 
     const u = this.auth.currentUserValue;
     const hints = this.cart.getAssistantPricingHints();
@@ -213,6 +248,7 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
             storefrontContext: this.buildStorefrontContext(u, tax) ?? undefined,
             pricingHintProductIds: hints.pricingHintProductIds,
             pricingHintCategoryIds: hints.pricingHintCategoryIds,
+            wholesaleConversationCarryover,
           })
         )
       )
@@ -220,12 +256,33 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
         next: (res: AIResponse) => {
           const products = res.products ?? [];
           const bundles = res.bundles ?? [];
+          this.lastPipelineNotes = res.pipelineNotes?.trim() ? res.pipelineNotes : null;
+          const fromBe = resolveWholesaleLinkBlockForAiReply(
+            wholesaleEffective,
+            res.wholesaleLinkIntro,
+            res.wholesaleProductLinks,
+            text,
+            products,
+            wholesaleConversationCarryover,
+          );
+          console.log('[LuxeAssistant AI]', {
+            userMessage: text,
+            wholesaleConversationCarryover,
+            wholesaleEffective,
+            assistantPricingToolSummary: res.assistantPricingToolSummary ?? null,
+            pipelineNotes: res.pipelineNotes ?? null,
+            wholesaleProductLinksCount: fromBe.links.length,
+            productsCount: products.length,
+          });
           this.messages.push({
             text: res.message,
             sender: 'ai',
             time: new Date(),
             products,
             bundles,
+            pipelineNotes: this.lastPipelineNotes,
+            wholesaleLinkIntro: fromBe.intro ?? undefined,
+            wholesaleProductLinks: fromBe.links.length ? fromBe.links : undefined,
           });
           if (products.length > 0) {
             this.lastResultProducts = products;
@@ -239,6 +296,7 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
           }
           this.isLoading = false;
           this.cdr.markForCheck();
+          this.scheduleScrollChatToBottom();
         },
         error: () => {
           this.messages.push({
@@ -248,6 +306,7 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
           });
           this.isLoading = false;
           this.cdr.markForCheck();
+          this.scheduleScrollChatToBottom();
         },
       });
   }
@@ -283,7 +342,14 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
     lines.push(
       '- Giá trên thẻ sản phẩm API đã áp rule B2B/theo nhóm khi có userId; có thể có quantityBreaksJson (bậc sỉ) và totalStock (tồn tổng).'
     );
-    lines.push('- Trang assistant full: hiển thị bảng sản phẩm + link /product/:id; có lịch sử phiên.');
+    lines.push(
+      '- Trang assistant full: cột trái lịch sử phiên; bảng sản phẩm + link /product/:id; có thể tiếp tục phiên từ chat nổi.'
+    );
+    if (this.lastPipelineNotes) {
+      lines.push('');
+      lines.push('## Pipeline lượt product_search trước (từ server, đọc kỹ khi trả lời tiếp)');
+      lines.push(this.lastPipelineNotes);
+    }
     return lines.join('\n');
   }
 
@@ -305,5 +371,17 @@ export class AiAssistantPageComponent implements AfterViewChecked, OnInit {
   bundlePrice(b: AIBundleSummary): number {
     const x = b.newPrice ?? b.oldPrice;
     return typeof x === 'number' ? x : Number(x);
+  }
+
+  /** Chỉ cuộn khi có tin mới — không gọi mỗi CD (click sidebar/header sẽ không kéo chat xuống đáy). */
+  private scheduleScrollChatToBottom(): void {
+    setTimeout(() => this.scrollChatToBottom(), 0);
+  }
+
+  private scrollChatToBottom(): void {
+    const el = this.scrollArea?.nativeElement;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }
 }

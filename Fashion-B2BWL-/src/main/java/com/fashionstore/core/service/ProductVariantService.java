@@ -86,7 +86,8 @@ public class ProductVariantService {
                 .price(request.getPrice())
                 .status(request.getStatus())
                 .barcode(request.getBarcode())
-            .imageUrls(normalizeImageUrls(request.getImageUrls()))
+                .imageUrls(normalizeImageUrls(request.getImageUrls()))
+                .searchTags(normalizeSearchTags(request.getSearchTags()))
                 .shopId(1)
                 .build();
 
@@ -118,6 +119,9 @@ public class ProductVariantService {
         variant.setStatus(request.getStatus());
         variant.setBarcode(request.getBarcode());
         variant.setImageUrls(normalizeImageUrls(request.getImageUrls()));
+        if (Boolean.TRUE.equals(request.getApplySearchTagsPatch())) {
+            variant.setSearchTags(normalizeSearchTags(request.getSearchTags()));
+        }
 
         return productVariantRepository.save(variant);
     }
@@ -128,6 +132,46 @@ public class ProductVariantService {
     public void deleteVariant(Integer id) {
         ProductVariant variant = getVariantById(id);
         productVariantRepository.delete(variant);
+    }
+
+    /**
+     * Gán cùng một chuỗi {@code searchTags} cho nhiều biến thể (quản trị / AI tools).
+     *
+     * @return số bản ghi đã cập nhật
+     */
+    public int bulkSetSearchTags(List<Integer> variantIds, String searchTags) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return 0;
+        }
+        String normalized = normalizeSearchTags(searchTags);
+        int updated = 0;
+        for (Integer vid : variantIds) {
+            if (vid == null) {
+                continue;
+            }
+            ProductVariant v = productVariantRepository.findById(vid).orElse(null);
+            if (v == null) {
+                continue;
+            }
+            v.setSearchTags(normalized);
+            productVariantRepository.save(v);
+            updated++;
+        }
+        return updated;
+    }
+
+    private String normalizeSearchTags(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        if (t.length() > 4000) {
+            return t.substring(0, 4000);
+        }
+        return t;
     }
 
     private String normalizeImageUrls(String raw) {

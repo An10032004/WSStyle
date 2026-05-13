@@ -16,7 +16,7 @@
 // ===== CHAT WINDOW =====
 .chat-window {
   width: 400px;
-  height: 620px;
+  height: 600px;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -116,6 +116,69 @@
     }
   }
 
+  // ===== SESSION (compact) =====
+  .session-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+
+  .session-bar__select {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 6px 8px;
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+
+    &:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
+  .session-bar__new {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #4338ca;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover:not(:disabled) {
+      background: #eef2ff;
+      border-color: #a5b4fc;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
   // ===== MESSAGES AREA =====
   .chat-messages {
     flex: 1;
@@ -163,6 +226,46 @@
 
         .msg-text {
           white-space: pre-line;
+        }
+
+        .wholesale-link-strip {
+          margin-top: 10px;
+          padding: 10px 10px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.06));
+          border: 1px solid rgba(99, 102, 241, 0.22);
+
+          &__intro {
+            margin: 0 0 8px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: #475569;
+          }
+
+          &__list {
+            margin: 0;
+            padding: 0 0 0 1rem;
+            font-size: 0.8rem;
+          }
+
+          &__item {
+            margin-bottom: 6px;
+            line-height: 1.35;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+          }
+
+          &__name {
+            font-weight: 600;
+            color: #4f46e5;
+            text-decoration: none;
+
+            &:hover {
+              text-decoration: underline;
+            }
+          }
         }
 
         // ===== PRODUCT GRID — Compact 2-column =====

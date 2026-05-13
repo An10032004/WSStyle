@@ -19,6 +19,11 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @Query("SELECT pv FROM ProductVariant pv WHERE pv.product.id = :productId")
     List<ProductVariant> findByProductId(@Param("productId") Integer productId);
 
+    /** Một query batch cho nhiều sản phẩm — UI admin chọn variant theo trang SP. */
+    @Query(
+            "SELECT pv FROM ProductVariant pv WHERE pv.productId IN :productIds ORDER BY pv.productId ASC, pv.id ASC")
+    List<ProductVariant> findByProductIdInOrderByProductIdAscIdAsc(@Param("productIds") Collection<Integer> productIds);
+
     /**
      * Tìm biến thể theo SKU
      */

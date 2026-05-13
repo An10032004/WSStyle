@@ -1,0 +1,280 @@
+<div class="page-container" *transloco="let t">
+  <div class="page-header page-header--toolbar">
+    <h2 class="tui-text_h3 page-header__title">Trợ lý AI — ngữ cảnh &amp; tag tìm kiếm</h2>
+    <div class="page-actions">
+      <button tuiButton size="m" appearance="secondary" type="button" (click)="reload()" [disabled]="loading">
+        {{ 'COMMON.REFRESH' | transloco }}
+      </button>
+      <button tuiButton size="m" appearance="secondary" type="button" (click)="newRow()">Mới</button>
+    </div>
+  </div>
+
+  <tui-loader [overlay]="true" [showLoader]="loading">
+    <div class="layout-grid">
+      <section class="panel">
+        <h3 class="tui-text_h6">Danh sách (kể cả không hoạt động)</h3>
+        <p class="muted list-hint">
+          AI storefront chỉ đọc tối đa <strong>{{ maxActiveContextsForAi }}</strong> khối đang bật; mỗi khối tối đa
+          <strong>{{ maxBodyCharsForAi }}</strong> ký tự.
+        </p>
+        <ul class="context-list">
+          <li *ngFor="let r of rows">
+            <button type="button" class="context-item" (click)="editRow(r)">
+              <span class="context-item__title">{{ r.title }}</span>
+              <span class="context-item__meta"
+                >#{{ r.id }} · thứ tự AI {{ r.sortOrder }} ·
+                <strong>{{ r.active ? 'Bật' : 'Tắt' }}</strong></span
+              >
+            </button>
+          </li>
+        </ul>
+        <p *ngIf="!rows.length && !loading" class="muted">Chưa có bản ghi.</p>
+      </section>
+
+      <section class="panel">
+        <h3 class="tui-text_h6">{{ selectedId == null ? 'Tạo mới' : 'Sửa #' + selectedId }}</h3>
+        <label class="field">
+          <span>Tiêu đề</span>
+          <input class="tui-input" [(ngModel)]="formTitle" maxlength="200" />
+        </label>
+        <label class="field">
+          <span>Thứ tự ghép vào prompt (số nhỏ → AI đọc trước)</span>
+          <input class="tui-input tui-input--narrow" type="number" [(ngModel)]="formSortOrder" />
+          <span class="field-hint muted"
+            >Áp dụng trong các khối đang bật; hệ thống chỉ ghép tối đa {{ maxActiveContextsForAi }} khối vào
+            prompt.</span
+          >
+        </label>
+        <label class="field field--inline">
+          <input type="checkbox" [(ngModel)]="formActive" />
+          <span>Đang hoạt động (tối đa {{ maxActiveContextsForAi }} khối được ghép vào prompt storefront cho AI)</span>
+        </label>
+        <label class="field">
+          <span>Nội dung (markdown — tối đa {{ maxBodyCharsForAi }} ký tự cho AI đọc)</span>
+          <textarea
+            class="tui-textarea"
+            rows="14"
+            [(ngModel)]="formBody"
+            [maxlength]="maxBodyCharsForAi"
+          ></textarea>
+          <span class="char-count" [class.char-count--limit]="formBody.length >= maxBodyCharsForAi">
+            {{ formBody.length }} / {{ maxBodyCharsForAi }}
+          </span>
+        </label>
+        <div class="form-actions">
+          <button tuiButton size="m" appearance="primary" type="button" (click)="save()" [disabled]="saving">
+            Lưu
+          </button>
+          <button
+            tuiButton
+            size="m"
+            appearance="destructive"
+            type="button"
+            (click)="deleteSelected()"
+            [disabled]="saving || selectedId == null"
+          >
+            Xóa
+          </button>
+        </div>
+      </section>
+
+      <section class="panel panel--wide">
+        <h3 class="tui-text_h6">Gán search_tags hàng loạt</h3>
+        <p class="muted">
+          Tìm theo sản phẩm (tên, mã, SKU, màu/size variant). Mỗi trang tải một lô sản phẩm và dữ liệu variant (2
+          truy vấn). <strong>Click vào dòng sản phẩm</strong> để xem và chọn biến thể; có thể bổ sung ID thủ công. Ô tag
+          để trống = xóa tag. <strong>Sau «Áp dụng» thành công</strong> ô chọn và ô tag được làm trống; bản tóm tắt bên
+          dưới cho biết <strong>cùng một chuỗi tag</strong> đã áp cho <strong>variant nào thuộc sản phẩm nào</strong> (mở
+          lại sản phẩm để xem dòng «tags: …» trên từng variant sau khi danh sách tải lại).
+        </p>
+        <div class="product-search-row">
+          <label class="field field--grow">
+            <span>Tìm sản phẩm</span>
+            <input
+              class="tui-input"
+              [(ngModel)]="productSearchInput"
+              (ngModelChange)="onProductSearchInputChange()"
+              placeholder="Tên, mã SP, SKU, màu, size…"
+              [disabled]="productsLoading"
+            />
+          </label>
+          <label class="field field--sort">
+            <span>Sắp xếp</span>
+            <select class="tui-input" [(ngModel)]="productSortBy" (ngModelChange)="searchProductsNow()">
+              <option value="newest">Mới nhất</option>
+              <option value="price-asc">Giá tăng</option>
+              <option value="price-desc">Giá giảm</option>
+            </select>
+          </label>
+          <button
+            tuiButton
+            size="m"
+            appearance="secondary"
+            type="button"
+            (click)="searchProductsNow()"
+            [disabled]="productsLoading"
+          >
+            Tìm ngay
+          </button>
+        </div>
+        <div class="bulk-toolbar">
+          <button
+            tuiButton
+            size="s"
+            appearance="secondary"
+            type="button"
+            (click)="selectAllVariantsOnCurrentPage()"
+            [disabled]="productsLoading || !pickerProducts.length"
+          >
+            Chọn tất cả variant (trang này)
+          </button>
+          <button
+            tuiButton
+            size="s"
+            appearance="flat"
+            type="button"
+            (click)="clearBulkVariantSelection()"
+            [disabled]="!bulkSelectedVariantIds.size"
+          >
+            Bỏ chọn
+          </button>
+          <span class="muted bulk-toolbar__meta" *ngIf="productsLoading">Đang tải…</span>
+          <span class="muted bulk-toolbar__meta" *ngIf="!productsLoading">
+            Đã chọn variant: {{ bulkSelectedVariantIds.size }} · SP trang này: {{ pickerProducts.length }} · tổng SP:
+            {{ productTotalElements }}
+          </span>
+        </div>
+        <div class="product-picker-pages" *ngIf="productTotalPages > 0">
+          <button
+            tuiButton
+            size="s"
+            appearance="secondary"
+            type="button"
+            (click)="prevProductPage()"
+            [disabled]="productsLoading || productPage <= 0"
+          >
+            ← Trước
+          </button>
+          <span class="muted page-indicator">Trang {{ productPageLabel() }}</span>
+          <button
+            tuiButton
+            size="s"
+            appearance="secondary"
+            type="button"
+            (click)="nextProductPage()"
+            [disabled]="productsLoading || productPage + 1 >= productTotalPages"
+          >
+            Sau →
+          </button>
+        </div>
+        <div class="product-picker-list" *ngIf="pickerProducts.length">
+          <article class="product-card" *ngFor="let p of pickerProducts; trackBy: trackProduct">
+            <div class="product-card__media">
+              <img *ngIf="p.imageUrl" [src]="p.imageUrl" [alt]="p.name" loading="lazy" />
+              <div *ngIf="!p.imageUrl" class="product-card__placeholder">Ảnh</div>
+            </div>
+            <div class="product-card__body">
+              <button
+                type="button"
+                class="product-card__expand-trigger"
+                (click)="toggleProductVariants(p.id)"
+                [attr.aria-expanded]="isProductVariantsExpanded(p.id)"
+              >
+                <h4 class="product-card__title">{{ p.name }}</h4>
+                <p class="muted product-card__code">{{ p.productCode }} · #{{ p.id }}</p>
+                <span class="product-card__variant-hint muted">
+                  {{ p.variants?.length || 0 }} biến thể —
+                  {{ isProductVariantsExpanded(p.id) ? 'Ẩn danh sách' : 'Xem danh sách' }}
+                  <span class="chevron" aria-hidden="true">{{ isProductVariantsExpanded(p.id) ? ' ▲' : ' ▼' }}</span>
+                </span>
+              </button>
+              <div class="variant-nested" *ngIf="isProductVariantsExpanded(p.id) && p.variants?.length">
+                <div class="variant-nested__head">
+                  <p class="variant-nested__label">Biến thể</p>
+                  <label class="variant-nested__select-all">
+                    <input
+                      type="checkbox"
+                      [checked]="isAllVariantsOfProductSelected(p)"
+                      (change)="onToggleAllVariantsForProduct(p, $any($event.target).checked)"
+                    />
+                    <span>Chọn tất cả ({{ countSelectedVariantsForProduct(p) }}/{{ p.variants.length }})</span>
+                  </label>
+                </div>
+                <label class="variant-nested-row" *ngFor="let v of p.variants; trackBy: trackVariant">
+                  <input
+                    type="checkbox"
+                    [checked]="isVariantBulkSelected(v.id)"
+                    (change)="onVariantBulkCheck(v.id, $any($event.target).checked)"
+                  />
+                  <span class="variant-nested-row__text">
+                    <strong>#{{ v.id }}</strong> {{ v.sku }}
+                    <span class="muted" *ngIf="v.color || v.size"> · {{ v.color || '—' }} / {{ v.size || '—' }}</span>
+                    <span class="muted search-tags-preview" *ngIf="v.searchTags" [title]="v.searchTags">
+                      · tags: {{ v.searchTags }}</span
+                    >
+                  </span>
+                </label>
+              </div>
+              <p *ngIf="isProductVariantsExpanded(p.id) && !(p.variants?.length)" class="muted variant-nested--empty">
+                Không có biến thể.
+              </p>
+            </div>
+          </article>
+        </div>
+        <p *ngIf="!productsLoading && !pickerProducts.length" class="muted">Không có sản phẩm khớp tìm kiếm.</p>
+        <label class="field">
+          <span>Bổ sung ID variant thủ công (tùy chọn)</span>
+          <textarea
+            class="tui-textarea"
+            rows="3"
+            [(ngModel)]="bulkVariantIdsText"
+            placeholder="101, 102 hoặc mỗi dòng một ID"
+          ></textarea>
+        </label>
+        <label class="field">
+          <span>search_tags (một chuỗi)</span>
+          <textarea
+            class="tui-textarea"
+            rows="3"
+            [(ngModel)]="bulkSearchTags"
+            placeholder="áo thun, cotton, bestseller"
+          ></textarea>
+        </label>
+        <button tuiButton size="m" appearance="secondary" type="button" (click)="applyBulkTags()" [disabled]="bulkBusy">
+          Áp dụng
+        </button>
+
+        <aside class="bulk-apply-summary" *ngIf="lastBulkApplyResult as sum">
+          <div class="bulk-apply-summary__head">
+            <h4 class="tui-text_h6 bulk-apply-summary__title">Kết quả lần áp dụng gần nhất</h4>
+            <button tuiButton size="s" appearance="flat" type="button" (click)="dismissBulkApplySummary()">Ẩn</button>
+          </div>
+          <p class="muted bulk-apply-summary__time">{{ sum.atLabel }}</p>
+          <p><strong>Giá trị search_tags đã gửi:</strong> {{ sum.searchTagsDisplay }}</p>
+          <p class="muted">
+            Hệ thống báo <strong>{{ sum.updated }}</strong> / {{ sum.totalRequested }} variant được cập nhật.
+            <span *ngIf="sum.totalRequested - sum.updated > 0">
+              {{ sum.totalRequested - sum.updated }} variant có thể không tồn tại hoặc giá trị không đổi.</span>
+          </p>
+          <p class="bulk-apply-summary__hint muted">
+            Trong một lần bấm «Áp dụng», <strong>một chuỗi tag</strong> áp cho <strong>tất cả</strong> variant đã chọn.
+            Bảng dưới gom theo sản phẩm; variant chỉ nhập ID (không nằm trang hiện tại) chỉ hiện số ID.
+          </p>
+          <ul class="bulk-apply-summary__groups">
+            <li *ngFor="let g of sum.groups" class="bulk-apply-summary__group">
+              <div class="bulk-apply-summary__group-title">
+                <strong>{{ g.productName }}</strong>
+                <span class="muted" *ngIf="g.resolvedFromPicker"> · SP #{{ g.productId }}</span>
+              </div>
+              <ul class="bulk-apply-summary__variants">
+                <li *ngFor="let v of g.variants">
+                  #{{ v.variantId }} <span class="muted">{{ v.sku }}</span>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </aside>
+      </section>
+    </div>
+  </tui-loader>
+</div>

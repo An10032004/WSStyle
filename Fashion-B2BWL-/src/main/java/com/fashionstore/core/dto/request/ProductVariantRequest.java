@@ -37,4 +37,13 @@ public class ProductVariantRequest {
     private BigDecimal costPrice;
     private String status;
     private String barcode;
+
+    /** Tag tìm kiếm / AI (tùy chọn). */
+    private String searchTags;
+
+    /**
+     * Khi {@code true}, cập nhật cột {@code search_tags} theo {@link #searchTags} (chuỗi rỗng = xóa tag).
+     * Khi {@code null/false}, giữ nguyên tag hiện có trên DB (PUT từ form cũ không làm mất tag).
+     */
+    private Boolean applySearchTagsPatch;
 }

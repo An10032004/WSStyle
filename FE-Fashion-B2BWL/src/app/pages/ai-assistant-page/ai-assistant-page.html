@@ -8,7 +8,7 @@
         <span class="col-title">Phiên chat</span>
         <button tuiButton type="button" size="s" appearance="secondary" (click)="newSession()">+ Phiên mới</button>
       </div>
-      <p class="col-sub">Mỗi phiên lưu theo tài khoản của bạn; chọn để xem lại.</p>
+      <p class="col-sub">Mỗi phiên lưu theo tài khoản; chọn để xem lại hoặc tiếp tục chat.</p>
       <div class="sessions-loading" *ngIf="sessionsLoading">Đang tải…</div>
       <tui-scrollbar class="sessions-scroll">
         <ul class="session-list">
@@ -36,8 +36,8 @@
 
       <section class="chat-card">
         <h2 class="sr-only">Hội thoại</h2>
-        <tui-scrollbar class="chat-scroll">
-          <div class="chat-inner" #scrollArea>
+        <div class="chat-scroll-region" #scrollArea>
+          <div class="chat-inner">
             <div
               *ngFor="let m of messages"
               class="msg-row"
@@ -45,6 +45,14 @@
             >
               <div class="msg-meta">{{ m.sender === 'user' ? 'Bạn' : 'Luxe' }} · {{ m.time | date: 'HH:mm' }}</div>
               <div class="msg-bubble" [innerHTML]="m.text"></div>
+              <div class="wholesale-link-strip" *ngIf="m.wholesaleLinkIntro?.trim() || m.wholesaleProductLinks?.length">
+                <p class="wholesale-link-strip__intro" *ngIf="m.wholesaleLinkIntro?.trim()">{{ m.wholesaleLinkIntro }}</p>
+                <ul class="wholesale-link-strip__list" *ngIf="m.wholesaleProductLinks?.length">
+                  <li *ngFor="let w of m.wholesaleProductLinks" class="wholesale-link-strip__item">
+                    <a [routerLink]="['/product', w.productId]" class="wholesale-link-strip__name">{{ w.name }}</a>
+                  </li>
+                </ul>
+              </div>
               <div class="inline-cards" *ngIf="m.products?.length">
                 <a *ngFor="let p of m.products" [routerLink]="['/product', p.id]" class="mini-card">
                   <img [src]="p.imageUrl || 'assets/images/placeholder.png'" [alt]="p.name" />
@@ -62,17 +70,19 @@
             </div>
             <div class="typing" *ngIf="isLoading">Đang trả lời…</div>
           </div>
-        </tui-scrollbar>
-        <div class="composer">
-          <input
-            type="text"
-            [(ngModel)]="userInput"
-            (keyup.enter)="send()"
-            placeholder="Ví dụ: shop có áo màu navy size L không?"
-          />
-          <button tuiButton type="button" size="m" (click)="send()" [disabled]="!userInput.trim() || isLoading">
-            Gửi
-          </button>
+        </div>
+        <div class="chat-footer">
+          <div class="composer">
+            <input
+              type="text"
+              [(ngModel)]="userInput"
+              (keyup.enter)="send()"
+              placeholder="Ví dụ: shop có áo màu navy size L không?"
+            />
+            <button tuiButton type="button" size="m" (click)="send()" [disabled]="!userInput.trim() || isLoading">
+              Gửi
+            </button>
+          </div>
         </div>
       </section>
     </main>

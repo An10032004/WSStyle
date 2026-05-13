@@ -70,8 +70,11 @@ public class AIChatController {
             Long sessionIdIn = longField(request, "sessionId");
             List<Integer> hintPids = intListField(request, "pricingHintProductIds");
             List<Integer> hintCids = intListField(request, "pricingHintCategoryIds");
+            boolean wholesaleCarry = booleanField(request, "wholesaleConversationCarryover");
 
-            AIResponse response = aiService.chat(message.trim(), userId, storefrontContext, hintPids, hintCids);
+            AIResponse response =
+                    aiService.chat(
+                            message.trim(), userId, storefrontContext, hintPids, hintCids, wholesaleCarry);
 
             if (userId != null) {
                 Long sid = assistantHistoryService.recordExchange(sessionIdIn, userId, message.trim(), response);
@@ -116,7 +119,9 @@ public class AIChatController {
             Long sessionIdIn = longField(request, "sessionId");
             List<Integer> hintPids = intListField(request, "pricingHintProductIds");
             List<Integer> hintCids = intListField(request, "pricingHintCategoryIds");
-            AIResponse response = aiService.chat(msg, userId, storefrontContext, hintPids, hintCids);
+            boolean wholesaleCarry = booleanField(request, "wholesaleConversationCarryover");
+            AIResponse response =
+                    aiService.chat(msg, userId, storefrontContext, hintPids, hintCids, wholesaleCarry);
             if (userId != null) {
                 Long sid = assistantHistoryService.recordExchange(sessionIdIn, userId, msg, response);
                 response.setSessionId(sid);
@@ -132,6 +137,21 @@ public class AIChatController {
                     .data(new AIResponse("Không thể thực hiện tìm kiếm AI lúc này.", List.of()))
                     .build();
         }
+    }
+
+    private static boolean booleanField(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        if (v == null) {
+            return false;
+        }
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        if (v instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        String s = v.toString().trim();
+        return "true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s);
     }
 
     private static String stringField(Map<String, Object> m, String key) {

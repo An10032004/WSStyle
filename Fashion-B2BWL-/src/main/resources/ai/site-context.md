@@ -65,6 +65,26 @@
 
 ---
 
+## Thuật toán tìm & xếp hạng sản phẩm (assistant — giữ nguyên, có pipelineNotes)
+
+Khi `intent` là **product_search**, backend luôn chạy hai lớp sau (không thay đổi logic, chỉ mô tả để trả lời nhất quán):
+
+1. **Trích biên độ VND từ câu chữ**  
+   - Nhận diện khoảng kiểu `100000 - 2000000`, `100.000 đến 2.000.000`, v.v.  
+   - Nếu JSON từ model có `minPrice`/`maxPrice` trống, **gộp** biên độ trích được vào bộ lọc truy vấn DB.
+
+2. **Chấm điểm & xếp hạng sau khi lấy trang kết quả DB** (trước khi map giá lên thẻ)  
+   - **Điểm khớp** `rankingQuery` với tên + mã SP **và** chuỗi gộp từ variant (SKU, màu, size, `search_tags`).  
+   - **Tổng tồn** các SKU đang bán (cao hơn xếp trước khi điểm bằng nhau).  
+   - **id** giảm dần làm tie-break.  
+   - **Gợi ý rule B2B / quantity break** (`mergePricingHints`): chỉ khi câu có ý **giá sỉ / mua sỉ / bậc giá** thì mới ưu tiên danh sách theo phạm vi rule; tìm hàng chung không chèn SP có rule lên đầu.
+
+**Giá hiển thị** trên từng thẻ vẫn do **`ProductMapperService`** (cùng rule engine với shop), không do điểm xếp hạng.  
+Mỗi lượt `product_search`, API trả **tối đa 8** sản phẩm (đã xếp hạng); nếu còn nhiều hơn, gợi ý khách vào **Shop** (`/shop`) để lọc đầy đủ.  
+Mỗi lượt `product_search`, API có thể kèm trường **`pipelineNotes`** (markdown): tóm tắt biên độ VND, min/max đã gộp, `sortBy`, số lượng qua từng bước, top vài dòng với điểm/tồn — **khi trả lời tiếp**, hãy căn cứ `pipelineNotes` + thẻ sản phẩm, không mâu thuẫn với chúng.
+
+---
+
 ## Hướng dẫn cho model (tóm tắt)
 
 - Trả lời đúng tài liệu này; không bịa mã giảm giá hay chính sách không có.

@@ -200,6 +200,15 @@
     </a>
   </div>
 
+  <!-- AI -->
+  <div class="nav-group" *ngIf="canSee('ai-sync')">
+    <h4 class="group-title" *ngIf="expanded">AI &amp; Trợ lý</h4>
+    <a class="nav-item" routerLink="/admin/ai-assistant-contexts" routerLinkActive="active">
+      <tui-icon icon="@tui.message-circle" />
+      Ngữ cảnh trợ lý
+    </a>
+  </div>
+
   <!-- TIỆN ÍCH -->
   <div class="nav-group footer-group">
     <h4 class="group-title" *ngIf="expanded">Liên kết</h4>
