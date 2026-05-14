@@ -107,7 +107,7 @@ public class OrderService {
         for (OrderItemRequest itemReq : itemReqs) {
             ProductVariant variant;
             if (itemReq.getVariantId() != null) {
-                variant = productVariantRepository.findById(itemReq.getVariantId())
+                variant = productVariantRepository.findByIdWithProduct(itemReq.getVariantId())
                         .orElseThrow(() -> new RuntimeException("Variant not found: " + itemReq.getVariantId()));
             } else if (itemReq.getProductId() != null) {
                 variant = productVariantRepository.findByProductId(itemReq.getProductId()).stream()
@@ -119,6 +119,7 @@ public class OrderService {
             } else {
                 throw new RuntimeException("Dòng sản phẩm thiếu cả variantId và productId.");
             }
+            assertVariantSellableForOrder(variant);
             resolvedVariants.add(variant);
             Product product = variant.getProduct();
             Integer categoryId = product != null ? product.getCategoryId() : null;
@@ -616,6 +617,23 @@ public class OrderService {
             return LocalDateTime.parse(dateStr + "T00:00:00");
         } catch (Exception e) {
             return defaultDate;
+        }
+    }
+
+    private static boolean isInactiveStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        return "INACTIVE".equalsIgnoreCase(status.strip());
+    }
+
+    private static void assertVariantSellableForOrder(ProductVariant variant) {
+        if (isInactiveStatus(variant.getStatus())) {
+            throw new IllegalArgumentException(OrderValidationMessages.VARIANT_INACTIVE);
+        }
+        Product p = variant.getProduct();
+        if (p != null && isInactiveStatus(p.getStatus())) {
+            throw new IllegalArgumentException(OrderValidationMessages.PRODUCT_INACTIVE);
         }
     }
 }

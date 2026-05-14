@@ -384,7 +384,7 @@ export class CartService {
         const inactiveVariantIds = new Set<number>();
         variantIds.forEach((vid, i) => {
           const v = responses[i] as ProductVariant | null;
-          if (!isVariantAvailableForSale(v ?? undefined)) {
+          if (!isVariantAvailableForSale(v ?? undefined, v?.productStatus)) {
             inactiveVariantIds.add(vid);
           }
         });
@@ -510,7 +510,7 @@ export class CartService {
       ).subscribe();
       return;
     }
-    if (!isVariantAvailableForSale(variant)) {
+    if (!isVariantAvailableForSale(variant, product?.status)) {
       this.alerts.open(
         'Biến thể này đã ngừng bán và không thể thêm vào giỏ.',
         { label: 'Ngừng bán', appearance: 'warning' },

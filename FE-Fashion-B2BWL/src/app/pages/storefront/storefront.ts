@@ -127,7 +127,7 @@ export class StorefrontComponent implements OnInit {
     
     // Pick top 4 categories and try to find a product image for each
     this.trendingCategories = this.categoriesData.slice(0, 4).map((cat, idx) => {
-      const productImage = this.products.find(p => p.categoryId === cat.id)?.imageUrl;
+      const productImage = this.products.find(p => p.categoryId === cat.id && this.isProductShelfActive(p))?.imageUrl;
       return {
         name: cat.name,
         imageUrl: productImage || placeholders[idx % placeholders.length]
@@ -143,15 +143,22 @@ export class StorefrontComponent implements OnInit {
 
   filterByTag() {
     if (this.selectedSellerTag === 'Tất cả') {
-      this.filteredProducts = this.products;
+      this.filteredProducts = this.products.filter((p) => this.isProductShelfActive(p));
     } else {
       const selectedCat = this.categoriesData.find(c => c.name === this.selectedSellerTag);
       if (selectedCat) {
-        this.filteredProducts = this.products.filter(p => p.categoryId === selectedCat.id);
+        this.filteredProducts = this.products.filter(
+          p => p.categoryId === selectedCat.id && this.isProductShelfActive(p),
+        );
       } else {
         this.filteredProducts = [];
       }
     }
+  }
+
+  private isProductShelfActive(p: Product): boolean {
+    const s = (p.status ?? 'ACTIVE').toString().toUpperCase();
+    return s !== 'INACTIVE';
   }
 
   logout(): void {

@@ -129,7 +129,7 @@ export class AiSyncComponent implements OnInit {
     this.cdr.detectChanges();
 
     forkJoin({
-      products: this.api.getProducts(),
+      products: this.api.getProducts(undefined, true),
       syncStatus: this.api.getAiSyncStatus()
     }).subscribe({
       next: (res) => {

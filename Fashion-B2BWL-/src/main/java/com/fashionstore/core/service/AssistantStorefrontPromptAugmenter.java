@@ -435,7 +435,7 @@ public class AssistantStorefrontPromptAugmenter {
                 var page =
                         productRepository.findAll(
                                 ProductSpecification.filterProducts(
-                                        null, hints.getPricingHintCategoryIds(), null, null, List.of(), null),
+                                        null, hints.getPricingHintCategoryIds(), null, null, List.of(), null, false),
                                 PageRequest.of(
                                         0,
                                         Math.max(room * 4, 12),
@@ -449,6 +449,8 @@ public class AssistantStorefrontPromptAugmenter {
             if (idSet.size() < MAX_SAMPLE_PRODUCTS && hints.isWholesaleCoversAllProducts()) {
                 var page =
                         productRepository.findAll(
+                                ProductSpecification.filterProducts(
+                                        null, null, null, null, null, null, false),
                                 PageRequest.of(0, MAX_SAMPLE_PRODUCTS * 2, Sort.by(Sort.Direction.DESC, "id")));
                 for (Product p : page.getContent()) {
                     if (p.getId() != null && idSet.size() < MAX_SAMPLE_PRODUCTS) {

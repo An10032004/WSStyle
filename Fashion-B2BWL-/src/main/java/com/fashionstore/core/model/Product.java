@@ -64,6 +64,11 @@ public class Product {
     @Builder.Default
     private Boolean isSale = false;
 
+    /** ACTIVE = đang kinh doanh; INACTIVE = ngừng — toàn bộ biến thể ngừng bán theo sản phẩm cha. */
+    @Column(name = "status", length = 32)
+    @Builder.Default
+    private String status = "ACTIVE";
+
     /**
      * JSON mảng tối đa 3 chuỗi: nhãn hiển thị cho 3 chiều (map với color / size / weight trên variant).
      * Ví dụ: {@code ["Màu vải","Cỡ áo","Cân nặng"]}. Null = storefront dùng nhãn mặc định i18n.

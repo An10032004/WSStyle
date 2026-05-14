@@ -42,7 +42,7 @@ public class ProductVariantService {
      */
     @Transactional(readOnly = true)
     public ProductVariant getVariantById(Integer id) {
-        return productVariantRepository.findById(id)
+        return productVariantRepository.findByIdWithProduct(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Biến thể sản phẩm", "id", id));
     }
 
@@ -59,7 +59,7 @@ public class ProductVariantService {
      */
     @Transactional(readOnly = true)
     public ProductVariant getVariantBySku(String sku) {
-        return productVariantRepository.findBySku(sku)
+        return productVariantRepository.findBySkuIgnoreCaseWithProduct(sku)
                 .orElseThrow(() -> new ResourceNotFoundException("Biến thể sản phẩm", "sku", sku));
     }
 
@@ -84,7 +84,7 @@ public class ProductVariantService {
                 .height(request.getHeight())
                 .costPrice(request.getCostPrice())
                 .price(request.getPrice())
-                .status(request.getStatus())
+                .status(resolveVariantStatusForSave(product, request.getStatus()))
                 .barcode(request.getBarcode())
                 .imageUrls(normalizeImageUrls(request.getImageUrls()))
                 .searchTags(normalizeSearchTags(request.getSearchTags()))
@@ -116,7 +116,7 @@ public class ProductVariantService {
         variant.setHeight(request.getHeight());
         variant.setCostPrice(request.getCostPrice());
         variant.setPrice(request.getPrice());
-        variant.setStatus(request.getStatus());
+        variant.setStatus(resolveVariantStatusForSave(product, request.getStatus()));
         variant.setBarcode(request.getBarcode());
         variant.setImageUrls(normalizeImageUrls(request.getImageUrls()));
         if (Boolean.TRUE.equals(request.getApplySearchTagsPatch())) {
@@ -246,5 +246,29 @@ public class ProductVariantService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static boolean isProductInactive(Product product) {
+        if (product == null || product.getStatus() == null || product.getStatus().isBlank()) {
+            return false;
+        }
+        return "INACTIVE".equalsIgnoreCase(product.getStatus().strip());
+    }
+
+    /**
+     * Sản phẩm ngừng hoạt động → mọi biến thể chỉ được lưu INACTIVE.
+     */
+    private static String resolveVariantStatusForSave(Product product, String requestedStatus) {
+        if (isProductInactive(product)) {
+            return "INACTIVE";
+        }
+        if (requestedStatus == null || requestedStatus.isBlank()) {
+            return "ACTIVE";
+        }
+        String u = requestedStatus.strip().toUpperCase();
+        if ("INACTIVE".equals(u)) {
+            return "INACTIVE";
+        }
+        return "ACTIVE";
     }
 }

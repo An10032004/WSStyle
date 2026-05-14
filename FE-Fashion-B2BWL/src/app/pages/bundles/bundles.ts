@@ -163,7 +163,7 @@ export class BundlesComponent implements OnInit {
   }
 
   loadVariants() {
-    this.api.getProducts().subscribe(prods => {
+    this.api.getProducts(undefined, true).subscribe(prods => {
       this.allProducts = prods;
       this.filteredProducts = prods;
     });

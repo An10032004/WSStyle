@@ -301,7 +301,7 @@ export class BundleDetailComponent implements OnInit {
       this.alerts.open(err, { label: 'Không thể thêm combo', appearance: 'warning' }).subscribe();
       return;
     }
-    const inactiveRow = this.rows.find((r) => !isVariantAvailableForSale(r.variant));
+    const inactiveRow = this.rows.find((r) => !isVariantAvailableForSale(r.variant, r.product?.status));
     if (inactiveRow) {
       this.alerts
         .open(

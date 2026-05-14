@@ -35,9 +35,10 @@ public class ProductController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductResponseDTO>>> getAllProducts(
-            @RequestParam(required = false) Integer userId) {
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
         User user = (userId != null) ? userService.getUserById(userId) : null;
-        List<Product> products = productService.getAllProducts();
+        List<Product> products = productService.getAllProducts(includeInactive);
         List<ProductResponseDTO> dtos = productMapperService.toDTOs(products, user);
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
@@ -56,7 +57,8 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
-            @RequestParam(required = false) Integer userId
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive
     ) {
         User user = (userId != null) ? userService.getUserById(userId) : null;
         
@@ -69,7 +71,7 @@ public class ProductController {
         
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Product> productsPage = productService.getProductsPaged(
-                search, categoryIds, minPrice, maxPrice, brands, productIds, pageable);
+                search, categoryIds, minPrice, maxPrice, brands, productIds, pageable, includeInactive);
         Page<ProductResponseDTO> dtosPage = productMapperService.toDTOs(productsPage, user);
         
         return ResponseEntity.ok(ApiResponse.success(dtosPage));
@@ -101,9 +103,10 @@ public class ProductController {
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<ApiResponse<List<ProductResponseDTO>>> getProductsByCategory(
             @PathVariable("categoryId") Integer categoryId,
-            @RequestParam(required = false) Integer userId) {
+            @RequestParam(required = false) Integer userId,
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
         User user = (userId != null) ? userService.getUserById(userId) : null;
-        List<Product> products = productService.getProductsByCategory(categoryId);
+        List<Product> products = productService.getProductsByCategory(categoryId, includeInactive);
         List<ProductResponseDTO> dtos = productMapperService.toDTOs(products, user);
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
@@ -112,33 +115,37 @@ public class ProductController {
      * GET /api/products/code/{productCode} — Tìm sản phẩm theo mã
      */
     @GetMapping("/code/{productCode}")
-    public ResponseEntity<ApiResponse<Product>> getProductByCode(
-            @PathVariable("productCode") String productCode) {
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> getProductByCode(
+            @PathVariable("productCode") String productCode,
+            @RequestParam(required = false) Integer userId) {
+        User user = (userId != null) ? userService.getUserById(userId) : null;
         Product product = productService.getProductByCode(productCode);
-        return ResponseEntity.ok(ApiResponse.success(product));
+        return ResponseEntity.ok(ApiResponse.success(productMapperService.toDTO(product, user)));
     }
 
     /**
      * POST /api/products — Tạo sản phẩm mới
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<Product>> createProduct(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
             @Valid @RequestBody ProductRequest request) {
         Product created = productService.createProduct(request);
+        ProductResponseDTO dto = productMapperService.toDTO(created, null);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo sản phẩm thành công", created));
+                .body(ApiResponse.success("Tạo sản phẩm thành công", dto));
     }
 
     /**
      * PUT /api/products/{id} — Cập nhật sản phẩm
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Product>> updateProduct(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
             @PathVariable("id") Integer id,
             @Valid @RequestBody ProductRequest request) {
         Product updated = productService.updateProduct(id, request);
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", updated));
+        return ResponseEntity.ok(
+                ApiResponse.success("Cập nhật sản phẩm thành công", productMapperService.toDTO(updated, null)));
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.fashionstore.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -87,4 +88,22 @@ public class ProductVariant {
      */
     @Column(name = "search_tags", columnDefinition = "TEXT")
     private String searchTags;
+
+    /** Trạng thái sản phẩm cha (JSON, không cột DB) — FE / giỏ hàng biết SKU ngừng theo SP. */
+    @JsonProperty("productStatus")
+    public String getProductStatus() {
+        try {
+            Product p = this.product;
+            if (p == null) {
+                return "ACTIVE";
+            }
+            String s = p.getStatus();
+            if (s == null || s.isBlank()) {
+                return "ACTIVE";
+            }
+            return s.strip().toUpperCase();
+        } catch (Exception e) {
+            return "ACTIVE";
+        }
+    }
 }

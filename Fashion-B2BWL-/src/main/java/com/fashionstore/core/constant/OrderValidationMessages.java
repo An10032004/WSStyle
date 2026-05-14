@@ -12,4 +12,6 @@ public final class OrderValidationMessages {
     public static final String INVALID_PHONE = "Số điện thoại không hợp lệ";
     public static final String EMPTY_ITEMS = "Đơn hàng phải có ít nhất 1 sản phẩm";
     public static final String QUANTITY_POSITIVE = "Số lượng phải lớn hơn 0";
+    public static final String VARIANT_INACTIVE = "Biến thể đã ngừng bán, không thể đặt hàng.";
+    public static final String PRODUCT_INACTIVE = "Sản phẩm đã ngừng hoạt động, không thể đặt hàng.";
 }

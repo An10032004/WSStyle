@@ -6,12 +6,14 @@ import com.fashionstore.core.model.Category;
 import com.fashionstore.core.model.Product;
 import com.fashionstore.core.repository.CategoryRepository;
 import com.fashionstore.core.repository.ProductRepository;
+import com.fashionstore.core.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.fashionstore.core.repository.specification.ProductSpecification;
@@ -23,13 +25,18 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductVariantRepository productVariantRepository;
 
     /**
      * Lấy tất cả sản phẩm
      */
     @Transactional(readOnly = true)
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public List<Product> getAllProducts(boolean includeInactive) {
+        List<Product> all = productRepository.findAll();
+        if (includeInactive) {
+            return all;
+        }
+        return all.stream().filter(p -> !isProductInactive(p.getStatus())).collect(Collectors.toList());
     }
 
     /**
@@ -45,8 +52,12 @@ public class ProductService {
      * Lấy sản phẩm theo danh mục
      */
     @Transactional(readOnly = true)
-    public List<Product> getProductsByCategory(Integer categoryId) {
-        return productRepository.findByCategoryId(categoryId);
+    public List<Product> getProductsByCategory(Integer categoryId, boolean includeInactive) {
+        List<Product> list = productRepository.findByCategoryId(categoryId);
+        if (includeInactive) {
+            return list;
+        }
+        return list.stream().filter(p -> !isProductInactive(p.getStatus())).collect(Collectors.toList());
     }
 
     /**
@@ -60,9 +71,11 @@ public class ProductService {
             BigDecimal maxPrice,
             List<String> brands,
             List<Integer> productIds,
-            Pageable pageable) {
+            Pageable pageable,
+            boolean includeInactive) {
         return productRepository.findAll(
-                ProductSpecification.filterProducts(search, categoryIds, minPrice, maxPrice, brands, productIds),
+                ProductSpecification.filterProducts(
+                        search, categoryIds, minPrice, maxPrice, brands, productIds, includeInactive),
                 pageable);
     }
 
@@ -108,6 +121,7 @@ public class ProductService {
                 .imageUrl(trimToEmpty(request.getImageUrl()))
                 .imageUrls(trimToEmpty(request.getImageUrls()))
                 .isSale(Boolean.TRUE.equals(request.getIsSale()))
+                .status(normalizeProductStatusOrDefault(request.getStatus()))
                 .variantDimensionLabels(trimToNull(request.getVariantDimensionLabels()))
                 .shopId(1)
                 .build();
@@ -120,6 +134,7 @@ public class ProductService {
      */
     public Product updateProduct(Integer id, ProductRequest request) {
         Product product = getProductById(id);
+        String previousStatus = product.getStatus();
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Danh mục", "id", request.getCategoryId()));
@@ -142,11 +157,20 @@ public class ProductService {
         if (request.getIsSale() != null) {
             product.setIsSale(request.getIsSale());
         }
+        String statusInput = request.getStatus();
+        if (statusInput == null || statusInput.isBlank()) {
+            statusInput = product.getStatus();
+        }
+        product.setStatus(normalizeProductStatusOrDefault(statusInput));
         if (request.getVariantDimensionLabels() != null) {
             product.setVariantDimensionLabels(trimToNull(request.getVariantDimensionLabels()));
         }
 
-        return productRepository.save(product);
+        Product saved = productRepository.saveAndFlush(product);
+        if (isProductInactive(saved.getStatus()) && !isProductInactive(previousStatus)) {
+            productVariantRepository.deactivateAllVariantsByProductId(id);
+        }
+        return saved;
     }
 
     private static String normalizeProductCode(String raw) {
@@ -170,6 +194,27 @@ public class ProductService {
         }
         String t = s.strip();
         return t.isEmpty() ? null : t;
+    }
+
+    private static String normalizeProductStatusOrDefault(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "ACTIVE";
+        }
+        String u = raw.strip().toUpperCase();
+        if ("INACTIVE".equals(u)) {
+            return "INACTIVE";
+        }
+        if ("ACTIVE".equals(u)) {
+            return "ACTIVE";
+        }
+        throw new IllegalArgumentException("Trạng thái sản phẩm không hợp lệ: chỉ ACTIVE hoặc INACTIVE.");
+    }
+
+    private static boolean isProductInactive(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        return "INACTIVE".equalsIgnoreCase(status.strip());
     }
 
     /**

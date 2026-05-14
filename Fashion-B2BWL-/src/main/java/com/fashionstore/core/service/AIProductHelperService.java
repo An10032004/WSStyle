@@ -355,7 +355,7 @@ public class AIProductHelperService {
         }
         if (hintCategoryIds != null && !hintCategoryIds.isEmpty()) {
             var page = productRepository.findAll(
-                    ProductSpecification.filterProducts(null, hintCategoryIds, null, null, List.of(), null),
+                    ProductSpecification.filterProducts(null, hintCategoryIds, null, null, List.of(), null, false),
                     PageRequest.of(0, 40, Sort.by(Sort.Direction.DESC, "id")));
             for (Product p : page.getContent()) {
                 if (p.getId() == null) {
@@ -823,7 +823,8 @@ public class AIProductHelperService {
                 minPrice,
                 maxPrice,
                 brands,
-                null);
+                null,
+                false);
 
         String rankingBase = search.isBlank()
                 ? extractProductSearchHint(userMessageFallback != null ? userMessageFallback : "")
@@ -867,7 +868,7 @@ public class AIProductHelperService {
                 continue;
             }
             var page2 = productRepository.findAll(
-                    ProductSpecification.filterProducts(att, categoryIds, minPrice, maxPrice, brands, null),
+                    ProductSpecification.filterProducts(att, categoryIds, minPrice, maxPrice, brands, null, false),
                     PageRequest.of(0, 20, sort));
             if (!page2.getContent().isEmpty()) {
                 log.debug("AI product_search fallback hit: search '{}' → {} rows", att, page2.getContent().size());

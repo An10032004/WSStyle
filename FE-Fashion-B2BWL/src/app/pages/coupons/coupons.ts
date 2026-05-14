@@ -216,7 +216,7 @@ export class CouponsComponent {
   async loadCommonData() {
     const [cats, prods, groups] = await Promise.all([
       firstValueFrom(this.api.getCategories()),
-      firstValueFrom(this.api.getProducts()),
+      firstValueFrom(this.api.getProducts(undefined, true)),
       firstValueFrom(this.api.getCustomerGroups())
     ]);
     this.categories.set(cats);

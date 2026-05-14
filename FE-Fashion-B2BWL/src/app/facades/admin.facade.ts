@@ -50,7 +50,7 @@ export class AdminFacade {
 
   refreshCommonData(): void {
     this.api.getCategories().subscribe(data => this.categoriesSubject.next(data));
-    this.api.getProducts().subscribe(data => this.productsSubject.next(data));
+    this.api.getProducts(undefined, true).subscribe(data => this.productsSubject.next(data));
     this.api.getCustomerGroups().subscribe(data => this.customerGroupsSubject.next(data));
   }
 

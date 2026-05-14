@@ -20,6 +20,9 @@ public class ProductResponseDTO {
     private String brand;
     private String material;
     private String origin;
+
+    /** ACTIVE / INACTIVE — trạng thái kinh doanh sản phẩm. */
+    private String status;
     
     // Rule results
     private Boolean hidePrice;

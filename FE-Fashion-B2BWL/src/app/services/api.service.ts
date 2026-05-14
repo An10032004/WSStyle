@@ -79,6 +79,8 @@ export interface Product {
   quantityBreaksJson?: string;
   /** Khớp cột DB `is_sale` (tạo/cập nhật sản phẩm). */
   isSale?: boolean;
+  /** ACTIVE / INACTIVE — trạng thái kinh doanh sản phẩm (ngừng hoạt động → mọi biến thể ngừng bán). */
+  status?: string | null;
   /** JSON mảng tối đa 3 nhãn (color / size / weight) cho PDP và admin. */
   variantDimensionLabels?: string | null;
   /** Số biến thể (backend đếm, không cần tải hết SKU khi vào trang). */
@@ -117,6 +119,8 @@ export interface ProductVariant {
   discountPrice?: number;
   imageUrls?: string;
   status?: string;
+  /** Trạng thái sản phẩm cha (ACTIVE/INACTIVE) — từ API khi JOIN product. */
+  productStatus?: string | null;
   barcode?: string;
   /** Tag tìm kiếm / AI (TEXT trên BE). */
   searchTags?: string | null;
@@ -746,8 +750,15 @@ export class ApiService {
   }
 
   // ─── Products ──────────────────────────────────────────
-  getProducts(userId?: number): Observable<Product[]> {
-    const url = userId ? `${this.apiUrl}/products?userId=${userId}` : `${this.apiUrl}/products`;
+  /**
+   * @param includeInactive Khi true (admin), API trả cả sản phẩm INACTIVE. Storefront chỉ truyền userId, không bật cờ này.
+   */
+  getProducts(userId?: number, includeInactive?: boolean): Observable<Product[]> {
+    const params: string[] = [];
+    if (userId != null) params.push(`userId=${userId}`);
+    if (includeInactive === true) params.push('includeInactive=true');
+    const qs = params.length ? `?${params.join('&')}` : '';
+    const url = `${this.apiUrl}/products${qs}`;
     return this.http.get<ApiResponse<Product[]>>(url).pipe(
       map(res => res.data)
     );
@@ -761,7 +772,7 @@ export class ApiService {
             if (Array.isArray(searchParams[key])) {
                 params = params.set(key, searchParams[key].join(','));
             } else {
-                params = params.set(key, searchParams[key]);
+                params = params.set(key, String(searchParams[key]));
             }
         }
     });
@@ -777,8 +788,11 @@ export class ApiService {
     return this.http.get<ApiResponse<Product>>(url).pipe(map(r => r.data));
   }
 
-  getProductsByCategory(categoryId: number, userId?: number): Observable<Product[]> {
-    const q = userId != null ? `?userId=${userId}` : '';
+  getProductsByCategory(categoryId: number, userId?: number, includeInactive?: boolean): Observable<Product[]> {
+    const parts: string[] = [];
+    if (userId != null) parts.push(`userId=${userId}`);
+    if (includeInactive === true) parts.push('includeInactive=true');
+    const q = parts.length ? `?${parts.join('&')}` : '';
     return this.http
       .get<ApiResponse<Product[]>>(`${this.base}/products/category/${categoryId}${q}`)
       .pipe(map(r => r.data || []));

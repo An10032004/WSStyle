@@ -163,7 +163,7 @@ export class ShippingRulesComponent implements OnInit, OnDestroy {
       this.categories = cats;
       this.cdr.detectChanges();
     });
-    this.api.getProducts().subscribe(prods => {
+    this.api.getProducts(undefined, true).subscribe(prods => {
       this.products = prods;
       this.cdr.detectChanges();
     });

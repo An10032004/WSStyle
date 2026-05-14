@@ -3,6 +3,7 @@ package com.fashionstore.core.repository;
 import com.fashionstore.core.dto.response.InventoryInflowVariantRowResponse;
 import com.fashionstore.core.model.ProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,10 +16,16 @@ import java.util.Optional;
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Integer> {
 
     /**
-     * Lấy biến thể theo sản phẩm
+     * Lấy biến thể theo sản phẩm (kèm sản phẩm cha — trạng thái JSON productStatus).
      */
-    @Query("SELECT pv FROM ProductVariant pv WHERE pv.product.id = :productId")
+    @Query("SELECT pv FROM ProductVariant pv JOIN FETCH pv.product WHERE pv.product.id = :productId ORDER BY pv.id ASC")
     List<ProductVariant> findByProductId(@Param("productId") Integer productId);
+
+    @Query("SELECT pv FROM ProductVariant pv JOIN FETCH pv.product WHERE pv.id = :id")
+    Optional<ProductVariant> findByIdWithProduct(@Param("id") Integer id);
+
+    @Query("SELECT pv FROM ProductVariant pv JOIN FETCH pv.product WHERE LOWER(pv.sku) = LOWER(:sku)")
+    Optional<ProductVariant> findBySkuIgnoreCaseWithProduct(@Param("sku") String sku);
 
     /** Chỉ các cột cần cho UI nhập kho — nhẹ hơn trả về entity đầy đủ. */
     @Query(
@@ -54,11 +61,13 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
             SELECT v.product_id, v.discount_price, v.price, v.price_adjustment
             FROM product_variants v
             INNER JOIN (
-                SELECT product_id, MIN(id) AS min_id
-                FROM product_variants
-                WHERE product_id IN (:ids)
-                  AND (status IS NULL OR TRIM(COALESCE(status, '')) = '' OR UPPER(TRIM(status)) <> 'INACTIVE')
-                GROUP BY product_id
+                SELECT vv.product_id, MIN(vv.id) AS min_id
+                FROM product_variants vv
+                INNER JOIN products pp ON pp.id = vv.product_id
+                WHERE vv.product_id IN (:ids)
+                  AND (pp.status IS NULL OR TRIM(COALESCE(pp.status, '')) = '' OR UPPER(TRIM(pp.status)) <> 'INACTIVE')
+                  AND (vv.status IS NULL OR TRIM(COALESCE(vv.status, '')) = '' OR UPPER(TRIM(vv.status)) <> 'INACTIVE')
+                GROUP BY vv.product_id
             ) t ON v.product_id = t.product_id AND v.id = t.min_id
             """, nativeQuery = true)
     List<Object[]> findFirstSellableVariantPricingByProductIds(@Param("ids") Collection<Integer> ids);
@@ -75,6 +84,7 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
                 FROM product_variants v2
                 INNER JOIN products p2 ON p2.id = v2.product_id
                 WHERE v2.product_id IN (:ids)
+                  AND (p2.status IS NULL OR TRIM(COALESCE(p2.status, '')) = '' OR UPPER(TRIM(p2.status)) <> 'INACTIVE')
                   AND (v2.status IS NULL OR TRIM(COALESCE(v2.status, '')) = '' OR UPPER(TRIM(v2.status)) <> 'INACTIVE')
                   AND (
                     (v2.discount_price IS NOT NULL AND v2.discount_price > 0)
@@ -90,9 +100,15 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @Query(value = """
             SELECT v.product_id, COALESCE(SUM(v.stock_quantity), 0)
             FROM product_variants v
+            INNER JOIN products p ON p.id = v.product_id
             WHERE v.product_id IN (:ids)
+              AND (p.status IS NULL OR TRIM(COALESCE(p.status, '')) = '' OR UPPER(TRIM(p.status)) <> 'INACTIVE')
               AND (v.status IS NULL OR TRIM(COALESCE(v.status, '')) = '' OR UPPER(TRIM(v.status)) <> 'INACTIVE')
             GROUP BY v.product_id
             """, nativeQuery = true)
     List<Object[]> sumSellableStockByProductIds(@Param("ids") Collection<Integer> ids);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE ProductVariant v SET v.status = 'INACTIVE' WHERE v.product.id = :productId")
+    int deactivateAllVariantsByProductId(@Param("productId") Integer productId);
 }

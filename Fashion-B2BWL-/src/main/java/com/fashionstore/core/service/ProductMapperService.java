@@ -260,6 +260,7 @@ public class ProductMapperService {
                 .categoryId(categoryId)
                 .productCode(product.getProductCode())
                 .name(product.getName())
+                .status(normalizeProductStatusForDto(product.getStatus()))
                 .basePrice(listAnchor)
                 .calculatedPrice(listAnchor)
                 .imageUrl(product.getImageUrl())
@@ -352,5 +353,12 @@ public class ProductMapperService {
         });
 
         return dto;
+    }
+
+    private static String normalizeProductStatusForDto(String status) {
+        if (status == null || status.isBlank()) {
+            return "ACTIVE";
+        }
+        return status.strip().toUpperCase();
     }
 }

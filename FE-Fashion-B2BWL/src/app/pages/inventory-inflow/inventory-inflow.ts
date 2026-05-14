@@ -116,6 +116,7 @@ export class InventoryInflowComponent implements OnInit, OnDestroy {
             page: 0,
             size: this.productPageSize,
             sortBy: 'newest',
+            includeInactive: 'true',
           }),
         ),
       )
@@ -148,6 +149,7 @@ export class InventoryInflowComponent implements OnInit, OnDestroy {
           page: 0,
           size: this.productPageSize,
           sortBy: 'newest',
+          includeInactive: 'true',
         }),
       );
       this.filteredProducts = page?.content ?? [];

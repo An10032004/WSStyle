@@ -13,15 +13,27 @@ import java.util.List;
 
 public class ProductSpecification {
 
+    /**
+     * @param includeInactive {@code true} = admin / báo cáo (trả cả sản phẩm ngừng kinh doanh); {@code false} = storefront.
+     */
     public static Specification<Product> filterProducts(
             String search,
             List<Integer> categoryIds,
             BigDecimal minPrice,
             BigDecimal maxPrice,
             List<String> brands,
-            List<Integer> productIds) {
+            List<Integer> productIds,
+            boolean includeInactive) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            if (!includeInactive) {
+                predicates.add(
+                        criteriaBuilder.or(
+                                root.get("status").isNull(),
+                                criteriaBuilder.notEqual(
+                                        criteriaBuilder.upper(root.get("status")), "INACTIVE")));
+            }
 
             if (search != null && !search.trim().isEmpty()) {
                 if (query != null) {

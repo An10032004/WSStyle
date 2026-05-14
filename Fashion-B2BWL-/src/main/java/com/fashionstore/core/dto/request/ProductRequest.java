@@ -36,6 +36,9 @@ public class ProductRequest {
     /** null = mặc định false khi tạo; khi cập nhật null = giữ nguyên giá trị cũ. */
     private Boolean isSale;
 
+    /** ACTIVE / INACTIVE; null khi tạo = ACTIVE; null khi cập nhật = giữ nguyên. */
+    private String status;
+
     /** JSON mảng nhãn 3 chiều (color/size/weight); null khi cập nhật = không đổi cột DB. */
     private String variantDimensionLabels;
 }

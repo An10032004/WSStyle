@@ -256,6 +256,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
       sortBy: 'newest',
       page: pageIdx,
       size: this.productListPageSize,
+      includeInactive: 'true',
     };
     if (q) params['search'] = q;
     if (this.filterProductId !== this.filterProductAllSentinel) {
@@ -266,7 +267,7 @@ export class VariantListComponent implements OnInit, OnDestroy {
 
   private buildPickerSearchParams(): Record<string, string | number> {
     const q = this.productQuickFilter.trim();
-    const params: Record<string, string | number> = { sortBy: 'newest', page: 0, size: 80 };
+    const params: Record<string, string | number> = { sortBy: 'newest', page: 0, size: 80, includeInactive: 'true' };
     if (q) params['search'] = q;
     return params;
   }

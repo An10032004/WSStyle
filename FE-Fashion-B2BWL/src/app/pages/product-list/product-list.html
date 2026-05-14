@@ -58,6 +58,22 @@
           <div *ngIf="formErrors['brand']" style="color:var(--tui-status-warning); font-size:0.9rem; margin-top:6px">{{ formErrors['brand'] }}</div>
         </label>
         <label tuiLabel class="form-field">
+          {{ 'PRODUCT.STATUS' | transloco }} *
+          <tui-select
+            [(ngModel)]="formData.status"
+            [valueContent]="statusContent"
+            tuiTextfieldSize="m"
+          >
+            <tui-data-list *tuiDataList>
+              <button tuiOption value="ACTIVE">{{ 'PRODUCT.STATUS_ACTIVE' | transloco }}</button>
+              <button tuiOption value="INACTIVE">{{ 'PRODUCT.STATUS_INACTIVE' | transloco }}</button>
+            </tui-data-list>
+          </tui-select>
+          <ng-template #statusContent let-val>
+            {{ val === 'INACTIVE' ? ('PRODUCT.STATUS_INACTIVE' | transloco) : ('PRODUCT.STATUS_ACTIVE' | transloco) }}
+          </ng-template>
+        </label>
+        <label tuiLabel class="form-field">
           Material
           <tui-textfield>
             <input tuiTextfield [(ngModel)]="formData.material" placeholder="VD: Cotton" />
@@ -119,6 +135,11 @@
 
          <p><strong>{{ 'PRODUCT.CATEGORY' | transloco }}:&nbsp;</strong> {{ getCategoryName(selectedProduct.categoryId ?? null) }}</p>
          <p><strong>{{ 'PRODUCT.BRAND' | transloco }}:&nbsp;</strong> {{ selectedProduct.brand }}</p>
+         <p><strong>{{ 'PRODUCT.STATUS' | transloco }}:&nbsp;</strong>
+           {{ (selectedProduct.status ?? 'ACTIVE').toString().toUpperCase() === 'INACTIVE'
+             ? ('PRODUCT.STATUS_INACTIVE' | transloco)
+             : ('PRODUCT.STATUS_ACTIVE' | transloco) }}
+         </p>
          <p><strong>Material:&nbsp;</strong> {{ selectedProduct.material }}</p>
          <p><strong>Origin:&nbsp;</strong> {{ selectedProduct.origin }}</p>
 

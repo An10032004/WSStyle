@@ -57,6 +57,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     origin: '',
     imageUrl: '',
     imageUrls: [] as string[],
+    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
   };
 
   formErrors: Record<string, string> = {};
@@ -161,6 +162,19 @@ export class ProductListComponent implements OnInit, OnDestroy {
         width: 150, 
         sortable: true, 
         filter: true 
+      },
+      {
+        headerName: this.transloco.translate('PRODUCT.STATUS'),
+        field: 'status',
+        width: 150,
+        sortable: true,
+        filter: true,
+        valueGetter: (params: any) => {
+          const s = (params.data?.status ?? 'ACTIVE').toString().toUpperCase();
+          return s === 'INACTIVE'
+            ? this.transloco.translate('PRODUCT.STATUS_INACTIVE')
+            : this.transloco.translate('PRODUCT.STATUS_ACTIVE');
+        },
       },
       { 
         headerName: this.transloco.translate('PRODUCT.NAME'), 
@@ -277,7 +291,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
-    this.api.getProducts().subscribe((data) => {
+    this.api.getProducts(undefined, true).subscribe((data) => {
       this.rowData = data;
       this.cdr.detectChanges();
     });
@@ -295,7 +309,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
       basePrice: 0, 
       categoryId: null, 
       imageUrl: '',
-      imageUrls: []
+      imageUrls: [],
+      status: 'ACTIVE',
     };
     this.showForm = true;
     this.showDetails = false;
@@ -348,6 +363,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
         categoryId: p.categoryId ?? null,
         imageUrl: p.imageUrl ?? '',
         imageUrls: this.parseImageUrls(p.imageUrls),
+        status: (p.status ?? 'ACTIVE').toString().toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
       };
       
       this.api.getTranslationByLang('PRODUCT', p.id, this.currentLanguage).subscribe({
@@ -374,6 +390,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
         categoryId: p.categoryId ?? null,
         imageUrl: p.imageUrl ?? '',
         imageUrls: this.parseImageUrls(p.imageUrls),
+        status: (p.status ?? 'ACTIVE').toString().toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
       };
       this.showForm = true;
     }
@@ -411,7 +428,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
         ...restData,
         name: this.originalProduct?.name || this.formData.name,
         basePrice: numericPrice,
-        imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
+        imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(','),
+        status: this.formData.status,
       };
       
       this.api.updateProduct(this.editingId, globalUpdate).subscribe({
@@ -440,7 +458,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const body: any = { 
       ...rest,
       basePrice: numericPrice,
-      imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(',')
+      imageUrls: this.formData.imageUrls.filter((u: string) => !!u.trim()).join(','),
+      status: this.formData.status,
     };
       
       if (this.editingId) {

@@ -111,7 +111,7 @@ export class TaxDisplayRulesComponent implements OnInit, OnDestroy {
       this.categories = data;
       this.cdr.detectChanges();
     });
-    this.api.getProducts().subscribe(data => {
+    this.api.getProducts(undefined, true).subscribe(data => {
       this.products = data;
       this.cdr.detectChanges();
     });

@@ -42,7 +42,7 @@ public class AiAssistantAdminProductPickerService {
         }
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Product> productsPage =
-                productService.getProductsPaged(search, null, null, null, null, null, pageable);
+                productService.getProductsPaged(search, null, null, null, null, null, pageable, true);
         if (productsPage.isEmpty()) {
             return Page.empty(pageable);
         }

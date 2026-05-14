@@ -110,7 +110,7 @@ export class OrderLimitsComponent implements OnInit, OnDestroy {
       this.cdr.detectChanges();
     });
     this.api.getCategories().subscribe(data => { this.categories = data; this.cdr.detectChanges(); });
-    this.api.getProducts().subscribe(data => { this.products = data; this.cdr.detectChanges(); });
+    this.api.getProducts(undefined, true).subscribe(data => { this.products = data; this.cdr.detectChanges(); });
     this.api.getCustomerGroups().subscribe(data => { this.customerGroups = data; this.cdr.detectChanges(); });
   }
 

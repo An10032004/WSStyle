@@ -164,7 +164,7 @@ export class AiAssistantBubbleComponent implements OnInit {
           if (allIds.size === 0) {
             return of({ turns, products: [] as Product[] });
           }
-          return this.api.searchProducts({ productIds: [...allIds], userId: u.id }).pipe(
+          return this.api.searchProducts({ productIds: [...allIds], userId: u.id, includeInactive: 'true' }).pipe(
             map((page) => ({ turns, products: page.content })),
             catchError(() => of({ turns, products: [] as Product[] }))
           );
